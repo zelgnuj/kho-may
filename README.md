@@ -28,16 +28,18 @@ Vercel: Import repo → Framework "Vite" → Deploy (`vercel.json` đã có rewr
 
 ### Tự tra giá thị trường
 
-`api/price.ts` là hàm Vercel gọi Claude API kèm công cụ tìm kiếm web để tìm giá đã bán gần đây.
-Cần thêm biến môi trường trong Vercel → Settings → Environment Variables:
+`api/price.ts` lấy giá từ **eBay Browse API** (tin đang rao bán, đồ cũ, Mua ngay), lọc tin hỏng / phụ kiện / biến thể khác tên, bỏ giá ngoại lai rồi lấy trung vị. Đây là giá rao, thường cao hơn giá thực bán.
+
+Biến môi trường trong Vercel → Settings → Environment Variables:
 
 | Biến | Bắt buộc | Ghi chú |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | có | Tạo ở console.anthropic.com |
-| `PRICE_TOKEN` | có | Mã tự đặt, nhập giống hệt vào Cài đặt trong app |
-| `CLAUDE_MODEL` | không | Mặc định `claude-sonnet-5-5` |
+| `EBAY_CLIENT_ID` | có | App ID (Client ID) của keyset **Production** trên developer.ebay.com |
+| `EBAY_CLIENT_SECRET` | có | Cert ID (Client Secret) của keyset Production |
+| `PRICE_TOKEN` | không | Nếu đặt, nhập giống hệt vào Cài đặt trong app |
+| `ANTHROPIC_API_KEY` | không | Bật dự phòng bằng Claude + tìm kiếm web khi eBay thiếu dữ liệu (tốn phí; chỉ chạy khi có `PRICE_TOKEN`) |
 
-Sau khi thêm biến, Redeploy một lần. App tự tra giá các máy có giá cũ mỗi khi mở.
+Sau khi thêm biến, Redeploy một lần.
 
 ## Cấu trúc
 

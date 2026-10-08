@@ -11,7 +11,7 @@ import { CameraArt } from '../components/CameraArt';
 import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
 
-const BASIS: Record<string, string> = { sold: 'Theo giá đã bán', asking: 'Theo giá rao bán', mixed: 'Giá bán + giá rao' };
+const BASIS: Record<string, string> = { sold: 'Theo giá đã bán', asking: 'Theo giá rao bán eBay', mixed: 'Giá bán + giá rao' };
 const CONF: Record<string, string> = { high: 'cao', medium: 'vừa', low: 'thấp' };
 
 function HeroPhoto({ photo }: { photo: Photo }) {
@@ -52,11 +52,6 @@ export default function Detail() {
   const pct = changePct(prices);
 
   const autoLookup = async () => {
-    if (!settings.priceToken) {
-      toast('Cần nhập mã truy cập tra giá trong Cài đặt trước');
-      nav('/cai-dat');
-      return;
-    }
     setLooking(true);
     try {
       const v = await refreshCameraPrice(cam, settings.priceToken);
@@ -175,8 +170,8 @@ export default function Detail() {
           </>
         ) : (
           <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>
-            {looking ? 'Đang tìm giá đã bán gần đây trên eBay, Yahoo! Auction JP và các cửa hàng máy ảnh… (khoảng 20–40 giây)'
-              : cam.marketNote || 'Chưa có giá. Bấm “Tự tra giá” để app tự tìm giá đã bán gần đây.'}
+            {looking ? 'Đang tìm các tin rao bán của mẫu này trên eBay…'
+              : cam.marketNote || 'Chưa có giá. Bấm “Tự tra giá” để app tự lấy giá từ eBay.'}
           </p>
         )}
         <div className="form-grid" style={{ paddingTop: 12, borderTop: '1px solid var(--line)' }}>

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, useCameras, useSettings, type Camera } from '../db';
 import { runPriceQueue, usePriceQueue } from '../lib/autoPrice';
-import { toast } from '../lib/toast';
 import { TYPE_LABEL, TYPE_ORDER, fullName, purchaseVND, trieu } from '../lib/format';
 import { changePct, groupPrices, isStale, valueTimeline } from '../lib/stats';
 import { Segmented } from '../components/ui';
@@ -59,11 +58,7 @@ export default function Value() {
   const [range, setRange] = useState('90');
   const byCam = useMemo(() => groupPrices(prices), [prices]);
   const q = usePriceQueue();
-  const nav = useNavigate();
-  const startQueue = (list: Camera[]) => {
-    if (!settings.priceToken) { toast('Cần nhập mã truy cập tra giá trong Cài đặt trước'); nav('/cai-dat'); return; }
-    runPriceQueue(list);
-  };
+  const startQueue = (list: Camera[]) => { runPriceQueue(list); };
 
   if (!cams) return <div className="page" />;
   const owned = cams.filter((c) => c.status === 'owned');
@@ -219,9 +214,9 @@ export default function Value() {
             {q.running ? `Đang tra giá ${q.done}/${q.total}…` : `Tra lại giá cả ${owned.length} máy`}
           </button>
           <span className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
-            {settings.priceToken
-              ? `App tự tra giá các máy có giá cũ hơn ${settings.autoPriceDays} ngày mỗi khi bạn mở app.`
-              : 'Chưa bật tự tra giá — vào Cài đặt để nhập mã truy cập.'}
+            {settings.autoPrice
+              ? `App tự lấy giá từ eBay cho các máy có giá cũ hơn ${settings.autoPriceDays} ngày mỗi khi bạn mở app.`
+              : 'Tự tra giá đang tắt — bật lại trong Cài đặt.'}
           </span>
         </div>
       )}

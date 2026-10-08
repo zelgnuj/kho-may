@@ -6,7 +6,7 @@ import { TYPE_LABEL, daysSince, fmtDate, fmtTs, median, money, parseAmount, pars
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
-import { refreshCameraPrice } from '../lib/autoPrice';
+import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
 import { CameraArt } from '../components/CameraArt';
 import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
@@ -52,10 +52,14 @@ export default function Detail() {
   const pct = changePct(prices);
 
   const autoLookup = async () => {
+    const left = remainingQuota(settings);
+    if (left <= 0) { toast(`Đã dùng hết ${settings.monthlyQuota} lượt tra giá tháng này. Có thể nhập tay.`); return; }
+    const age = cam.marketUpdatedAt ? Math.floor((Date.now() - cam.marketUpdatedAt) / 86400000) : null;
+    if (age != null && age < 7 && !window.confirm(`Giá vừa cập nhật ${age === 0 ? 'hôm nay' : `${age} ngày trước`}. Tra lại sẽ tốn 1 lượt (còn ${left} lượt tháng này). Vẫn tra?`)) return;
     setLooking(true);
     try {
-      const v = await refreshCameraPrice(cam, settings.priceToken);
-      toast(v != null ? `Giá thị trường: ${trieu(v)} tr` : 'Chưa tìm được dữ liệu giá đủ tin cậy');
+      const v = await refreshCameraPrice(cam, 'manual');
+      toast(v != null ? `Giá thị trường: ${trieu(v)} tr · còn ${left - 1} lượt` : 'Chưa tìm được dữ liệu giá đủ tin cậy');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Lỗi khi tra giá');
     } finally {

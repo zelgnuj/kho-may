@@ -162,6 +162,8 @@ async function fromEbay(b: PriceBody, id: string, secret: string): Promise<Resul
 
 /* ---------------- CompSniper (giá ĐÃ BÁN trên eBay) ---------------- */
 
+let compsniperExhausted = false;
+
 async function fromCompSniper(b: PriceBody, key: string): Promise<Result | null> {
   const brand = (b.brand ?? '').trim();
   const model = (b.model ?? '').trim();
@@ -172,7 +174,8 @@ async function fromCompSniper(b: PriceBody, key: string): Promise<Result | null>
   const r = await fetch(url, { headers: { authorization: `Bearer ${key}` } });
   if (!r.ok) {
     // Hết lượt / lỗi tạm thời → trả null để chuyển sang nguồn khác
-    if (r.status === 429 || r.status === 402 || r.status >= 500) return null;
+    if (r.status === 429 || r.status === 402) { compsniperExhausted = true; return null; }
+    if (r.status >= 500) return null;
     const d = await r.json().catch(() => ({}));
     throw new Error(`CompSniper: ${d?.error ?? d?.message ?? r.status}`);
   }
@@ -298,6 +301,8 @@ export default async function handler(req: any, res: any) {
   try {
     let result: Result | null = null;
     const errors: string[] = [];
+    compsniperExhausted = false;
+    const compsniperUsed = !!compKey;
     if (compKey) {
       try { result = await fromCompSniper(body, compKey); }
       catch (e) { errors.push(e instanceof Error ? e.message : 'CompSniper lỗi'); }
@@ -307,7 +312,7 @@ export default async function handler(req: any, res: any) {
       catch (e) { errors.push(e instanceof Error ? e.message : 'eBay lỗi'); }
     }
     if (!result && useClaude) result = await fromClaude(body, anthropic!);
-    if (!result && errors.length) return res.status(502).json({ error: errors.join(' · ') });
+    if (!result && errors.length) return res.status(502).json({ error: errors.join(' · '), compsniperUsed, compsniperExhausted });
 
     const rate = await usdToVnd();
     const vnd = (v: number | null | undefined) => (v != null && rate ? Math.round((v * rate) / 10000) * 10000 : null);
@@ -315,11 +320,13 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({
         provider: providers[0], usd: { low: null, median: null, high: null }, vnd: { low: null, median: null, high: null },
         rate, basis: 'mixed', confidence: 'low', includes: 'unknown', sampleSize: 0,
-        note: 'Không đủ dữ liệu trên eBay cho mẫu này (cần ít nhất 3 tin khớp đúng tên). Có thể nhập tay.', sources: []
+        note: 'Không đủ dữ liệu trên eBay cho mẫu này (cần ít nhất 3 tin khớp đúng tên). Có thể nhập tay.', sources: [],
+        compsniperUsed, compsniperExhausted
       });
     }
     return res.status(200).json({
       ...result,
+      compsniperUsed, compsniperExhausted,
       rate,
       vnd: { low: vnd(result.usd.low), median: vnd(result.usd.median), high: vnd(result.usd.high) }
     });

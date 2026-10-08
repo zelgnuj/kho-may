@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { db, setSetting, useSettings } from '../db';
+import { db, setSetting, useCameras, useSettings } from '../db';
 import { fmtTs, parseAmount } from '../lib/format';
 import { refreshRates } from '../lib/rates';
-import { pingPriceApi } from '../lib/autoPrice';
+import { estimateMonthlyAuto, normalizeUsage, pingPriceApi, uniqueModels } from '../lib/autoPrice';
 import { toast } from '../lib/toast';
 import { Segmented } from '../components/ui';
 
@@ -20,6 +20,10 @@ export default function SettingsPage() {
   const [tokenOk, setTokenOk] = useState<boolean | null>(null);
   const [tokenErr, setTokenErr] = useState('');
   const [providerLabel, setProviderLabel] = useState('');
+  const cams = useCameras() ?? [];
+  const usage = normalizeUsage(s.priceUsage);
+  const models = uniqueModels(cams.filter((c) => c.status === 'owned')).length;
+  const estimate = estimateMonthlyAuto(cams, s.autoPriceDays);
   useEffect(() => { setToken(s.priceToken); }, [s.priceToken]);
 
   useEffect(() => { setName(s.ownerName); }, [s.ownerName]);
@@ -110,7 +114,29 @@ export default function SettingsPage() {
         </div>
         <div className="field">Tra lại khi giá cũ hơn
           <Segmented label="Chu kỳ tra giá" value={String(s.autoPriceDays)} onChange={(v) => setSetting('autoPriceDays', Number(v))}
-            options={[{ value: '7', label: '7 ngày' }, { value: '30', label: '30 ngày' }, { value: '90', label: '90 ngày' }]} />
+            options={[{ value: '30', label: '30 ngày' }, { value: '60', label: '60 ngày' }, { value: '90', label: '90 ngày' }]} />
+        </div>
+        <div className="field">Lượt dành cho tự động mỗi tháng
+          <Segmented label="Lượt tự động" value={String(s.autoBudget)} onChange={(v) => setSetting('autoBudget', Number(v))}
+            options={[{ value: '30', label: '30' }, { value: '60', label: '60' }, { value: '80', label: '80' }]} />
+        </div>
+
+        <div className="panel" aria-label="Lượt tra giá tháng này">
+          <div className="section-head">
+            <h3 className="h2">Tháng này</h3>
+            <span className="mono" style={{ fontSize: 13 }}>{usage.total} / {s.monthlyQuota} lượt</span>
+          </div>
+          <div className="progress"><div style={{ width: `${Math.min(100, (usage.total / s.monthlyQuota) * 100)}%`, background: usage.total >= s.monthlyQuota ? 'var(--down)' : undefined }} /></div>
+          <div className="form-grid" style={{ fontSize: 12, color: 'var(--muted)' }}>
+            <span>Tự động: {usage.auto} / {s.autoBudget}</span>
+            <span>Bạn tự bấm: {usage.total - usage.auto}</span>
+          </div>
+          <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-2)' }}>
+            Với {models} mẫu máy, tra lại mỗi {s.autoPriceDays} ngày tốn khoảng <b>{estimate} lượt/tháng</b>.
+            Máy cùng mẫu dùng chung 1 lượt; máy mới được tra ngay, còn máy cũ được rải tối đa {Math.max(1, Math.ceil(s.autoBudget / 30))} máy mỗi ngày.
+            {estimate > s.autoBudget && <span className="down"> Vượt hạn mức tự động — nên chọn chu kỳ dài hơn.</span>}
+          </p>
+          <span className="muted" style={{ fontSize: 11 }}>Đếm trên thiết bị này. Gói miễn phí CompSniper: {s.monthlyQuota} lượt/tháng, hết lượt app tự chuyển sang giá rao eBay (nếu có khóa).</span>
         </div>
       </section>
 

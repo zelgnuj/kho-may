@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, useCameras, useSettings, type Camera } from '../db';
-import { runPriceQueue, usePriceQueue } from '../lib/autoPrice';
+import { remainingQuota, runPriceQueue, uniqueModels, usePriceQueue } from '../lib/autoPrice';
 import { TYPE_LABEL, TYPE_ORDER, fullName, purchaseVND, trieu } from '../lib/format';
 import { changePct, groupPrices, isStale, valueTimeline } from '../lib/stats';
 import { Segmented } from '../components/ui';
@@ -58,7 +58,14 @@ export default function Value() {
   const [range, setRange] = useState('90');
   const byCam = useMemo(() => groupPrices(prices), [prices]);
   const q = usePriceQueue();
-  const startQueue = (list: Camera[]) => { runPriceQueue(list); };
+  const startQueue = (list: Camera[]) => {
+    const n = uniqueModels(list).length;
+    const left = remainingQuota(settings);
+    if (left <= 0) { window.alert(`Đã dùng hết ${settings.monthlyQuota} lượt tra giá tháng này.`); return; }
+    const use = Math.min(n, left);
+    if (!window.confirm(`Tra giá ${n} mẫu máy sẽ dùng ${use} lượt${use < n ? ` (chỉ đủ cho ${use} mẫu)` : ''}. Còn ${left} lượt tháng này. Tiếp tục?`)) return;
+    runPriceQueue(list, { kind: 'manual' });
+  };
 
   if (!cams) return <div className="page" />;
   const owned = cams.filter((c) => c.status === 'owned');
@@ -211,11 +218,11 @@ export default function Value() {
       {owned.length > 0 && (
         <div className="px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button type="button" className="btn secondary" disabled={q.running} onClick={() => startQueue(owned)}>
-            {q.running ? `Đang tra giá ${q.done}/${q.total}…` : `Tra lại giá cả ${owned.length} máy`}
+            {q.running ? `Đang tra giá ${q.done}/${q.total}…` : `Tra lại giá cả ${uniqueModels(owned).length} mẫu máy`}
           </button>
           <span className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
             {settings.autoPrice
-              ? `App tự lấy giá từ eBay cho các máy có giá cũ hơn ${settings.autoPriceDays} ngày mỗi khi bạn mở app.`
+              ? `Tự động: máy mới được tra ngay; máy có giá cũ hơn ${settings.autoPriceDays} ngày được tra lại rải rác vài máy mỗi ngày. Còn ${remainingQuota(settings)} lượt tháng này.`
               : 'Tự tra giá đang tắt — bật lại trong Cài đặt.'}
           </span>
         </div>

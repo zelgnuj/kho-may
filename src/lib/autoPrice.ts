@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { addPrice, db, getSettings, patchCamera, type Camera, type PriceSource } from '../db';
+import { addPrice, db, getSettings, patchCamera, setSetting, type Camera, type PriceSource, type Settings } from '../db';
 
 export interface LookupResult {
   usd: { low: number | null; median: number | null; high: number | null };
@@ -9,11 +9,54 @@ export interface LookupResult {
   includes: string;
   note: string;
   sources: PriceSource[];
+  provider?: string;
+  /** Máy chủ đã gọi CompSniper (tốn 1 lượt), kể cả khi phải chuyển nguồn khác */
+  compsniperUsed?: boolean;
+  /** CompSniper báo hết lượt tháng này */
+  compsniperExhausted?: boolean;
 }
 
 export class PriceError extends Error {
   constructor(message: string, public fatal: boolean) { super(message); }
 }
+
+const DAY = 86400000;
+
+/* ---------- Đếm lượt dùng trong tháng ---------- */
+
+export type PriceUsage = Settings['priceUsage'];
+
+const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const dayKey = (d = new Date()) => `${monthKey(d)}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Chuẩn hóa: sang tháng mới / ngày mới thì đếm lại từ 0 */
+export function normalizeUsage(u: PriceUsage | undefined): PriceUsage {
+  const m = monthKey(), d = dayKey();
+  const base = u && u.month === m ? u : { month: m, total: 0, auto: 0, day: d, dayAuto: 0, exhausted: false };
+  return base.day === d ? base : { ...base, day: d, dayAuto: 0 };
+}
+
+async function recordUsage(kind: 'auto' | 'manual', exhausted: boolean) {
+  const s = await getSettings();
+  const u = normalizeUsage(s.priceUsage);
+  const next: PriceUsage = {
+    ...u,
+    total: exhausted ? Math.max(u.total, s.monthlyQuota) : u.total + 1,
+    auto: kind === 'auto' ? u.auto + 1 : u.auto,
+    dayAuto: kind === 'auto' ? u.dayAuto + 1 : u.dayAuto,
+    exhausted: u.exhausted || exhausted
+  };
+  await setSetting('priceUsage', next);
+  return next;
+}
+
+/** Số lượt còn lại trong tháng (toàn bộ) */
+export function remainingQuota(s: Settings) {
+  const u = normalizeUsage(s.priceUsage);
+  return u.exhausted ? 0 : Math.max(0, s.monthlyQuota - u.total);
+}
+
+/* ---------- Gọi API ---------- */
 
 async function callApi(token: string, body: unknown) {
   let res: Response;
@@ -28,7 +71,7 @@ async function callApi(token: string, body: unknown) {
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // 401/503/404: sai mã hoặc máy chủ chưa cấu hình → dừng cả hàng đợi
+    if (data?.compsniperUsed) await recordUsage('manual', !!data.compsniperExhausted);
     const fatal = res.status === 401 || res.status === 503 || res.status === 404 || res.status === 405;
     throw new PriceError(data?.error ?? `Lỗi ${res.status}`, fatal);
   }
@@ -39,35 +82,42 @@ export async function pingPriceApi(token: string): Promise<{ providers: string[]
   return callApi(token, { ping: true });
 }
 
-export async function lookupPrice(cam: Camera, token: string): Promise<LookupResult> {
-  return callApi(token, {
+const modelKey = (c: Pick<Camera, 'brand' | 'model'>) => `${c.brand}|${c.model}`.toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Tra giá một mẫu máy (1 lượt) và áp kết quả cho MỌI máy đang có cùng mẫu.
+ * Trả về giá VNĐ hoặc null nếu không đủ dữ liệu.
+ */
+export async function refreshCameraPrice(cam: Camera, kind: 'auto' | 'manual' = 'manual'): Promise<number | null> {
+  const s = await getSettings();
+  if (remainingQuota(s) <= 0) throw new PriceError(`Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này`, true);
+
+  const r: LookupResult = await callApi(s.priceToken, {
     brand: cam.brand, model: cam.model, type: cam.type, format: cam.format,
     condition: cam.condition, lenses: cam.lenses.map((l) => l.name)
   });
-}
+  if (r.compsniperUsed) await recordUsage(kind, !!r.compsniperExhausted);
 
-/** Tra giá một máy và lưu kết quả. Trả về giá VNĐ hoặc null nếu không tìm được. */
-export async function refreshCameraPrice(cam: Camera, token: string): Promise<number | null> {
-  const r = await lookupPrice(cam, token);
+  const key = modelKey(cam);
+  const siblings = (await db.cameras.toArray()).filter((c) => !c.deletedAt && c.status === 'owned' && modelKey(c) === key);
+  const targets = siblings.some((c) => c.id === cam.id) ? siblings : [cam, ...siblings];
+
   if (r.vnd.median == null) {
-    await patchCamera(cam.id, { marketCheckedAt: Date.now(), marketNote: r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.' });
+    const note = r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.';
+    await Promise.all(targets.map((c) => patchCamera(c.id, { marketCheckedAt: Date.now(), marketNote: c.marketValue == null ? note : c.marketNote })));
     return null;
   }
-  await addPrice(cam.id, r.vnd.median, r.vnd.low, r.vnd.high, {
-    source: 'auto', note: r.note, basis: r.basis, confidence: r.confidence, sources: r.sources, usdMedian: r.usd.median
-  });
+  for (const c of targets) {
+    await addPrice(c.id, r.vnd.median, r.vnd.low, r.vnd.high, {
+      source: 'auto', note: r.note, basis: r.basis, confidence: r.confidence, sources: r.sources, usdMedian: r.usd.median
+    });
+  }
   return r.vnd.median;
 }
 
-/* ---------- Hàng đợi tự cập nhật ---------- */
+/* ---------- Hàng đợi ---------- */
 
-interface QueueState {
-  running: boolean;
-  done: number;
-  total: number;
-  current: string;
-  error: string | null;
-}
+interface QueueState { running: boolean; done: number; total: number; current: string; error: string | null }
 
 let state: QueueState = { running: false, done: 0, total: 0, current: '', error: null };
 let stopFlag = false;
@@ -77,42 +127,70 @@ const emit = (patch: Partial<QueueState>) => { state = { ...state, ...patch }; l
 export function usePriceQueue() {
   return useSyncExternalStore((cb) => { listeners.add(cb); return () => listeners.delete(cb); }, () => state);
 }
-
 export function stopPriceQueue() { stopFlag = true; }
 export function clearPriceQueueError() { emit({ error: null }); }
 
-export async function runPriceQueue(cams: Camera[], opts: { silent?: boolean } = {}) {
-  if (state.running || !cams.length) return;
-  const { priceToken } = await getSettings();
+/** Gom máy theo mẫu: mỗi mẫu chỉ tra 1 lần */
+export function uniqueModels(cams: Camera[]) {
+  const seen = new Set<string>();
+  return cams.filter((c) => { const k = modelKey(c); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+export async function runPriceQueue(cams: Camera[], opts: { silent?: boolean; kind?: 'auto' | 'manual'; max?: number } = {}) {
+  if (state.running) return;
+  const s = await getSettings();
+  const list = uniqueModels(cams).slice(0, Math.min(opts.max ?? Infinity, remainingQuota(s)));
+  if (!list.length) {
+    if (!opts.silent && cams.length) emit({ error: `Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này` });
+    return;
+  }
   stopFlag = false;
-  emit({ running: true, done: 0, total: cams.length, current: '', error: null });
-  let i = 0;
-  const worker = async () => {
-    while (!stopFlag && i < cams.length) {
-      const cam = cams[i++];
-      emit({ current: `${cam.brand} ${cam.model}` });
-      try {
-        await refreshCameraPrice(cam, priceToken);
-      } catch (e) {
-        if (e instanceof PriceError && e.fatal) { stopFlag = true; if (!opts.silent) emit({ error: e.message }); break; }
-        await patchCamera(cam.id, { marketCheckedAt: Date.now() });
-      }
-      emit({ done: state.done + 1 });
+  emit({ running: true, done: 0, total: list.length, current: '', error: null });
+  for (const cam of list) {
+    if (stopFlag) break;
+    emit({ current: `${cam.brand} ${cam.model}` });
+    try {
+      await refreshCameraPrice(cam, opts.kind ?? 'manual');
+    } catch (e) {
+      if (e instanceof PriceError && e.fatal) { stopFlag = true; if (!opts.silent) emit({ error: e.message }); break; }
+      await patchCamera(cam.id, { marketCheckedAt: Date.now() });
     }
-  };
-  await Promise.all([worker(), worker()]);
+    emit({ done: state.done + 1 });
+  }
   emit({ running: false, current: '' });
 }
 
-/** Gọi khi mở app: tự tra giá các máy đang có mà giá đã cũ */
-export async function autoRefreshStale(limit = 30) {
+/**
+ * Tự tra khi mở app, tiết kiệm lượt:
+ *  - Máy mới chưa có giá: tra ngay (trong hạn mức tự động của tháng).
+ *  - Máy đã có giá: chỉ tra lại khi cũ hơn chu kỳ, và tối đa vài máy mỗi ngày để rải đều cả tháng.
+ *  - Máy đã tra mà không đủ dữ liệu: 90 ngày sau mới thử lại.
+ *  - Máy cùng mẫu dùng chung 1 lượt.
+ */
+export async function autoRefreshStale() {
   const s = await getSettings();
   if (!s.autoPrice || !navigator.onLine) return;
-  const cutoff = Date.now() - s.autoPriceDays * 86400000;
-  const stale = (await db.cameras.toArray())
-    .filter((c) => !c.deletedAt && c.status === 'owned')
-    .filter((c) => !c.marketCheckedAt || c.marketCheckedAt < cutoff)
-    .sort((a, b) => (a.marketCheckedAt ?? 0) - (b.marketCheckedAt ?? 0))
-    .slice(0, limit);
-  await runPriceQueue(stale, { silent: true });
+  const u = normalizeUsage(s.priceUsage);
+  const autoLeft = Math.min(Math.max(0, s.autoBudget - u.auto), remainingQuota(s));
+  if (autoLeft <= 0) return;
+
+  const now = Date.now();
+  const owned = (await db.cameras.toArray()).filter((c) => !c.deletedAt && c.status === 'owned');
+  const fresh = uniqueModels(owned.filter((c) => c.marketValue == null && !c.marketCheckedAt));
+  const stale = uniqueModels(owned.filter((c) => {
+    if (!c.marketCheckedAt) return false;
+    if (c.marketValue == null) return now - c.marketCheckedAt > 90 * DAY;
+    return now - (c.marketUpdatedAt ?? c.marketCheckedAt) > s.autoPriceDays * DAY;
+  })).sort((a, b) => (a.marketUpdatedAt ?? a.marketCheckedAt ?? 0) - (b.marketUpdatedAt ?? b.marketCheckedAt ?? 0));
+
+  const dailyCap = Math.max(1, Math.ceil(s.autoBudget / 30));
+  const staleToday = stale.slice(0, Math.max(0, dailyCap - u.dayAuto));
+  const list = [...fresh, ...staleToday].slice(0, autoLeft);
+  if (list.length) await runPriceQueue(list, { silent: true, kind: 'auto' });
+}
+
+/** Ước lượng số lượt tự động mỗi tháng với bộ sưu tập hiện tại */
+export function estimateMonthlyAuto(cams: Camera[], cycleDays: number) {
+  const n = uniqueModels(cams.filter((c) => c.status === 'owned' && !c.deletedAt)).length;
+  return Math.ceil((n * 30) / cycleDays);
 }

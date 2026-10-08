@@ -152,7 +152,13 @@ export interface Settings {
   /** Mã truy cập cho /api/price (PRICE_TOKEN trên Vercel) */
   priceToken: string;
   autoPrice: boolean;
+  /** Tra lại giá sau bao nhiêu ngày */
   autoPriceDays: number;
+  /** Tổng lượt tra giá mỗi tháng (gói CompSniper) */
+  monthlyQuota: number;
+  /** Số lượt dành cho tự động mỗi tháng; phần còn lại để bạn tự bấm */
+  autoBudget: number;
+  priceUsage: { month: string; total: number; auto: number; day: string; dayAuto: number; exhausted: boolean };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -162,7 +168,10 @@ export const DEFAULT_SETTINGS: Settings = {
   rates: { JPY: null, USD: null, updatedAt: null },
   priceToken: '',
   autoPrice: true,
-  autoPriceDays: 30
+  autoPriceDays: 60,
+  monthlyQuota: 100,
+  autoBudget: 60,
+  priceUsage: { month: '', total: 0, auto: 0, day: '', dayAuto: 0, exhausted: false }
 };
 
 export function useSettings(): Settings {

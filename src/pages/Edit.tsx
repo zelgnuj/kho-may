@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, blankCamera, db, deletePhoto, patchCamera, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
-import { guessType } from '../lib/catalog';
+import { defaultLensKind, guessLens, guessType } from '../lib/catalog';
+import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
 import { DateInput, Segmented } from '../components/ui';
@@ -37,6 +38,8 @@ export default function Edit() {
 
   const [c, setC] = useState<Camera>(() => blankCamera());
   const [typeTouched, setTypeTouched] = useState(false);
+  const [lensTouched, setLensTouched] = useState(false);
+  const [lensKey, setLensKey] = useState(0);
   const [price, setPrice] = useState('');
   const [tags, setTags] = useState('');
   const [pending, setPending] = useState<Blob[]>([]);
@@ -47,6 +50,8 @@ export default function Edit() {
     if (existing) {
       setC(existing);
       setTypeTouched(true);
+      setLensTouched(!!existing.lens && !existing.lens.auto && (existing.lens.focal != null || existing.lens.kind === 'interchangeable'));
+      setLensKey((k) => k + 1);
       setPrice(existing.purchasePrice != null ? String(existing.purchasePrice) : '');
       setTags(existing.tags.join(', '));
     }
@@ -60,6 +65,19 @@ export default function Edit() {
     if (typeTouched || !guess.type) return;
     setC((prev) => ({ ...prev, type: guess.type, format: guess.format ?? (guess.type === 'DIG' ? 'Digital' : prev.format) }));
   }, [guess.type, guess.format, typeTouched]);
+
+  // Gợi ý thông số ống kính liền theo mẫu máy (khi người dùng chưa tự nhập)
+  useEffect(() => {
+    if (lensTouched) return;
+    const g = guessLens(c.brand, c.model, c.type);
+    const next = g ?? { kind: defaultLensKind(c.type), focal: null, focalMax: null, aperture: null, apertureMax: null };
+    setC((prev) => {
+      const cur = prev.lens;
+      if (cur && cur.kind === next.kind && cur.focal === next.focal && cur.aperture === next.aperture && cur.focalMax === next.focalMax) return prev;
+      return { ...prev, lens: next };
+    });
+    setLensKey((k) => k + 1);
+  }, [c.brand, c.model, c.type, lensTouched]);
 
   const priceValue = c.purchaseCurrency === 'VND' ? parseVND(price) : parseAmount(price);
   const canSave = c.brand.trim() && c.model.trim();
@@ -87,6 +105,7 @@ export default function Edit() {
     if (again) {
       setC({ ...blankCamera(), brand: cam.brand, format: cam.format });
       setTypeTouched(false);
+      setLensTouched(false);
       setPrice(''); setTags(''); setPending([]);
       window.scrollTo(0, 0);
     } else {
@@ -157,6 +176,15 @@ export default function Edit() {
         <label className="field">Số serial
           <input className="input mono" value={c.serial} onChange={(e) => set('serial', e.target.value)} placeholder="Không bắt buộc" />
         </label>
+      </section>
+
+      <section className="section px" aria-label="Ống kính" style={{ gap: 14 }}>
+        <h2 className="h-mono">ỐNG KÍNH {c.lens?.auto && <span style={{ color: 'var(--accent)', letterSpacing: 0 }}> · tự điền theo mẫu, kiểm tra lại</span>}</h2>
+        <LensSpecFields
+          key={lensKey}
+          value={c.lens ?? { kind: defaultLensKind(c.type), focal: null, focalMax: null, aperture: null, apertureMax: null }}
+          onChange={(v) => { setLensTouched(true); set('lens', v); }}
+        />
       </section>
 
       <section className="section px" aria-label="Tình trạng" style={{ gap: 14 }}>

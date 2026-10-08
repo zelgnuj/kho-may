@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { blankCamera, db, type Camera, type Currency, uid } from '../db';
-import { guessType } from './catalog';
+import { guessLens, guessType } from './catalog';
 import { blobToDataURL, dataURLToBlob } from './images';
 
 export type ImportSource = 'camdex' | 'khomay' | 'unknown';
@@ -63,6 +63,11 @@ function fromCamDex(r: Record<string, string>): ImportRow {
   const lensName = [str(r.lensBrand), str(r.lensModel)].filter(Boolean).join(' ');
   if (lensName) c.lenses = [{ name: lensName }];
 
+  c.lens = guessLens(c.brand, c.model, c.type) ?? {
+    kind: c.type === 'SLR' || c.type === 'MF' ? 'interchangeable' : 'fixed',
+    focal: num(r.focalLength), focalMax: null, aperture: num(String(r.maxAperture ?? '').replace(/^f\/?/i, '')), apertureMax: null
+  };
+
   let lensFromNotes: string | undefined;
   if (!lensName && LENS_LIKE.test(notes)) {
     lensFromNotes = notes.trim();
@@ -94,6 +99,9 @@ function fromKhoMay(r: Record<string, string>): ImportRow {
   c.notes = str(r.notes);
   c.film = str(r.filmStock) ? { stock: str(r.filmStock), loadedAt: str(r.filmLoadedAt) } : null;
   c.lenses = str(r.lenses) ? str(r.lenses).split('|').map((n) => ({ name: n.trim() })).filter((l) => l.name) : [];
+  c.lens = str(r.lensKind)
+    ? { kind: str(r.lensKind) === 'interchangeable' ? 'interchangeable' : 'fixed', focal: num(r.focal), focalMax: num(r.focalMax), aperture: num(r.aperture), apertureMax: num(r.apertureMax) }
+    : guessLens(c.brand, c.model, c.type);
   return { camera: c, duplicate: false };
 }
 
@@ -178,6 +186,11 @@ export async function exportCSV(cams: Camera[], opts: { purchase: boolean; seria
     marketValue: c.marketValue ?? '',
     tags: c.tags.join('|'),
     lenses: c.lenses.map((l) => l.name).join('|'),
+    lensKind: c.lens?.kind ?? '',
+    focal: c.lens?.focal ?? '',
+    focalMax: c.lens?.focalMax ?? '',
+    aperture: c.lens?.aperture ?? '',
+    apertureMax: c.lens?.apertureMax ?? '',
     filmStock: c.film?.stock ?? '',
     filmLoadedAt: c.film?.loadedAt ?? '',
     notes: c.notes

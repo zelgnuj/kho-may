@@ -27,3 +27,45 @@ export function guessType(brand: string, model: string): { type: CamType; format
   }
   return { type: '' };
 }
+
+/* ---------- Thông số ống kính liền ---------- */
+
+import type { LensSpec } from '../db';
+
+/**
+ * Chỉ ghi những mẫu chắc chắn thông số. Mẫu không có ở đây để người dùng tự nhập.
+ * [quy tắc tên, tiêu cự, khẩu độ, tiêu cự tele (zoom), khẩu độ ở tele]
+ */
+const LENS_RULES: [RegExp, number, number, number?, number?][] = [
+  [/canon a35 datelux/, 40, 2.8],
+  [/canon canonet ql17 g-?iii|canonet ql17 g-?iii/, 40, 1.7],
+  [/chinon bellami/, 35, 2.8],
+  [/konica c35 af2?\b/, 38, 2.8],
+  [/nikon af600\b/, 28, 3.5],
+  [/nikon l35 ?af\b/, 35, 2.8],
+  [/olympus xa$/, 35, 2.8],
+  [/olympus pen[ -]?eed/, 32, 1.7],
+  [/olympus (mju|μ|stylus)[ -]?(i|1)?$/, 35, 3.5],
+  [/pentax pc ?35 ?af$/, 35, 2.8],
+  [/ricoh r1s?$/, 30, 3.5],
+  [/yashica electro 35 g(x|sn|s|t)?$/, 45, 1.7],
+  [/yashica electro 35 gx$/, 40, 1.7],
+  [/yashica electro 35 mc$/, 40, 2.8],
+  [/contax t2$/, 38, 2.8],
+  [/olympus trip 35$/, 40, 2.8]
+];
+
+export function defaultLensKind(type: string): LensSpec['kind'] {
+  return type === 'SLR' || type === 'MF' ? 'interchangeable' : 'fixed';
+}
+
+export function guessLens(brand: string, model: string, type: string): LensSpec | null {
+  if (defaultLensKind(type) === 'interchangeable') return null;
+  const key = `${brand} ${model}`.toLowerCase().replace(/\s+/g, ' ').trim();
+  // Quy tắc cụ thể (GX) phải thắng quy tắc chung (Electro 35 G…): duyệt ngược để mục sau được ưu tiên
+  for (let i = LENS_RULES.length - 1; i >= 0; i--) {
+    const [re, f, a, fMax, aMax] = LENS_RULES[i];
+    if (re.test(key)) return { kind: 'fixed', focal: f, aperture: a, focalMax: fMax ?? null, apertureMax: aMax ?? null, auto: true };
+  }
+  return null;
+}

@@ -1,4 +1,4 @@
-import type { CamType, Camera, Currency, Settings } from '../db';
+import type { CamType, Camera, Currency, LensSpec, Settings } from '../db';
 
 export const TYPE_LABEL: Record<string, string> = {
   PNS: 'PNS', RF: 'Rangefinder', SLR: 'SLR', HALF: 'Half-frame', TLR: 'TLR',
@@ -96,4 +96,22 @@ export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+}
+
+/* ---------- Ống kính ---------- */
+
+const num = (v: number) => (Number.isInteger(v) ? String(v) : String(v).replace('.', ','));
+const fnum = (v: number) => String(v); // khẩu độ giữ dấu chấm theo thói quen: f/2.8
+
+export function isZoom(l?: LensSpec | null) {
+  return !!(l && l.focal && l.focalMax && l.focalMax > l.focal);
+}
+
+/** "35mm f/2.8" · "38–80mm f/4.5–8" · null nếu chưa có */
+export function lensLabel(l?: LensSpec | null): string | null {
+  if (!l || l.kind !== 'fixed' || !l.focal) return null;
+  const focal = isZoom(l) ? `${num(l.focal)}–${num(l.focalMax!)}mm` : `${num(l.focal)}mm`;
+  if (!l.aperture) return focal;
+  const ap = l.apertureMax && l.apertureMax !== l.aperture ? `f/${fnum(l.aperture)}–${fnum(l.apertureMax)}` : `f/${fnum(l.aperture)}`;
+  return `${focal} ${ap}`;
 }

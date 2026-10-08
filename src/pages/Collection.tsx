@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, useCameras, useSettings, type Camera } from '../db';
-import { TYPE_LABEL, TYPE_ORDER, trieu, trieuLabel } from '../lib/format';
+import { TYPE_LABEL, TYPE_ORDER, isZoom, lensLabel, trieu, trieuLabel } from '../lib/format';
 import { changePct, groupPrices } from '../lib/stats';
 import { CameraThumb } from '../components/ui';
 import { IconData, IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort } from '../components/Icons';
@@ -12,7 +12,8 @@ const SORTS = [
   { k: 'value', label: 'Giá trị: cao → thấp' },
   { k: 'recent', label: 'Mới thêm gần đây' },
   { k: 'brand', label: 'Hãng: A → Z' },
-  { k: 'type', label: 'Theo loại máy' }
+  { k: 'type', label: 'Theo loại máy' },
+  { k: 'focal', label: 'Tiêu cự: rộng → hẹp' }
 ] as const;
 
 function readLS(key: string): string | null {
@@ -41,6 +42,7 @@ export default function Collection() {
     if (c.status !== 'owned') return false;
     if (f === 'all') return true;
     if (f === 'film') return !!c.film;
+    if (f === 'zoom') return isZoom(c.lens);
     if (f === 'noprice') return c.marketValue == null;
     if (f === 'untyped') return !c.type;
     return c.type === f;
@@ -52,6 +54,8 @@ export default function Collection() {
       const n = owned.filter((c) => c.type === t).length;
       if (n) out.push({ k: t || 'untyped', label: TYPE_LABEL[t], n });
     });
+    const zoom = owned.filter((c) => isZoom(c.lens)).length;
+    if (zoom) out.push({ k: 'zoom', label: 'Zoom', n: zoom });
     const film = owned.filter((c) => c.film).length;
     if (film) out.push({ k: 'film', label: 'Có film', n: film });
     const noprice = owned.filter((c) => c.marketValue == null).length;
@@ -65,13 +69,14 @@ export default function Collection() {
     const needle = q.trim().toLowerCase();
     const list = all.filter((c) => match(c, filter)).filter((c) => {
       if (!needle) return true;
-      return [c.brand, c.model, c.mount, c.serial, c.notes, c.tags.join(' '), c.film?.stock ?? '', TYPE_LABEL[c.type]]
+      return [c.brand, c.model, c.mount, c.serial, c.notes, c.tags.join(' '), c.film?.stock ?? '', TYPE_LABEL[c.type], lensLabel(c.lens) ?? '', isZoom(c.lens) ? 'zoom' : '']
         .join(' ').toLowerCase().includes(needle);
     });
     const sk = SORTS[sortIdx].k;
     list.sort((a, b) => {
       if (sk === 'value') return (b.marketValue ?? -1) - (a.marketValue ?? -1);
       if (sk === 'recent') return b.createdAt - a.createdAt;
+      if (sk === 'focal') return (a.lens?.focal ?? 9999) - (b.lens?.focal ?? 9999) || a.brand.localeCompare(b.brand);
       if (sk === 'type') return TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) || a.brand.localeCompare(b.brand);
       return a.brand.localeCompare(b.brand) || a.model.localeCompare(b.model);
     });
@@ -161,6 +166,7 @@ export default function Collection() {
                     <div className="meta">
                       <span className="sub">{c.brand} · {TYPE_LABEL[c.type]}</span>
                       <span className="name">{c.model}</span>
+                      {lensLabel(c.lens) && <span className="lens-spec">{lensLabel(c.lens)}</span>}
                       <div className="row">
                         <span className="val">{c.status === 'sold' ? '—' : trieuLabel(c.marketValue)}</span>
                         {pct != null && <span className={'chg ' + (pct > 0 ? 'up' : pct < 0 ? 'down' : '')}>{pct > 0 ? '▲' : pct < 0 ? '▼' : '–'} {Math.abs(pct)}%</span>}
@@ -182,7 +188,7 @@ export default function Collection() {
                   </div>
                   <div className="list-main">
                     <span className="name">{c.brand} {c.model}</span>
-                    <span className="spec">{[TYPE_LABEL[c.type], c.type === 'DIG' ? 'Digital' : c.format, c.mount].filter(Boolean).join(' · ')}</span>
+                    <span className="spec">{[TYPE_LABEL[c.type], lensLabel(c.lens) ?? (c.type === 'DIG' ? 'Digital' : c.format), c.lens?.kind === 'interchangeable' ? c.mount : ''].filter(Boolean).join(' · ')}</span>
                   </div>
                   <div className="list-side">
                     <span className="mono" style={{ fontSize: 13 }}>{c.status === 'sold' ? '—' : trieuLabel(c.marketValue)}</span>

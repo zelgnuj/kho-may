@@ -7,6 +7,19 @@ export type Currency = 'VND' | 'JPY' | 'USD';
 
 export interface Lens { name: string }
 
+/** Thông số ống kính liền (PNS, rangefinder ống liền, half-frame, máy số…) */
+export interface LensSpec {
+  kind: 'fixed' | 'interchangeable';
+  /** Tiêu cự (mm). Zoom: focal → focalMax */
+  focal: number | null;
+  focalMax: number | null;
+  /** Khẩu độ lớn nhất (f/). Zoom: aperture ở góc rộng → apertureMax ở tele */
+  aperture: number | null;
+  apertureMax: number | null;
+  /** Điền tự động từ thư viện mẫu máy (nên kiểm tra lại) */
+  auto?: boolean;
+}
+
 /**
  * Mọi bản ghi đều có id (uuid), createdAt/updatedAt và deletedAt (xóa mềm)
  * để sau này đồng bộ lên tài khoản mà không phải đổi cấu trúc.
@@ -33,6 +46,7 @@ export interface Camera {
   notes: string;
   film?: { stock: string; loadedAt: string } | null;
   lenses: Lens[];
+  lens?: LensSpec | null;
   coverPhotoId?: string | null;
   /** Giá thị trường mới nhất, VNĐ */
   marketValue?: number | null;
@@ -95,7 +109,7 @@ export function blankCamera(): Camera {
     brand: '', model: '', type: '', format: '35mm', mount: '', serial: '', year: null,
     condition: '', status: 'owned',
     purchasePrice: null, purchaseCurrency: 'VND', purchaseDate: '', purchaseFrom: '',
-    tags: [], notes: '', film: null, lenses: [], coverPhotoId: null,
+    tags: [], notes: '', film: null, lenses: [], lens: null, coverPhotoId: null,
     marketValue: null, marketLow: null, marketHigh: null, marketUpdatedAt: null
   };
 }
@@ -196,4 +210,18 @@ export async function getSettings(): Promise<Settings> {
 
 export function useCameras() {
   return useLiveQuery(() => db.cameras.filter((c) => !c.deletedAt).toArray(), []);
+}
+
+/** Một lần: điền thông số ống kính liền cho các máy đã có từ thư viện mẫu máy */
+export async function backfillLensSpecs(guess: (b: string, m: string, t: string) => LensSpec | null) {
+  const done = await db.settings.get('lensBackfill1');
+  if (done) return;
+  const cams = await db.cameras.toArray();
+  for (const c of cams) {
+    if (c.lens) continue;
+    const g = guess(c.brand, c.model, c.type);
+    const kind = c.type === 'SLR' || c.type === 'MF' ? 'interchangeable' : 'fixed';
+    await db.cameras.update(c.id, { lens: g ?? { kind, focal: null, focalMax: null, aperture: null, apertureMax: null } });
+  }
+  await db.settings.put({ key: 'lensBackfill1', value: true });
 }

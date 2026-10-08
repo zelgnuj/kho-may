@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { addPhotos, addPrice, db, deleteCamera, patchCamera, uid, useSettings, type Camera, type Currency, type Photo } from '../db';
-import { TYPE_LABEL, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
+import { addPhotos, addPrice, db, deleteCamera, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
+import { TYPE_LABEL, isZoom, lensLabel, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
 import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
+import { defaultLensKind } from '../lib/catalog';
+import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
 import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
@@ -27,7 +29,7 @@ export default function Detail() {
   const photos = useLiveQuery(() => db.photos.where('cameraId').equals(id).sortBy('createdAt'), [id]);
   const prices = useLiveQuery(() => db.prices.where('cameraId').equals(id).sortBy('date'), [id]);
   const service = useLiveQuery(() => db.service.where('cameraId').equals(id).reverse().sortBy('date'), [id]);
-  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'purchase'>(null);
+  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'lensSpec' | 'purchase'>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [looking, setLooking] = useState(false);
 
@@ -81,7 +83,9 @@ export default function Detail() {
     nav('/', { replace: true });
   };
 
-  const tags = [cam.type === 'DIG' ? 'Digital' : cam.format, TYPE_LABEL[cam.type], cam.mount && `Ngàm ${cam.mount}`, cam.year && String(cam.year)].filter(Boolean) as string[];
+  const lensKind = cam.lens?.kind ?? defaultLensKind(cam.type);
+  const lensTag = lensLabel(cam.lens);
+  const tags = [cam.type === 'DIG' ? 'Digital' : cam.format, TYPE_LABEL[cam.type], lensKind === 'interchangeable' && cam.mount && `Ngàm ${cam.mount}`, cam.year && String(cam.year)].filter(Boolean) as string[];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 'calc(var(--safe-bottom) + 40px)' }}>
@@ -107,7 +111,13 @@ export default function Detail() {
           <span style={{ fontSize: 14, color: 'var(--muted)' }}>{cam.brand}</span>
           <h1 style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 56, lineHeight: 0.95, textTransform: 'uppercase', overflowWrap: 'anywhere' }}>{cam.model}</h1>
         </div>
-        {tags.length > 0 && <div className="tags">{tags.map((t) => <span key={t} className="tag">{t}</span>)}</div>}
+        {(tags.length > 0 || lensTag) && (
+          <div className="tags">
+            {tags.slice(0, 2).map((t) => <span key={t} className="tag">{t}</span>)}
+            {lensTag && <span className="tag" style={{ textTransform: 'none' }}>{lensTag}</span>}
+            {tags.slice(2).map((t) => <span key={t} className="tag">{t}</span>)}
+          </div>
+        )}
       </div>
 
       <div className="px">
@@ -230,24 +240,38 @@ export default function Detail() {
         {cam.tags.length > 0 && <div className="tags">{cam.tags.map((t) => <span key={t} className="tag" style={{ textTransform: 'none' }}>#{t}</span>)}</div>}
       </section>
 
-      {cam.type !== 'DIG' && (
-        <section className="section px" aria-label="Ống kính">
-          <div className="section-head">
-            <h2 className="h2">Ống kính</h2>
-            <button type="button" className="link-btn" onClick={() => setSheet('lens')}>+ Thêm</button>
+      <section className="section px" aria-label="Ống kính">
+        <div className="section-head">
+          <h2 className="h2">Ống kính</h2>
+          {lensKind === 'interchangeable'
+            ? <button type="button" className="link-btn" onClick={() => setSheet('lens')}>+ Thêm</button>
+            : <button type="button" className="link-btn" onClick={() => setSheet('lensSpec')}>{lensLabel(cam.lens) ? 'Sửa' : '+ Nhập thông số'}</button>}
+        </div>
+        {lensKind === 'fixed' ? (
+          <button type="button" className="lens-card" style={{ textAlign: 'left', width: '100%', color: 'var(--text)' }} onClick={() => setSheet('lensSpec')}>
+            <span className="lens-ring" aria-hidden="true" />
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+              {lensLabel(cam.lens)
+                ? <span className="big">{lensLabel(cam.lens)}</span>
+                : <span style={{ fontSize: 14, color: 'var(--text-2)' }}>Chưa có thông số ống kính</span>}
+              <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span className="chip-mini">Ống kính liền</span>
+                {isZoom(cam.lens) && <span className="chip-mini" style={{ color: 'var(--accent)' }}>Zoom</span>}
+                {cam.lens?.auto && <span className="chip-mini">Điền tự động · kiểm tra lại</span>}
+              </span>
+            </span>
+          </button>
+        ) : cam.lenses.length ? (
+          <div className="rows">
+            {cam.lenses.map((l, i) => (
+              <div key={i}>
+                <span style={{ fontWeight: 500 }}>{l.name}</span>
+                <button type="button" className="icon-btn ghost" aria-label={`Bỏ ${l.name}`} onClick={() => patchCamera(cam.id, { lenses: cam.lenses.filter((_, j) => j !== i) })}><IconTrash size={18} /></button>
+              </div>
+            ))}
           </div>
-          {cam.lenses.length ? (
-            <div className="rows">
-              {cam.lenses.map((l, i) => (
-                <div key={i}>
-                  <span style={{ fontWeight: 500 }}>{l.name}</span>
-                  <button type="button" className="icon-btn ghost" aria-label={`Bỏ ${l.name}`} onClick={() => patchCamera(cam.id, { lenses: cam.lenses.filter((_, j) => j !== i) })}><IconTrash size={18} /></button>
-                </div>
-              ))}
-            </div>
-          ) : <p className="muted" style={{ fontSize: 13 }}>Chưa ghi ống kính nào.</p>}
-        </section>
-      )}
+        ) : <p className="muted" style={{ fontSize: 13 }}>Máy thay ống kính{cam.mount ? ` · ngàm ${cam.mount}` : ''}. Chưa ghi ống kính nào.</p>}
+      </section>
 
       <section className="section px" aria-label="Nhật ký">
         <div className="section-head">
@@ -289,6 +313,7 @@ export default function Detail() {
       <ServiceSheet open={sheet === 'service'} onClose={() => setSheet(null)} cam={cam} />
       <LensSheet open={sheet === 'lens'} onClose={() => setSheet(null)} cam={cam} />
       {sheet === 'purchase' && <PurchaseSheet open onClose={() => setSheet(null)} cam={cam} />}
+      {sheet === 'lensSpec' && <LensSpecSheet onClose={() => setSheet(null)} cam={cam} />}
     </div>
   );
 }
@@ -434,6 +459,20 @@ function PurchaseSheet({ open, onClose, cam }: { open: boolean; onClose: () => v
         <div className="field"><span>Ngày mua</span><DateInput label="Ngày mua" value={date} onChange={setDate} /></div>
         <label className="field">Mua ở đâu<input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Buyee, shop…" /></label>
       </div>
+      <button type="button" className="btn" onClick={save}>Lưu</button>
+    </Sheet>
+  );
+}
+
+function LensSpecSheet({ onClose, cam }: { onClose: () => void; cam: Camera }) {
+  const [spec, setSpec] = useState<LensSpec>(cam.lens ?? { kind: defaultLensKind(cam.type), focal: null, focalMax: null, aperture: null, apertureMax: null });
+  const save = async () => {
+    await patchCamera(cam.id, { lens: { ...spec, auto: false } });
+    onClose();
+  };
+  return (
+    <Sheet open onClose={onClose} title="Ống kính">
+      <LensSpecFields value={spec} onChange={setSpec} />
       <button type="button" className="btn" onClick={save}>Lưu</button>
     </Sheet>
   );

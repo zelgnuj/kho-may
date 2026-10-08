@@ -214,14 +214,16 @@ export function useCameras() {
 
 /** Một lần: điền thông số ống kính liền cho các máy đã có từ thư viện mẫu máy */
 export async function backfillLensSpecs(guess: (b: string, m: string, t: string) => LensSpec | null) {
-  const done = await db.settings.get('lensBackfill1');
+  const done = await db.settings.get('lensBackfill2');
   if (done) return;
   const cams = await db.cameras.toArray();
   for (const c of cams) {
-    if (c.lens) continue;
+    // Bỏ qua máy đã có thông số do người dùng nhập; điền cho máy còn trống
+    if (c.lens && (c.lens.focal != null || c.lens.kind === 'interchangeable') && !c.lens.auto) continue;
+    if (c.lens?.focal != null) continue;
     const g = guess(c.brand, c.model, c.type);
     const kind = c.type === 'SLR' || c.type === 'MF' ? 'interchangeable' : 'fixed';
     await db.cameras.update(c.id, { lens: g ?? { kind, focal: null, focalMax: null, aperture: null, apertureMax: null } });
   }
-  await db.settings.put({ key: 'lensBackfill1', value: true });
+  await db.settings.put({ key: 'lensBackfill2', value: true });
 }

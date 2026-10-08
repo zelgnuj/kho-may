@@ -49,6 +49,10 @@ Yahoo! Auction JP không còn API công khai (đóng từ 2/2018) nên không đ
 
 Sau khi thêm biến, Redeploy một lần.
 
+## Thư viện mẫu máy
+
+`src/data/catalog.ts` chứa thông số kỹ thuật từng mẫu (ống kính, lấy nét, màn trập, ISO, pin, kích thước…). Mỗi mẫu ghi nguồn (ưu tiên trang chính thức của hãng như Canon Camera Museum, Ricoh Imaging; sau đó Wikipedia và các trang tư liệu). Trường nào nguồn không ghi thì để trống. Ảnh mẫu (`image`) chỉ dùng ảnh có giấy phép tự do, kèm ghi công.
+
 ## Cấu trúc
 
 - `src/db.ts` — schema Dexie, kiểu dữ liệu, cài đặt

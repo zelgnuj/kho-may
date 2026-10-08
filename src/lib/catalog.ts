@@ -21,6 +21,8 @@ const RULES: [RegExp, CamType, string?][] = [
 ];
 
 export function guessType(brand: string, model: string): { type: CamType; format?: string } {
+  const hit = findModel(brand, model);
+  if (hit) return { type: hit.type, format: hit.type === 'DIG' ? 'Digital' : hit.frame?.startsWith('18') ? '35mm' : '35mm' };
   const key = `${brand} ${model}`.toLowerCase().replace(/\s+/g, ' ').trim();
   for (const [re, type, format] of RULES) {
     if (re.test(key)) return { type, format };
@@ -31,6 +33,32 @@ export function guessType(brand: string, model: string): { type: CamType; format
 /* ---------- Thông số ống kính liền ---------- */
 
 import type { LensSpec } from '../db';
+import { CATALOG, type CatalogEntry } from '../data/catalog';
+
+const squash = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9μ]/g, '');
+const INDEX = new Map<string, CatalogEntry>();
+CATALOG.forEach((e) => {
+  INDEX.set(squash(`${e.brand} ${e.model}`), e);
+  e.aliases?.forEach((a) => INDEX.set(squash(a), e));
+});
+
+/** Tìm mẫu trong thư viện theo hãng + tên mẫu (bỏ qua dấu cách, gạch nối, hoa/thường) */
+export function findModel(brand: string, model: string): CatalogEntry | null {
+  if (!model.trim()) return null;
+  return INDEX.get(squash(`${brand} ${model}`)) ?? null;
+}
+
+/** Gợi ý khi đang gõ: các mẫu có tên chứa chuỗi đã gõ */
+export function searchCatalog(q: string, limit = 5): CatalogEntry[] {
+  const k = squash(q);
+  if (k.length < 2) return [];
+  return CATALOG.filter((e) => squash(`${e.brand} ${e.model}`).includes(k) || e.aliases?.some((a) => squash(a).includes(k))).slice(0, limit);
+}
+
+export function catalogLensSpec(e: CatalogEntry): LensSpec | null {
+  if (!e.lens) return null;
+  return { kind: 'fixed', focal: e.lens.focal, aperture: e.lens.aperture, focalMax: e.lens.focalMax ?? null, apertureMax: e.lens.apertureMax ?? null, auto: true };
+}
 
 /**
  * Chỉ ghi những mẫu chắc chắn thông số. Mẫu không có ở đây để người dùng tự nhập.
@@ -61,6 +89,8 @@ export function defaultLensKind(type: string): LensSpec['kind'] {
 
 export function guessLens(brand: string, model: string, type: string): LensSpec | null {
   if (defaultLensKind(type) === 'interchangeable') return null;
+  const hit = findModel(brand, model);
+  if (hit?.lens && hit.type !== 'SLR') return catalogLensSpec(hit);
   const key = `${brand} ${model}`.toLowerCase().replace(/\s+/g, ' ').trim();
   // Quy tắc cụ thể (GX) phải thắng quy tắc chung (Electro 35 G…): duyệt ngược để mục sau được ưu tiên
   for (let i = LENS_RULES.length - 1; i >= 0; i--) {

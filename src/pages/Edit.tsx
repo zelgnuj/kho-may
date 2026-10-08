@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, blankCamera, db, deletePhoto, patchCamera, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
-import { defaultLensKind, guessLens, guessType } from '../lib/catalog';
+import { defaultLensKind, findModel, guessLens, guessType, searchCatalog } from '../lib/catalog';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
@@ -79,6 +79,9 @@ export default function Edit() {
     setLensKey((k) => k + 1);
   }, [c.brand, c.model, c.type, lensTouched]);
 
+  const matched = findModel(c.brand, c.model);
+  const suggestions = useMemo(() => (c.model.trim().length >= 2 ? searchCatalog(`${c.brand} ${c.model}`).concat(searchCatalog(c.model)).filter((e, i, a) => a.findIndex((x) => x.id === e.id) === i).slice(0, 4) : []), [c.brand, c.model]);
+
   const priceValue = c.purchaseCurrency === 'VND' ? parseVND(price) : parseAmount(price);
   const canSave = c.brand.trim() && c.model.trim();
 
@@ -147,6 +150,21 @@ export default function Edit() {
             <input className="input" value={c.model} onChange={(e) => set('model', e.target.value)} placeholder="OM-2N" />
           </label>
         </div>
+        {matched ? (
+          <div className="dashed" style={{ borderStyle: 'solid', borderColor: 'var(--line)', fontSize: 13 }}>
+            <span>Có trong thư viện: <b>{matched.brand} {matched.model}</b>{matched.released ? ` · ${matched.released.slice(0, 4)}` : ''} — loại máy, ống kính và bảng thông số được điền sẵn.</span>
+          </div>
+        ) : suggestions.length > 0 && (
+          <div className="rows" role="listbox" aria-label="Gợi ý từ thư viện">
+            {suggestions.map((e) => (
+              <button key={e.id} type="button" role="option" aria-selected={false} style={{ background: 'transparent', border: 0, textAlign: 'left', width: '100%' }}
+                onClick={() => setC((prev) => ({ ...prev, brand: e.brand, model: e.model }))}>
+                <span>{e.brand} {e.model}</span>
+                <span className="mono muted" style={{ fontSize: 11 }}>{[e.released?.slice(0, 4), e.lens ? `${e.lens.focal}mm f/${e.lens.aperture}` : null].filter(Boolean).join(' · ')}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
           <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Loại máy {guess.type && !typeTouched && c.type === guess.type && <span style={{ color: 'var(--accent)' }}> · tự nhận dạng</span>}</legend>
           <div className="toggles">

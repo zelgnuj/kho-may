@@ -7,7 +7,8 @@ import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
 import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
-import { defaultLensKind } from '../lib/catalog';
+import { defaultLensKind, findModel } from '../lib/catalog';
+import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
 import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
@@ -83,9 +84,10 @@ export default function Detail() {
     nav('/', { replace: true });
   };
 
+  const entry = findModel(cam.brand, cam.model);
   const lensKind = cam.lens?.kind ?? defaultLensKind(cam.type);
   const lensTag = lensLabel(cam.lens);
-  const tags = [cam.type === 'DIG' ? 'Digital' : cam.format, TYPE_LABEL[cam.type], lensKind === 'interchangeable' && cam.mount && `Ngàm ${cam.mount}`, cam.year && String(cam.year)].filter(Boolean) as string[];
+  const tags = [cam.type === 'DIG' ? 'Digital' : cam.format, TYPE_LABEL[cam.type], lensKind === 'interchangeable' && cam.mount && `Ngàm ${cam.mount}`, cam.year ? String(cam.year) : entry?.released?.slice(0, 4)].filter(Boolean) as string[];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 'calc(var(--safe-bottom) + 40px)' }}>
@@ -271,6 +273,13 @@ export default function Detail() {
             ))}
           </div>
         ) : <p className="muted" style={{ fontSize: 13 }}>Máy thay ống kính{cam.mount ? ` · ngàm ${cam.mount}` : ''}. Chưa ghi ống kính nào.</p>}
+      </section>
+
+      <section className="section px" aria-label="Thông số kỹ thuật">
+        <h2 className="h2">Thông số kỹ thuật</h2>
+        {entry
+          ? <SpecCard camera={cam} entry={entry} />
+          : <p className="dashed" style={{ display: 'block' }}>Mẫu này chưa có trong thư viện thông số của app.</p>}
       </section>
 
       <section className="section px" aria-label="Nhật ký">

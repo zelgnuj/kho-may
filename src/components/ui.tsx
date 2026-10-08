@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useObjectURL } from '../lib/images';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { CameraArt } from './CameraArt';
+import { findModel } from '../lib/catalog';
 import { IconCamera, IconClose, IconData, IconPlus, IconSettings, IconTrend } from './Icons';
 
 export function BottomNav() {
@@ -59,10 +60,12 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
 }
 
 /** Ảnh bìa của máy, hoặc hình vẽ theo loại máy nếu chưa có ảnh */
-export function CameraThumb({ camera, artWidth, strokeWidth }: { camera: Camera; artWidth: number; strokeWidth?: number }) {
+export function CameraThumb({ camera, artWidth, strokeWidth, catalogImage }: { camera: Camera; artWidth: number; strokeWidth?: number; catalogImage?: string }) {
   const photo = useLiveQuery(() => (camera.coverPhotoId ? db.photos.get(camera.coverPhotoId) : undefined), [camera.coverPhotoId]);
   const url = useObjectURL(photo?.blob);
   if (url) return <img className="thumb-img" src={url} alt="" />;
+  const sample = catalogImage ?? findModel(camera.brand, camera.model)?.image?.url;
+  if (sample) return <img className="thumb-img" src={sample} alt="" loading="lazy" style={{ objectFit: 'contain', background: '#d9d6d0' }} />;
   return <CameraArt type={camera.type} width={artWidth} strokeWidth={strokeWidth} />;
 }
 

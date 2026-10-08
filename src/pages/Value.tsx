@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, useCameras, useSettings } from '../db';
+import { db, useCameras, useSettings, type Camera } from '../db';
+import { runPriceQueue, usePriceQueue } from '../lib/autoPrice';
+import { toast } from '../lib/toast';
 import { TYPE_LABEL, TYPE_ORDER, fullName, purchaseVND, trieu } from '../lib/format';
 import { changePct, groupPrices, isStale, valueTimeline } from '../lib/stats';
 import { Segmented } from '../components/ui';
@@ -56,6 +58,12 @@ export default function Value() {
   const settings = useSettings();
   const [range, setRange] = useState('90');
   const byCam = useMemo(() => groupPrices(prices), [prices]);
+  const q = usePriceQueue();
+  const nav = useNavigate();
+  const startQueue = (list: Camera[]) => {
+    if (!settings.priceToken) { toast('Cần nhập mã truy cập tra giá trong Cài đặt trước'); nav('/cai-dat'); return; }
+    runPriceQueue(list);
+  };
 
   if (!cams) return <div className="page" />;
   const owned = cams.filter((c) => c.status === 'owned');
@@ -126,7 +134,8 @@ export default function Value() {
         <section className="panel" style={{ margin: '0 20px' }} aria-label="Máy chưa có giá">
           <div className="section-head"><h2 className="h2">Giá thị trường đã có</h2><span className="mono" style={{ fontSize: 13 }}>{priced} / {owned.length} máy</span></div>
           <div className="progress"><div style={{ width: `${(priced / Math.max(1, owned.length)) * 100}%` }} /></div>
-          <Link to="/?loc=noprice" className="btn small" style={{ alignSelf: 'flex-start' }}>Cập nhật {noPrice} máy chưa có giá</Link>
+          <button type="button" className="btn small" style={{ alignSelf: 'flex-start' }} disabled={q.running}
+            onClick={() => startQueue(owned.filter((c) => c.marketValue == null))}>Tự tra giá {noPrice} máy chưa có giá</button>
         </section>
       )}
 
@@ -200,7 +209,21 @@ export default function Value() {
             <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{stale} máy chưa cập nhật giá</span>
             <span className="muted" style={{ fontSize: 12 }}>Lần cuối hơn 90 ngày trước</span>
           </div>
+          <button type="button" className="btn small" disabled={q.running} onClick={() => startQueue(owned.filter((c) => c.marketValue != null && isStale(c)))}>Tra lại</button>
         </section>
+      )}
+
+      {owned.length > 0 && (
+        <div className="px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button type="button" className="btn secondary" disabled={q.running} onClick={() => startQueue(owned)}>
+            {q.running ? `Đang tra giá ${q.done}/${q.total}…` : `Tra lại giá cả ${owned.length} máy`}
+          </button>
+          <span className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+            {settings.priceToken
+              ? `App tự tra giá các máy có giá cũ hơn ${settings.autoPriceDays} ngày mỗi khi bạn mở app.`
+              : 'Chưa bật tự tra giá — vào Cài đặt để nhập mã truy cập.'}
+          </span>
+        </div>
       )}
 
       {sold > 0 && (

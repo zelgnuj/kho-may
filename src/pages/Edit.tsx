@@ -6,7 +6,7 @@ import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '.
 import { guessType } from '../lib/catalog';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
-import { Segmented } from '../components/ui';
+import { DateInput, Segmented } from '../components/ui';
 import { IconCamera, IconClose, IconImage, IconStar } from '../components/Icons';
 
 const TYPES: CamType[] = ['PNS', 'RF', 'SLR', 'HALF', 'TLR', 'MF', 'INST', 'DIG', 'OTHER'];
@@ -190,7 +190,7 @@ export default function Edit() {
           {priceValue != null && <span className="mono">= {money(priceValue, c.purchaseCurrency)}</span>}
         </div>
         <div className="form-grid">
-          <label className="field">Ngày mua<input className="input mono" type="date" value={c.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></label>
+          <div className="field"><span>Ngày mua</span><DateInput label="Ngày mua" value={c.purchaseDate} onChange={(v) => set('purchaseDate', v)} /></div>
           <label className="field">Mua ở đâu<input className="input" value={c.purchaseFrom} onChange={(e) => set('purchaseFrom', e.target.value)} placeholder="Buyee, shop…" /></label>
         </div>
         <label className="field">Thẻ (cách nhau bằng dấu phẩy)

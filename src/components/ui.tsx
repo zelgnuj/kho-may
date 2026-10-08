@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { db, type Camera } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useObjectURL } from '../lib/images';
+import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { CameraArt } from './CameraArt';
 import { IconCamera, IconClose, IconData, IconPlus, IconSettings, IconTrend } from './Icons';
 
@@ -63,6 +64,45 @@ export function CameraThumb({ camera, artWidth, strokeWidth }: { camera: Camera;
   const url = useObjectURL(photo?.blob);
   if (url) return <img className="thumb-img" src={url} alt="" />;
   return <CameraArt type={camera.type} width={artWidth} strokeWidth={strokeWidth} />;
+}
+
+/** Thanh tiến độ tra giá tự động */
+export function PriceProgress({ raised }: { raised: boolean }) {
+  const q = usePriceQueue();
+  if (!q.running && !q.error) return null;
+  return (
+    <div className="price-progress" style={{ bottom: raised ? 'calc(var(--safe-bottom) + 86px)' : 'calc(var(--safe-bottom) + 16px)' }} role="status">
+      {q.running ? (
+        <>
+          <span className="spinner" aria-hidden="true" />
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Đang tra giá {Math.min(q.done + 1, q.total)}/{q.total}{q.current ? ` · ${q.current}` : ''}
+          </span>
+          <button type="button" className="link-btn" onClick={stopPriceQueue}>Dừng</button>
+        </>
+      ) : (
+        <>
+          <span style={{ flex: 1, color: 'var(--down)' }}>Tra giá: {q.error}</span>
+          <button type="button" className="link-btn" onClick={clearPriceQueueError}>Đóng</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Ô chọn ngày có nút xóa (iPhone không cho xóa ngày đã chọn trong ô date) */
+export function DateInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <div className="date-input">
+      <input className={'input mono' + (value ? '' : ' empty')} type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
+      {!value && <span className="date-empty" aria-hidden="true">Chưa chọn</span>}
+      {value && (
+        <button type="button" className="date-clear" aria-label={`Xóa ${label.toLowerCase()}`} onClick={() => onChange('')}>
+          <IconClose size={16} />
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function Sparkline({ values, color, height = 64 }: { values: number[]; color: string; height?: number }) {

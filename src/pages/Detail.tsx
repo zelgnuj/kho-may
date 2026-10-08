@@ -6,9 +6,13 @@ import { TYPE_LABEL, daysSince, fmtDate, fmtTs, median, money, parseAmount, pars
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
+import { refreshCameraPrice } from '../lib/autoPrice';
 import { CameraArt } from '../components/CameraArt';
-import { Segmented, Sheet, Sparkline } from '../components/ui';
+import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
+
+const BASIS: Record<string, string> = { sold: 'Theo giá đã bán', asking: 'Theo giá rao bán', mixed: 'Giá bán + giá rao' };
+const CONF: Record<string, string> = { high: 'cao', medium: 'vừa', low: 'thấp' };
 
 function HeroPhoto({ photo }: { photo: Photo }) {
   const url = useObjectURL(photo.blob);
@@ -25,6 +29,7 @@ export default function Detail() {
   const service = useLiveQuery(() => db.service.where('cameraId').equals(id).reverse().sortBy('date'), [id]);
   const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'purchase'>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [looking, setLooking] = useState(false);
 
   const orderedPhotos = useMemo(() => {
     if (!photos || !cam) return [];
@@ -45,6 +50,23 @@ export default function Detail() {
   const buy = purchaseVND(cam, settings.rates);
   const diff = buy != null && cam.marketValue != null ? cam.marketValue - buy : null;
   const pct = changePct(prices);
+
+  const autoLookup = async () => {
+    if (!settings.priceToken) {
+      toast('Cần nhập mã truy cập tra giá trong Cài đặt trước');
+      nav('/cai-dat');
+      return;
+    }
+    setLooking(true);
+    try {
+      const v = await refreshCameraPrice(cam, settings.priceToken);
+      toast(v != null ? `Giá thị trường: ${trieu(v)} tr` : 'Chưa tìm được dữ liệu giá đủ tin cậy');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Lỗi khi tra giá');
+    } finally {
+      setLooking(false);
+    }
+  };
 
   const onPhotos = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -131,7 +153,12 @@ export default function Detail() {
       <section className="panel" aria-label="Giá thị trường" style={{ margin: '0 20px' }}>
         <div className="section-head">
           <h2 className="h2">Giá thị trường</h2>
-          <button type="button" className="pill-btn" onClick={() => setSheet('price')}>Cập nhật giá</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button type="button" className="pill-btn" onClick={() => setSheet('price')}>Nhập tay</button>
+            <button type="button" className="pill-btn" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={looking} onClick={autoLookup}>
+              {looking ? 'Đang tra…' : 'Tự tra giá'}
+            </button>
+          </div>
         </div>
         {cam.marketValue != null ? (
           <>
@@ -147,7 +174,10 @@ export default function Detail() {
             <Sparkline values={(prices ?? []).map((p) => p.value)} color="var(--accent)" />
           </>
         ) : (
-          <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>Chưa có giá. Bấm “Cập nhật giá” để tra giá đã bán trên eBay, Yahoo JP rồi ghi lại.</p>
+          <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            {looking ? 'Đang tìm giá đã bán gần đây trên eBay, Yahoo! Auction JP và các cửa hàng máy ảnh… (khoảng 20–40 giây)'
+              : cam.marketNote || 'Chưa có giá. Bấm “Tự tra giá” để app tự tìm giá đã bán gần đây.'}
+          </p>
         )}
         <div className="form-grid" style={{ paddingTop: 12, borderTop: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -168,7 +198,26 @@ export default function Detail() {
             </span>
           </div>
         </div>
-        {cam.marketUpdatedAt && <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cập nhật lần cuối: {fmtTs(cam.marketUpdatedAt)}</span>}
+        {cam.marketValue != null && cam.marketSource === 'auto' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <span className="chip-mini">{BASIS[cam.marketBasis ?? ''] ?? 'Tự tra'}</span>
+              {cam.marketConfidence && <span className="chip-mini" style={{ color: cam.marketConfidence === 'low' ? 'var(--down)' : undefined }}>Độ tin cậy: {CONF[cam.marketConfidence] ?? cam.marketConfidence}</span>}
+            </div>
+            {cam.marketNote && <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-2)' }}>{cam.marketNote}</p>}
+            {!!cam.marketSources?.length && (
+              <details>
+                <summary style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer', minHeight: 32, display: 'flex', alignItems: 'center' }}>Nguồn ({cam.marketSources.length})</summary>
+                <div className="src-list">
+                  {cam.marketSources.map((s) => (
+                    <a key={s.url} href={s.url} target="_blank" rel="noreferrer"><IconExternal size={14} style={{ flex: 'none' }} /><span>{s.title}</span></a>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+        {cam.marketUpdatedAt && <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cập nhật lần cuối: {fmtTs(cam.marketUpdatedAt)}{cam.marketSource === 'manual' ? ' · nhập tay' : ''}</span>}
       </section>
 
       <section className="section px" aria-label="Hồ sơ">
@@ -383,7 +432,7 @@ function PurchaseSheet({ open, onClose, cam }: { open: boolean; onClose: () => v
       </label>
       {value != null && <span className="mono muted" style={{ fontSize: 12 }}>= {money(value, cur)}</span>}
       <div className="form-grid">
-        <label className="field">Ngày mua<input className="input mono" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+        <div className="field"><span>Ngày mua</span><DateInput label="Ngày mua" value={date} onChange={setDate} /></div>
         <label className="field">Mua ở đâu<input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Buyee, shop…" /></label>
       </div>
       <button type="button" className="btn" onClick={save}>Lưu</button>

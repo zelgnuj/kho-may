@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { db, setSetting, useSettings } from '../db';
 import { fmtTs, parseAmount } from '../lib/format';
 import { refreshRates } from '../lib/rates';
+import { pingPriceApi } from '../lib/autoPrice';
 import { toast } from '../lib/toast';
 import { Segmented } from '../components/ui';
 
@@ -14,6 +15,11 @@ export default function SettingsPage() {
   const [usd, setUsd] = useState('');
   const [busy, setBusy] = useState(false);
   const [persisted, setPersisted] = useState<boolean | null>(null);
+  const [token, setToken] = useState(s.priceToken);
+  const [checking, setChecking] = useState(false);
+  const [tokenOk, setTokenOk] = useState<boolean | null>(null);
+  const [tokenErr, setTokenErr] = useState('');
+  useEffect(() => { setToken(s.priceToken); }, [s.priceToken]);
 
   useEffect(() => { setName(s.ownerName); }, [s.ownerName]);
   useEffect(() => {
@@ -21,6 +27,19 @@ export default function SettingsPage() {
     setUsd(s.rates.USD != null ? String(s.rates.USD) : '');
   }, [s.rates.JPY, s.rates.USD]);
   useEffect(() => { navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null)); }, []);
+
+  const checkToken = async () => {
+    const t = token.trim();
+    setChecking(true);
+    try {
+      await pingPriceApi(t);
+      await setSetting('priceToken', t);
+      setTokenOk(true);
+    } catch (e) {
+      setTokenOk(false);
+      setTokenErr(e instanceof Error ? e.message : 'Không kết nối được');
+    } finally { setChecking(false); }
+  };
 
   const fetchRates = async () => {
     setBusy(true);
@@ -63,6 +82,31 @@ export default function SettingsPage() {
         </div>
         <div className="field">Kiểu xem mặc định
           <Segmented label="Kiểu xem mặc định" value={s.defaultView} onChange={(v) => setSetting('defaultView', v)} options={[{ value: 'grid', label: 'Lưới' }, { value: 'list', label: 'Danh sách' }, { value: 'shelf', label: 'Kệ' }]} />
+        </div>
+      </section>
+
+      <section className="section px" style={{ gap: 12 }}>
+        <h2 className="h-mono">TỰ TRA GIÁ THỊ TRƯỜNG</h2>
+        <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-2)' }}>
+          App nhờ Claude tìm giá đã bán gần đây trên eBay, Yahoo! Auction JP và các cửa hàng máy ảnh, rồi lưu kèm nguồn.
+          Nhập mã truy cập bạn đã đặt (biến <span className="mono">PRICE_TOKEN</span> trên Vercel).
+        </p>
+        <label className="field">Mã truy cập
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input mono" type="password" autoComplete="off" style={{ flex: 1, minWidth: 0 }} value={token}
+              onChange={(e) => { setToken(e.target.value); setTokenOk(null); }} onBlur={() => setSetting('priceToken', token.trim())} placeholder="Chưa nhập" />
+            <button type="button" className="btn small secondary" disabled={!token.trim() || checking} onClick={checkToken}>{checking ? '…' : 'Kiểm tra'}</button>
+          </div>
+        </label>
+        {tokenOk === true && <span className="up" style={{ fontSize: 13 }}>Kết nối tốt, đã bật tự tra giá.</span>}
+        {tokenOk === false && <span className="down" style={{ fontSize: 13 }}>{tokenErr}</span>}
+        <label className="check rows" style={{ padding: '0 14px' }}>
+          <span>Tự tra giá khi mở app</span>
+          <input type="checkbox" checked={s.autoPrice} onChange={(e) => setSetting('autoPrice', e.target.checked)} />
+        </label>
+        <div className="field">Tra lại khi giá cũ hơn
+          <Segmented label="Chu kỳ tra giá" value={String(s.autoPriceDays)} onChange={(v) => setSetting('autoPriceDays', Number(v))}
+            options={[{ value: '7', label: '7 ngày' }, { value: '30', label: '30 ngày' }, { value: '90', label: '90 ngày' }]} />
         </div>
       </section>
 

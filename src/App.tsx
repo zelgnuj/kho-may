@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { useSettings } from './db';
-import { BottomNav } from './components/ui';
+import { BottomNav, PriceProgress } from './components/ui';
+import { autoRefreshStale } from './lib/autoPrice';
 import Collection from './pages/Collection';
 import Detail from './pages/Detail';
 import Edit from './pages/Edit';
@@ -31,7 +32,13 @@ export default function App() {
     return () => window.removeEventListener('kho-toast', on);
   }, []);
 
-  const hideNav = loc.pathname.startsWith('/may/') || loc.pathname === '/them';
+  // Mở app → tự tra giá các máy có giá cũ (chạy ngầm)
+  useEffect(() => {
+    const t = window.setTimeout(() => { autoRefreshStale().catch(() => {}); }, 1500);
+    return () => window.clearTimeout(t);
+  }, [settings.priceToken, settings.autoPrice]);
+
+  const hideNav =loc.pathname.startsWith('/may/') || loc.pathname === '/them';
 
   return (
     <div className="app">
@@ -45,6 +52,7 @@ export default function App() {
         <Route path="/cai-dat" element={<SettingsPage />} />
         <Route path="*" element={<Collection />} />
       </Routes>
+      <PriceProgress raised={!hideNav} />
       {!hideNav && <BottomNav />}
       {msg && <div className="toast" role="status">{msg}</div>}
     </div>

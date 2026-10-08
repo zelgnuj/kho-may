@@ -188,7 +188,8 @@ export async function exportCSV(cams: Camera[], opts: { purchase: boolean; seria
 
 export async function exportJSON(includePhotos: boolean) {
   const [cameras, prices, service, settings] = await Promise.all([
-    db.cameras.toArray(), db.prices.toArray(), db.service.toArray(), db.settings.toArray()
+    db.cameras.toArray(), db.prices.toArray(), db.service.toArray(),
+    db.settings.filter((s) => s.key !== 'priceToken').toArray()
   ]);
   let photos: { id: string; cameraId: string; createdAt: number; data: string }[] = [];
   if (includePhotos) {

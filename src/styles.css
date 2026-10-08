@@ -165,6 +165,14 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .check input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
 .savebar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 560px; z-index: 20; padding: 12px 20px calc(var(--safe-bottom) + 14px); background: rgba(14, 13, 12, .96); border-top: 1px solid var(--line-soft); display: flex; gap: 10px; }
 
+.date-input { position: relative; }
+.date-input .input { padding-right: 48px; -webkit-appearance: none; appearance: none; min-height: 48px; }
+.date-input .input::-webkit-date-and-time-value { text-align: left; }
+.date-empty { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-2); font-size: 15px; pointer-events: none; }
+.date-input .input.empty:not(:focus) { color: transparent; }
+.date-input .input.empty:focus + .date-empty { display: none; }
+.date-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--surface-2); color: var(--text-2); display: flex; align-items: center; justify-content: center; }
+
 /* Chi tiết */
 .hero { position: relative; height: 340px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .hero-scroll { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
@@ -206,4 +214,12 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: -8px; background: #151413; padding-top: 8px; z-index: 1; }
 .sheet-head h2 { font-size: 17px; font-weight: 600; }
 
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 100px); z-index: 60; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; max-width: calc(100% - 40px); }
+.price-progress { position: fixed; left: 50%; transform: translateX(-50%); z-index: 30; width: calc(100% - 32px); max-width: 528px; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border-radius: 14px; background: #201E1B; border: 1px solid var(--line-strong); font-size: 13px; color: var(--text-2); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.src-list { display: flex; flex-direction: column; gap: 6px; }
+.src-list a { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); min-height: 32px; }
+.src-list a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-mini { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 150px); z-index: 60; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; max-width: calc(100% - 40px); }

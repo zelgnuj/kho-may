@@ -24,7 +24,20 @@ npm run build    # bản production trong dist/
 
 ## Deploy
 
-Vercel: Import repo → Framework "Vite" → Deploy. Không cần cấu hình thêm (`vercel.json` đã có rewrite cho router).
+Vercel: Import repo → Framework "Vite" → Deploy (`vercel.json` đã có rewrite cho router).
+
+### Tự tra giá thị trường
+
+`api/price.ts` là hàm Vercel gọi Claude API kèm công cụ tìm kiếm web để tìm giá đã bán gần đây.
+Cần thêm biến môi trường trong Vercel → Settings → Environment Variables:
+
+| Biến | Bắt buộc | Ghi chú |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | có | Tạo ở console.anthropic.com |
+| `PRICE_TOKEN` | có | Mã tự đặt, nhập giống hệt vào Cài đặt trong app |
+| `CLAUDE_MODEL` | không | Mặc định `claude-sonnet-5-5` |
+
+Sau khi thêm biến, Redeploy một lần. App tự tra giá các máy có giá cũ mỗi khi mở.
 
 ## Cấu trúc
 

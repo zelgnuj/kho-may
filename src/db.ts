@@ -39,10 +39,27 @@ export interface Camera {
   marketLow?: number | null;
   marketHigh?: number | null;
   marketUpdatedAt?: number | null;
+  /** Lần cuối app thử tự tra giá (kể cả khi không tìm được) */
+  marketCheckedAt?: number | null;
+  marketSource?: 'auto' | 'manual' | null;
+  marketNote?: string;
+  marketBasis?: string;
+  marketConfidence?: string;
+  marketSources?: PriceSource[];
+}
+
+export interface PriceSource { url: string; title: string }
+export interface PriceMeta {
+  source: 'auto' | 'manual';
+  note?: string;
+  basis?: string;
+  confidence?: string;
+  sources?: PriceSource[];
+  usdMedian?: number | null;
 }
 
 export interface Photo { id: string; cameraId: string; blob: Blob; createdAt: number }
-export interface PricePoint { id: string; cameraId: string; date: number; value: number; low?: number | null; high?: number | null; note?: string }
+export interface PricePoint { id: string; cameraId: string; date: number; value: number; low?: number | null; high?: number | null; note?: string; meta?: PriceMeta }
 export interface ServiceEntry { id: string; cameraId: string; date: string; text: string; cost?: string; createdAt: number }
 export interface Setting { key: string; value: unknown }
 
@@ -95,11 +112,15 @@ export async function deleteCamera(id: string) {
   await patchCamera(id, { deletedAt: Date.now() });
 }
 
-export async function addPrice(cameraId: string, value: number, low?: number | null, high?: number | null, note?: string) {
+export async function addPrice(cameraId: string, value: number, low?: number | null, high?: number | null, meta: PriceMeta = { source: 'manual' }) {
   const date = Date.now();
   await db.transaction('rw', db.prices, db.cameras, async () => {
-    await db.prices.put({ id: uid(), cameraId, date, value, low, high, note });
-    await patchCamera(cameraId, { marketValue: value, marketLow: low ?? null, marketHigh: high ?? null, marketUpdatedAt: date });
+    await db.prices.put({ id: uid(), cameraId, date, value, low, high, meta });
+    await patchCamera(cameraId, {
+      marketValue: value, marketLow: low ?? null, marketHigh: high ?? null, marketUpdatedAt: date, marketCheckedAt: date,
+      marketSource: meta.source, marketNote: meta.note ?? '', marketBasis: meta.basis ?? '', marketConfidence: meta.confidence ?? '',
+      marketSources: meta.sources ?? []
+    });
   });
 }
 
@@ -128,13 +149,20 @@ export interface Settings {
   defaultView: 'grid' | 'list' | 'shelf';
   /** Số VNĐ cho 1 đơn vị ngoại tệ */
   rates: { JPY: number | null; USD: number | null; updatedAt: number | null };
+  /** Mã truy cập cho /api/price (PRICE_TOKEN trên Vercel) */
+  priceToken: string;
+  autoPrice: boolean;
+  autoPriceDays: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   ownerName: '',
   accent: '#F2A33A',
   defaultView: 'grid',
-  rates: { JPY: null, USD: null, updatedAt: null }
+  rates: { JPY: null, USD: null, updatedAt: null },
+  priceToken: '',
+  autoPrice: true,
+  autoPriceDays: 30
 };
 
 export function useSettings(): Settings {

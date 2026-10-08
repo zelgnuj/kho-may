@@ -1,13 +1,16 @@
 /**
  * POST /api/price — tự tra giá thị trường cho một mẫu máy.
  *
- * Nguồn chính: eBay Browse API (item_summary/search) — miễn phí.
+ * Thứ tự nguồn:
+ *  1. CompSniper — giá ĐÃ BÁN trên eBay (gói miễn phí 100 lượt/tháng).
+ *  2. eBay Browse API (item_summary/search) — miễn phí.
  *   Lấy các tin đang rao bán (Buy It Now, đồ cũ) của đúng mẫu máy, lọc bỏ
  *   phụ kiện / hỏng / lô nhiều máy, bỏ giá ngoại lai, lấy trung vị.
  *   Lưu ý: đây là GIÁ RAO BÁN, thường cao hơn giá thực bán một chút.
  * Dự phòng (tùy chọn): Claude API + tìm kiếm web, khi eBay không đủ dữ liệu.
  *
- * Biến môi trường trên Vercel:
+ * Biến môi trường trên Vercel (cần ít nhất một nguồn):
+ *   COMPSNIPER_API_KEY — khóa CompSniper (cs_…)
  *   EBAY_CLIENT_ID, EBAY_CLIENT_SECRET — keyset Production của eBay Developers (bắt buộc cho nguồn eBay)
  *   PRICE_TOKEN       — tùy chọn; nếu đặt, app phải gửi đúng mã này (chống người lạ dùng hết hạn mức)
  *   ANTHROPIC_API_KEY — tùy chọn; bật dự phòng bằng Claude (chỉ chạy khi có PRICE_TOKEN để tránh tốn tiền)
@@ -25,7 +28,7 @@ interface PriceBody {
 }
 
 interface Result {
-  provider: 'ebay' | 'claude';
+  provider: 'compsniper' | 'ebay' | 'claude';
   usd: { low: number | null; median: number | null; high: number | null };
   basis: 'sold' | 'asking' | 'mixed';
   confidence: 'high' | 'medium' | 'low';
@@ -157,6 +160,59 @@ async function fromEbay(b: PriceBody, id: string, secret: string): Promise<Resul
   };
 }
 
+/* ---------------- CompSniper (giá ĐÃ BÁN trên eBay) ---------------- */
+
+async function fromCompSniper(b: PriceBody, key: string): Promise<Result | null> {
+  const brand = (b.brand ?? '').trim();
+  const model = (b.model ?? '').trim();
+  const keyword = `${brand} ${model}${b.type === 'DIG' ? '' : ' film camera'}`;
+  const url = new URL('https://api.compsniper.com/v1/scrape');
+  url.searchParams.set('keyword', keyword);
+  url.searchParams.set('count', '100');
+  const r = await fetch(url, { headers: { authorization: `Bearer ${key}` } });
+  if (!r.ok) {
+    // Hết lượt / lỗi tạm thời → trả null để chuyển sang nguồn khác
+    if (r.status === 429 || r.status === 402 || r.status >= 500) return null;
+    const d = await r.json().catch(() => ({}));
+    throw new Error(`CompSniper: ${d?.error ?? d?.message ?? r.status}`);
+  }
+  const d = await r.json();
+  type Sold = { title: string; url: string; soldPrice?: string | number; soldCurrency?: string; conditionId?: number | string; endedAt?: string; buyingFormat?: string };
+  const items: Sold[] = d.items ?? [];
+  const cutoff = Date.now() - 180 * 86400000;
+  const kept = items.filter((it) => {
+    const p = Number(it.soldPrice);
+    if (!p || (it.soldCurrency && it.soldCurrency !== 'USD')) return false;
+    if (Number(it.conditionId) === 7000) return false; // For parts or not working
+    if (it.endedAt && Date.parse(it.endedAt) < cutoff) return false;
+    if (!titleMatches(it.title, brand, model)) return false;
+    return !JUNK.test(it.title);
+  });
+  const prices = kept.map((it) => Number(it.soldPrice)).sort((a, c) => a - c);
+  if (prices.length < 3) return null;
+  const q1 = quantile(prices, 0.25), q3 = quantile(prices, 0.75), iqr = q3 - q1;
+  const clean = prices.filter((v) => v >= q1 - 1.5 * iqr && v <= q3 + 1.5 * iqr);
+  const median = quantile(clean, 0.5);
+  const n = clean.length;
+  const lo = clean[0], hi = clean[clean.length - 1];
+  const recent = kept
+    .filter((it) => Number(it.soldPrice) >= lo && Number(it.soldPrice) <= hi)
+    .sort((a, c) => Date.parse(c.endedAt ?? '0') - Date.parse(a.endedAt ?? '0'))
+    .slice(0, 4)
+    .map((it) => ({ url: it.url, title: `Đã bán $${Number(it.soldPrice).toFixed(0)}${it.endedAt ? ` · ${it.endedAt.slice(0, 10)}` : ''} · ${it.title}` }));
+  const searchLink = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${brand} ${model}`)}&LH_Sold=1&LH_Complete=1`;
+  return {
+    provider: 'compsniper',
+    usd: { low: round(quantile(clean, 0.25)), median: round(median), high: round(quantile(clean, 0.75)) },
+    basis: 'sold',
+    confidence: n >= 12 ? 'high' : n >= 5 ? 'medium' : 'low',
+    includes: 'unknown',
+    sampleSize: n,
+    note: `Trung vị ${n} giao dịch đã bán trên eBay trong 6 tháng qua (qua CompSniper), đã loại máy hỏng, phụ kiện và giá bất thường. Không tính phí ship.`,
+    sources: [...recent, { url: searchLink, title: 'Xem tin đã bán trên eBay' }]
+  };
+}
+
 /* ---------------- Claude (dự phòng) ---------------- */
 
 type Block = { type: string; text?: string; citations?: { url?: string; title?: string }[]; content?: unknown };
@@ -222,6 +278,7 @@ async function usdToVnd(): Promise<number | null> {
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Chỉ nhận POST' });
 
+  const compKey = process.env.COMPSNIPER_API_KEY;
   const ebayId = process.env.EBAY_CLIENT_ID;
   const ebaySecret = process.env.EBAY_CLIENT_SECRET;
   const anthropic = process.env.ANTHROPIC_API_KEY;
@@ -231,8 +288,8 @@ export default async function handler(req: any, res: any) {
     return res.status(401).json({ error: 'Sai mã truy cập' });
   }
   const useClaude = !!(anthropic && token); // dự phòng tốn phí chỉ bật khi có mã bảo vệ
-  const providers = [ebayId && ebaySecret ? 'ebay' : null, useClaude ? 'claude' : null].filter(Boolean);
-  if (!providers.length) return res.status(503).json({ error: 'Máy chủ chưa cấu hình nguồn giá (EBAY_CLIENT_ID / EBAY_CLIENT_SECRET)' });
+  const providers = [compKey ? 'compsniper' : null, ebayId && ebaySecret ? 'ebay' : null, useClaude ? 'claude' : null].filter(Boolean);
+  if (!providers.length) return res.status(503).json({ error: 'Máy chủ chưa cấu hình nguồn giá (COMPSNIPER_API_KEY hoặc EBAY_CLIENT_ID / EBAY_CLIENT_SECRET)' });
 
   const body: PriceBody = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
   if (body.ping) return res.status(200).json({ ok: true, providers, protected: !!token });
@@ -240,21 +297,25 @@ export default async function handler(req: any, res: any) {
 
   try {
     let result: Result | null = null;
-    let ebayError: string | null = null;
-    if (ebayId && ebaySecret) {
+    const errors: string[] = [];
+    if (compKey) {
+      try { result = await fromCompSniper(body, compKey); }
+      catch (e) { errors.push(e instanceof Error ? e.message : 'CompSniper lỗi'); }
+    }
+    if (!result && ebayId && ebaySecret) {
       try { result = await fromEbay(body, ebayId, ebaySecret); }
-      catch (e) { ebayError = e instanceof Error ? e.message : 'eBay lỗi'; }
+      catch (e) { errors.push(e instanceof Error ? e.message : 'eBay lỗi'); }
     }
     if (!result && useClaude) result = await fromClaude(body, anthropic!);
-    if (!result && ebayError) return res.status(502).json({ error: ebayError });
+    if (!result && errors.length) return res.status(502).json({ error: errors.join(' · ') });
 
     const rate = await usdToVnd();
     const vnd = (v: number | null | undefined) => (v != null && rate ? Math.round((v * rate) / 10000) * 10000 : null);
     if (!result) {
       return res.status(200).json({
-        provider: 'ebay', usd: { low: null, median: null, high: null }, vnd: { low: null, median: null, high: null },
-        rate, basis: 'asking', confidence: 'low', includes: 'unknown', sampleSize: 0,
-        note: 'Không đủ tin rao trên eBay cho mẫu này (cần ít nhất 3 tin khớp tên). Có thể nhập tay.', sources: []
+        provider: providers[0], usd: { low: null, median: null, high: null }, vnd: { low: null, median: null, high: null },
+        rate, basis: 'mixed', confidence: 'low', includes: 'unknown', sampleSize: 0,
+        note: 'Không đủ dữ liệu trên eBay cho mẫu này (cần ít nhất 3 tin khớp đúng tên). Có thể nhập tay.', sources: []
       });
     }
     return res.status(200).json({

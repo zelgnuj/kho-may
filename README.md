@@ -28,16 +28,24 @@ Vercel: Import repo → Framework "Vite" → Deploy (`vercel.json` đã có rewr
 
 ### Tự tra giá thị trường
 
-`api/price.ts` lấy giá từ **eBay Browse API** (tin đang rao bán, đồ cũ, Mua ngay), lọc tin hỏng / phụ kiện / biến thể khác tên, bỏ giá ngoại lai rồi lấy trung vị. Đây là giá rao, thường cao hơn giá thực bán.
+`api/price.ts` thử lần lượt các nguồn, nguồn nào có đủ dữ liệu thì dùng:
 
-Biến môi trường trong Vercel → Settings → Environment Variables:
+1. **CompSniper** — giá **đã bán** trên eBay (gói miễn phí 100 lượt/tháng, 1 lượt = 1 máy).
+2. **eBay Browse API** — giá **đang rao** (đồ cũ, Mua ngay), dùng khi CompSniper hết lượt hoặc thiếu dữ liệu.
+3. **Claude + tìm kiếm web** — tùy chọn, tốn phí, chỉ chạy khi có `PRICE_TOKEN`.
 
-| Biến | Bắt buộc | Ghi chú |
-|---|---|---|
-| `EBAY_CLIENT_ID` | có | App ID (Client ID) của keyset **Production** trên developer.ebay.com |
-| `EBAY_CLIENT_SECRET` | có | Cert ID (Client Secret) của keyset Production |
-| `PRICE_TOKEN` | không | Nếu đặt, nhập giống hệt vào Cài đặt trong app |
-| `ANTHROPIC_API_KEY` | không | Bật dự phòng bằng Claude + tìm kiếm web khi eBay thiếu dữ liệu (tốn phí; chỉ chạy khi có `PRICE_TOKEN`) |
+Mỗi nguồn đều lọc tiêu đề đúng mẫu (loại biến thể như XA2, OM-2 SP, R1s), loại máy hỏng / phụ kiện / lô, bỏ giá ngoại lai (IQR) rồi lấy trung vị.
+
+Biến môi trường trong Vercel → Settings → Environment Variables (cần ít nhất một nguồn):
+
+| Biến | Ghi chú |
+|---|---|
+| `COMPSNIPER_API_KEY` | Khóa `cs_…` từ compsniper.com |
+| `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` | Keyset **Production** trên developer.ebay.com |
+| `PRICE_TOKEN` | Tùy chọn; nếu đặt, nhập giống hệt vào Cài đặt trong app |
+| `ANTHROPIC_API_KEY` | Tùy chọn; dự phòng bằng Claude (chỉ chạy khi có `PRICE_TOKEN`) |
+
+Yahoo! Auction JP không còn API công khai (đóng từ 2/2018) nên không được tích hợp tự động; màn Nhập tay vẫn có link mở trang kết quả đã bán của Yahoo.
 
 Sau khi thêm biến, Redeploy một lần.
 

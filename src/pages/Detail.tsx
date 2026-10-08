@@ -11,7 +11,7 @@ import { CameraArt } from '../components/CameraArt';
 import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
 
-const BASIS: Record<string, string> = { sold: 'Theo giá đã bán', asking: 'Theo giá rao bán eBay', mixed: 'Giá bán + giá rao' };
+const BASIS: Record<string, string> = { sold: 'Theo giá đã bán eBay', asking: 'Theo giá rao bán eBay', mixed: 'Giá bán + giá rao' };
 const CONF: Record<string, string> = { high: 'cao', medium: 'vừa', low: 'thấp' };
 
 function HeroPhoto({ photo }: { photo: Photo }) {
@@ -170,7 +170,7 @@ export default function Detail() {
           </>
         ) : (
           <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>
-            {looking ? 'Đang tìm các tin rao bán của mẫu này trên eBay…'
+            {looking ? 'Đang tìm giá đã bán của mẫu này trên eBay…'
               : cam.marketNote || 'Chưa có giá. Bấm “Tự tra giá” để app tự lấy giá từ eBay.'}
           </p>
         )}

@@ -35,7 +35,7 @@ export default function SettingsPage() {
     try {
       const r = await pingPriceApi(t);
       await setSetting('priceToken', t);
-      setProviderLabel(`Kết nối tốt · nguồn: ${r.providers.map((p) => (p === 'ebay' ? 'eBay' : 'Claude (dự phòng)')).join(' + ')}`);
+      setProviderLabel(`Kết nối tốt · nguồn: ${r.providers.map((p) => (p === 'compsniper' ? 'eBay đã bán (CompSniper)' : p === 'ebay' ? 'eBay đang rao' : 'Claude (dự phòng)')).join(' + ')}`);
       setTokenOk(true);
     } catch (e) {
       setTokenOk(false);
@@ -90,7 +90,7 @@ export default function SettingsPage() {
       <section className="section px" style={{ gap: 12 }}>
         <h2 className="h-mono">TỰ TRA GIÁ THỊ TRƯỜNG</h2>
         <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-2)' }}>
-          App lấy giá từ các tin đang rao bán trên eBay (đồ cũ, Mua ngay), lọc tin hỏng và phụ kiện, rồi lấy giá giữa.
+          App lấy giá đã bán gần đây trên eBay (qua CompSniper), thiếu thì dùng giá đang rao trên eBay; lọc máy hỏng, phụ kiện, biến thể khác tên rồi lấy giá giữa.
         </p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" className="btn small secondary" disabled={checking} onClick={checkToken}>{checking ? 'Đang kiểm tra…' : 'Kiểm tra kết nối'}</button>

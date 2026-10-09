@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, db, deleteCamera, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
-import { TYPE_LABEL, isZoom, lensLabel, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
+import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
@@ -30,7 +30,7 @@ export default function Detail() {
   const photos = useLiveQuery(() => db.photos.where('cameraId').equals(id).sortBy('createdAt'), [id]);
   const prices = useLiveQuery(() => db.prices.where('cameraId').equals(id).sortBy('date'), [id]);
   const service = useLiveQuery(() => db.service.where('cameraId').equals(id).reverse().sortBy('date'), [id]);
-  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'lensSpec' | 'purchase'>(null);
+  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'lensSpec' | 'purchase' | 'profile'>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [looking, setLooking] = useState(false);
 
@@ -232,8 +232,11 @@ export default function Detail() {
       </section>
 
       <section className="section px" aria-label="Hồ sơ">
-        <h2 className="h2">Hồ sơ</h2>
-        <dl className="kv">
+        <div className="section-head">
+          <h2 className="h2">Hồ sơ</h2>
+          <button type="button" className="link-btn" onClick={() => setSheet('profile')}>Sửa</button>
+        </div>
+        <dl className="kv" onClick={() => setSheet('profile')} style={{ cursor: 'pointer' }}>
           <div><dt>Số serial</dt><dd className="mono">{cam.serial || '—'}</dd></div>
           <div><dt>Tình trạng</dt><dd>{cam.condition || '—'}</dd></div>
           <div><dt>Mua tại</dt><dd>{cam.purchaseFrom || '—'}</dd></div>
@@ -323,6 +326,7 @@ export default function Detail() {
       <LensSheet open={sheet === 'lens'} onClose={() => setSheet(null)} cam={cam} />
       {sheet === 'purchase' && <PurchaseSheet open onClose={() => setSheet(null)} cam={cam} />}
       {sheet === 'lensSpec' && <LensSpecSheet onClose={() => setSheet(null)} cam={cam} />}
+      {sheet === 'profile' && <ProfileSheet onClose={() => setSheet(null)} cam={cam} />}
     </div>
   );
 }
@@ -482,6 +486,46 @@ function LensSpecSheet({ onClose, cam }: { onClose: () => void; cam: Camera }) {
   return (
     <Sheet open onClose={onClose} title="Ống kính">
       <LensSpecFields value={spec} onChange={setSpec} />
+      <button type="button" className="btn" onClick={save}>Lưu</button>
+    </Sheet>
+  );
+}
+
+function ProfileSheet({ onClose, cam }: { onClose: () => void; cam: Camera }) {
+  const [serial, setSerial] = useState(cam.serial);
+  const [condition, setCondition] = useState(cam.condition);
+  const [from, setFrom] = useState(cam.purchaseFrom);
+  const [date, setDate] = useState(cam.purchaseDate);
+  const [tags, setTags] = useState(cam.tags.join(', '));
+  const save = async () => {
+    await patchCamera(cam.id, {
+      serial: serial.trim(), condition, purchaseFrom: from.trim(), purchaseDate: date,
+      tags: tags.split(',').map((t) => t.trim()).filter(Boolean)
+    });
+    onClose();
+  };
+  return (
+    <Sheet open onClose={onClose} title="Hồ sơ">
+      <label className="field">Số serial
+        <input className="input mono" value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="Không bắt buộc" />
+      </label>
+      <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
+        <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Tình trạng</legend>
+        <div className="grade">
+          {CONDITIONS.map((g) => (
+            <button key={g} type="button" className={condition === g ? 'on' : ''} aria-pressed={condition === g} onClick={() => setCondition(condition === g ? '' : g)}>{g}</button>
+          ))}
+        </div>
+      </fieldset>
+      <div className="form-grid">
+        <label className="field">Mua tại
+          <input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Buyee, shop…" />
+        </label>
+        <div className="field"><span>Ngày mua</span><DateInput label="Ngày mua" value={date} onChange={setDate} /></div>
+      </div>
+      <label className="field">Thẻ (cách nhau bằng dấu phẩy)
+        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="máy đi phố, kỷ niệm" />
+      </label>
       <button type="button" className="btn" onClick={save}>Lưu</button>
     </Sheet>
   );

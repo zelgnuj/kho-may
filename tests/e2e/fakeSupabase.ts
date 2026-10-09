@@ -6,7 +6,10 @@ export class FakeSupabase {
   files = new Map<string, { body: Buffer; type: string }>();
   clock = Date.parse('2026-10-09T00:00:00Z');
   user = { id: '11111111-1111-1111-1111-111111111111', email: 'lam@example.com' };
-  otpSent: string[] = [];
+  accounts = new Map<string, string>();
+  /** true: tạo tài khoản xong phải xác nhận email (như Supabase mặc định) */
+  confirmEmail = false;
+  confirmed = new Set<string>();
 
   private ts() { this.clock += 7; return new Date(this.clock).toISOString(); }
 
@@ -30,10 +33,18 @@ export class FakeSupabase {
     const p = url.pathname;
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (p === '/auth/v1/otp') { this.otpSent.push(req.postDataJSON().email); return json({}); }
-    if (p === '/auth/v1/verify') {
+    if (p === '/auth/v1/signup') {
       const b = req.postDataJSON();
-      if (b.token !== '123456') return json({ code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' }, 403);
+      if (this.accounts.has(b.email)) return json({ ...this.session().user, identities: [] });
+      this.accounts.set(b.email, b.password);
+      if (this.confirmEmail) return json({ ...this.session().user, identities: [{ id: 'x' }], confirmation_sent_at: new Date().toISOString() });
+      this.confirmed.add(b.email);
+      return json({ ...this.session(), user: { ...this.session().user, identities: [{ id: 'x' }] } });
+    }
+    if (p === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') {
+      const b = req.postDataJSON();
+      if (this.accounts.get(b.email) !== b.password) return json({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }, 400);
+      if (!this.confirmed.has(b.email)) return json({ code: 400, error_code: 'email_not_confirmed', msg: 'Email not confirmed' }, 400);
       return json(this.session());
     }
     if (p.startsWith('/auth/v1/logout')) return route.fulfill({ status: 204 });

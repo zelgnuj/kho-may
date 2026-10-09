@@ -2,15 +2,29 @@ import { expect, test, type Page } from '@playwright/test';
 import { fixture, idb, importSample, mockApis } from './helpers';
 import { FakeSupabase } from './fakeSupabase';
 
-async function login(page: Page) {
+async function login(page: Page, opts: { create?: boolean; server?: FakeSupabase } = {}) {
   await page.goto('/cai-dat/tai-khoan');
-  await page.getByLabel('Email').fill('lam@example.com');
-  await page.getByRole('button', { name: 'Gửi mã đăng nhập' }).click();
-  await page.getByLabel('Mã đăng nhập').fill('000000');
-  await page.getByRole('button', { name: 'Đăng nhập' }).click();
-  await expect(page.getByText('Mã không đúng hoặc đã hết hạn')).toBeVisible();
-  await page.getByLabel('Mã đăng nhập').fill('123456');
-  await page.getByRole('button', { name: 'Đăng nhập' }).click();
+  if (opts.create) {
+    await page.getByRole('radio', { name: 'Tạo tài khoản' }).click();
+    await page.getByLabel('Email').fill('lam@example.com');
+    await page.getByLabel('Mật khẩu').fill('123');
+    await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
+    await expect(page.getByText('Mật khẩu cần ít nhất 6 ký tự')).toBeVisible();
+    await page.getByLabel('Mật khẩu').fill('phim-35mm');
+    await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
+    // Supabase mặc định: phải xác nhận email trước
+    await expect(page.locator('.info-box')).toContainText('Đã gửi thư xác nhận');
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).last().click();
+    await expect(page.getByText('Email chưa được xác nhận')).toBeVisible();
+    opts.server!.confirmed.add('lam@example.com'); // bấm link trong email
+  } else {
+    await page.getByLabel('Email').fill('lam@example.com');
+    await page.getByLabel('Mật khẩu').fill('sai-mat-khau');
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).last().click();
+    await expect(page.getByText('Sai email hoặc mật khẩu')).toBeVisible();
+    await page.getByLabel('Mật khẩu').fill('phim-35mm');
+  }
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).last().click();
   await expect(page.getByRole('button', { name: 'Đồng bộ ngay' })).toBeVisible();
   await expect(page.locator('.rows')).toContainText('vừa xong', { timeout: 15000 });
 }
@@ -24,6 +38,7 @@ const syncNow = async (page: Page) => {
 test('đồng bộ giữa hai thiết bị: máy, ảnh, cuộn film, sửa, xoá', async ({ browser }) => {
   test.setTimeout(90_000);
   const server = new FakeSupabase();
+  server.confirmEmail = true;
   const mk = async () => {
     const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
     await server.attach(ctx);
@@ -48,7 +63,7 @@ test('đồng bộ giữa hai thiết bị: máy, ảnh, cuộn film, sửa, xo�
   await A.page.getByLabel('Tên hiển thị').fill('Lâm');
   await A.page.getByLabel('Tên hiển thị').blur();
   await expect.poll(async () => (await idb<{ key: string; value: unknown }>(A.page, 'settings')).find((x) => x.key === 'ownerName')?.value).toBe('Lâm');
-  await login(A.page);
+  await login(A.page, { create: true, server });
   expect([...server.rows.values()].filter((r) => r.kind === 'camera')).toHaveLength(4);
   expect(server.files.size).toBe(1);
   expect(server.rows.get('setting:ownerName')?.data).toEqual({ value: 'Lâm' });
@@ -101,9 +116,27 @@ test('đồng bộ giữa hai thiết bị: máy, ảnh, cuộn film, sửa, xo�
   await B.page.goto('/cai-dat/tai-khoan');
   B.page.once('dialog', (d) => d.accept());
   await B.page.getByRole('button', { name: 'Đăng xuất và xoá dữ liệu trên máy này' }).click();
-  await expect(B.page.getByRole('button', { name: 'Gửi mã đăng nhập' })).toBeVisible();
+  await expect(B.page.getByRole('radio', { name: 'Tạo tài khoản' })).toBeVisible();
   await expect.poll(async () => (await idb(B.page, 'cameras')).length).toBe(0);
   expect([...server.rows.values()].filter((r) => r.kind === 'camera' && !r.deleted)).toHaveLength(4);
 
   await A.ctx.close(); await B.ctx.close();
+});
+
+test('link trong email: xác nhận tài khoản & đặt lại mật khẩu', async ({ browser }) => {
+  const server = new FakeSupabase();
+  const ctx = await browser.newContext({ serviceWorkers: 'block' });
+  await server.attach(ctx);
+  const page = await ctx.newPage();
+  const s = server.session();
+  const hash = (type: string) => `#access_token=${s.access_token}&refresh_token=${s.refresh_token}&expires_in=3600&token_type=bearer&type=${type}`;
+  await page.goto('/xac-nhan' + hash('signup'));
+  await expect(page.locator('.info-box')).toContainText('Email đã được xác nhận');
+  await page.goto('/dat-lai-mat-khau' + hash('recovery'));
+  await page.getByLabel('Mật khẩu mới').fill('moi-123456');
+  await page.getByRole('button', { name: 'Lưu mật khẩu mới' }).click();
+  await expect(page.locator('.info-box')).toContainText('Đã đổi mật khẩu');
+  await page.goto('/xac-nhan#error=access_denied&error_description=Email+link+is+invalid+or+has+expired');
+  await expect(page.getByText('Email link is invalid or has expired')).toBeVisible();
+  await ctx.close();
 });

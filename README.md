@@ -84,7 +84,7 @@ Cài đặt → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mụ
 
 - Project Supabase `camera-cabinet` (Singapore). Schema ở `supabase/migrations/001_sync.sql`: một bảng `records` (mỗi bản ghi của app là một dòng, RLS theo `auth.uid()`), hàm `sync_push` (chỉ ghi khi bản gửi lên mới hơn), bucket riêng tư `photos/{user_id}/{photo_id}`.
 - App vẫn local-first (IndexedDB). `src/lib/sync.ts`: kéo thay đổi mới trước, rồi đẩy những bản ghi khác với `syncMeta`; bản ghi biến mất trên máy → gửi bia mộ. Tự đồng bộ vài giây sau khi dữ liệu đổi, khi mở app, khi có mạng lại, và mỗi 5 phút.
-- Đăng nhập bằng mã 6 số qua email (không dùng link vì app ngoài màn hình chính iPhone không nhận được link). Mẫu email "Magic Link" và "Confirm signup" trong Supabase phải có `{{ .Token }}`.
+- Đăng nhập bằng email + mật khẩu ngay trong app (link/mã qua email không hợp với app ngoài màn hình chính iPhone, và Supabase chỉ cho sửa mẫu email khi có SMTP riêng). Email chỉ dùng để xác nhận tài khoản (`/xac-nhan`) và đặt lại mật khẩu (`/dat-lai-mat-khau`). Supabase → Authentication → URL Configuration: Site URL `https://kho-may.vercel.app`, Redirect URLs `https://kho-may.vercel.app/**`.
 - Khoá `anon` nằm trong `src/lib/supabase.ts` (công khai theo thiết kế của Supabase; ghi đè được bằng `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`).
 - Máy chủ email mặc định của Supabase chỉ gửi tới email thành viên của project; mở cho người khác cần cấu hình SMTP riêng.
 

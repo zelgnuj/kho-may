@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../db';
-import { sendCode, signOut, syncNow, useSync, verifyCode } from '../lib/sync';
+import { sendReset, sessionFromUrlHash, setNewPassword, signIn, signOut, signUp, syncNow, useSync } from '../lib/sync';
+import { Segmented } from './ui';
 import { toast } from '../lib/toast';
 import { SubPage } from './SubPage';
 
@@ -25,25 +26,40 @@ export function accountLabel(sync: ReturnType<typeof useSync>) {
 export function AccountPage() {
   const sync = useSync();
   const [email, setEmail] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [info, setInfo] = useState('');
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(t); }, []);
 
-  const send = async () => {
-    const e = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setErr('Email chưa đúng'); return; }
-    setBusy(true); setErr('');
-    try { await sendCode(e); setStep('code'); setCode(''); }
-    catch (x) { setErr(x instanceof Error ? x.message : 'Không gửi được mã'); }
+  const mail = email.trim().toLowerCase();
+  const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail);
+  const submit = async () => {
+    if (!okEmail) { setErr('Email chưa đúng'); return; }
+    if (password.length < 6) { setErr('Mật khẩu cần ít nhất 6 ký tự'); return; }
+    setBusy(true); setErr(''); setInfo('');
+    try {
+      if (mode === 'up') {
+        const needConfirm = await signUp(mail, password);
+        if (needConfirm) {
+          setMode('in');
+          setInfo(`Đã gửi thư xác nhận tới ${mail}. Mở thư, bấm link xác nhận (mở trong Safari cũng được), rồi quay lại đây bấm Đăng nhập.`);
+        } else toast('Đã tạo tài khoản · đang đồng bộ');
+      } else {
+        await signIn(mail, password);
+        toast('Đã đăng nhập · đang đồng bộ');
+      }
+    } catch (x) { setErr(x instanceof Error ? x.message : 'Không thực hiện được'); }
     finally { setBusy(false); }
   };
-  const verify = async () => {
-    setBusy(true); setErr('');
-    try { await verifyCode(email.trim().toLowerCase(), code); toast('Đã đăng nhập · đang đồng bộ'); }
-    catch (x) { setErr(x instanceof Error ? x.message : 'Không đăng nhập được'); }
+  const forgot = async () => {
+    if (!okEmail) { setErr('Nhập email trước, rồi bấm Quên mật khẩu'); return; }
+    setBusy(true); setErr(''); setInfo('');
+    try { await sendReset(mail); setInfo(`Đã gửi link đặt lại mật khẩu tới ${mail}. Mở link, đặt mật khẩu mới, rồi quay lại app đăng nhập.`); }
+    catch (x) { setErr(x instanceof Error ? x.message : 'Không gửi được'); }
     finally { setBusy(false); }
   };
   const out = async (wipe: boolean) => {
@@ -85,32 +101,70 @@ export function AccountPage() {
     <SubPage title="Tài khoản">
       <section className="section px" style={{ gap: 12 }}>
         <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--text-2)' }}>
-          Đăng nhập để dữ liệu được lưu vào tài khoản: không lo mất khi đổi điện thoại, và dùng được trên nhiều máy. Không cần mật khẩu — app gửi mã gồm 6 số vào email.
+          Đăng nhập để dữ liệu được lưu vào tài khoản: không lo mất khi đổi điện thoại, và dùng được trên nhiều máy.
         </p>
-        {step === 'email' ? (
+        <Segmented<'in' | 'up'> label="Đăng nhập hoặc tạo tài khoản" value={mode} onChange={(v) => { setMode(v); setErr(''); }}
+          options={[{ value: 'in', label: 'Đăng nhập' }, { value: 'up', label: 'Tạo tài khoản' }]} />
+        <label className="field">Email
+          <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email}
+            onChange={(e) => setEmail(e.target.value)} placeholder="ban@gmail.com" />
+        </label>
+        <label className="field">Mật khẩu
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input" style={{ flex: 1, minWidth: 0 }} type={show ? 'text' : 'password'} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
+              value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              placeholder={mode === 'up' ? 'Ít nhất 6 ký tự' : ''} />
+            <button type="button" className="btn small secondary" onClick={() => setShow((x) => !x)}>{show ? 'Ẩn' : 'Hiện'}</button>
+          </div>
+        </label>
+        <button type="button" className="btn" disabled={busy || !email.trim() || !password} onClick={submit}>
+          {busy ? 'Đang xử lý…' : mode === 'up' ? 'Tạo tài khoản' : 'Đăng nhập'}
+        </button>
+        {mode === 'in' && <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', padding: 0 }} disabled={busy} onClick={forgot}>Quên mật khẩu?</button>}
+        {err && <p className="down" style={{ fontSize: 13, lineHeight: 1.5 }}>{err}</p>}
+        {info && <p className="info-box">{info}</p>}
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>Dữ liệu đang có trên máy này sẽ được đưa lên tài khoản ngay sau khi đăng nhập.</p>
+      </section>
+    </SubPage>
+  );
+}
+
+/** Trang mở từ link trong email (thường là Safari): xác nhận tài khoản / đặt lại mật khẩu */
+export function AuthLanding({ kind }: { kind: 'confirm' | 'reset' }) {
+  const [state, setState] = useState<'loading' | 'ok' | 'form' | 'done' | 'error'>('loading');
+  const [msg, setMsg] = useState('');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    sessionFromUrlHash().then((r) => {
+      if (r.error) { setState('error'); setMsg(r.error); return; }
+      if (kind === 'reset') setState(r.ok ? 'form' : 'error');
+      else setState('ok');
+      if (!r.ok && kind === 'reset') setMsg('Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Gửi lại link từ app.');
+    });
+  }, [kind]);
+  const save = async () => {
+    setBusy(true);
+    try { await setNewPassword(pw); await signOut(false); setState('done'); }
+    catch (x) { setMsg(x instanceof Error ? x.message : 'Không đổi được mật khẩu'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <SubPage title={kind === 'reset' ? 'Mật khẩu mới' : 'Xác nhận email'} back="/" backLabel="Camera Cabinet">
+      <section className="section px" style={{ gap: 12 }}>
+        {state === 'loading' && <p className="muted">Đang kiểm tra…</p>}
+        {state === 'ok' && <p className="info-box">Email đã được xác nhận. Quay lại app Camera Cabinet (biểu tượng trên màn hình chính) và đăng nhập bằng email + mật khẩu vừa tạo.</p>}
+        {state === 'error' && <p className="down" style={{ fontSize: 14, lineHeight: 1.5 }}>{msg || 'Link không hợp lệ hoặc đã hết hạn.'}</p>}
+        {state === 'form' && (
           <>
-            <label className="field">Email
-              <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email}
-                onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder="ban@gmail.com" />
+            <label className="field">Mật khẩu mới
+              <input className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Ít nhất 6 ký tự" />
             </label>
-            <button type="button" className="btn" disabled={busy || !email.trim()} onClick={send}>{busy ? 'Đang gửi…' : 'Gửi mã đăng nhập'}</button>
-          </>
-        ) : (
-          <>
-            <p style={{ fontSize: 13, lineHeight: 1.5 }}>Đã gửi mã tới <b>{email.trim()}</b>. Mở email và nhập mã vào đây (xem cả mục Spam / Quảng cáo).</p>
-            <label className="field">Mã đăng nhập
-              <input className="input mono otp" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') verify(); }} placeholder="••••••" autoFocus />
-            </label>
-            <button type="button" className="btn" disabled={busy || code.length < 6} onClick={verify}>{busy ? 'Đang kiểm tra…' : 'Đăng nhập'}</button>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <button type="button" className="link-btn" onClick={() => { setStep('email'); setErr(''); }}>Đổi email</button>
-              <button type="button" className="link-btn" disabled={busy} onClick={send}>Gửi lại mã</button>
-            </div>
+            <button type="button" className="btn" disabled={busy || pw.length < 6} onClick={save}>Lưu mật khẩu mới</button>
+            {msg && <p className="down" style={{ fontSize: 13 }}>{msg}</p>}
           </>
         )}
-        {err && <p className="down" style={{ fontSize: 13 }}>{err}</p>}
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>Dữ liệu đang có trên máy này sẽ được đưa lên tài khoản ngay sau khi đăng nhập.</p>
+        {state === 'done' && <p className="info-box">Đã đổi mật khẩu. Quay lại app Camera Cabinet và đăng nhập bằng mật khẩu mới.</p>}
       </section>
     </SubPage>
   );

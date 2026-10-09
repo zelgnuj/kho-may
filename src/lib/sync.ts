@@ -272,19 +272,56 @@ export async function startSync() {
   window.setInterval(() => { if (document.visibilityState === 'visible') syncNow(); }, 5 * 60 * 1000);
 }
 
-/* ---------- Đăng nhập bằng mã email ---------- */
+/* ---------- Đăng nhập bằng email + mật khẩu ---------- */
 
-export async function sendCode(email: string) {
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  if (error) {
-    if (/not authorized/i.test(error.message)) throw new Error('Email này chưa được phép nhận mã. Hiện máy chủ chỉ gửi mã tới email của tài khoản Supabase quản lý app.');
-    throw new Error(/rate|seconds/i.test(error.message) ? 'Gửi mã hơi nhiều — đợi một chút rồi thử lại' : error.message);
-  }
+const SITE = typeof window !== 'undefined' ? window.location.origin : 'https://kho-may.vercel.app';
+
+function authError(msg: string): Error {
+  if (/invalid login credentials/i.test(msg)) return new Error('Sai email hoặc mật khẩu');
+  if (/email not confirmed/i.test(msg)) return new Error('Email chưa được xác nhận — mở thư xác nhận Supabase gửi, bấm link, rồi đăng nhập lại');
+  if (/already registered|already exists/i.test(msg)) return new Error('Email này đã có tài khoản — chuyển sang Đăng nhập');
+  if (/password should be|at least 6/i.test(msg)) return new Error('Mật khẩu cần ít nhất 6 ký tự');
+  if (/not authorized/i.test(msg)) return new Error('Máy chủ chưa gửi được thư tới email này (hiện chỉ gửi tới email của tài khoản Supabase quản lý app)');
+  if (/rate|seconds|too many/i.test(msg)) return new Error('Thao tác hơi nhiều — đợi một chút rồi thử lại');
+  return new Error(msg);
 }
 
-export async function verifyCode(email: string, code: string) {
-  const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' });
-  if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'Mã không đúng hoặc đã hết hạn' : error.message);
+/** Tạo tài khoản. Trả về true nếu cần xác nhận email trước khi đăng nhập. */
+export async function signUp(email: string, password: string): Promise<boolean> {
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${SITE}/xac-nhan` } });
+  if (error) throw authError(error.message);
+  // Supabase trả user không có identities khi email đã tồn tại (để không lộ thông tin)
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw authError('already registered');
+  return !data.session;
+}
+
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw authError(error.message);
+}
+
+export async function sendReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${SITE}/dat-lai-mat-khau` });
+  if (error) throw authError(error.message);
+}
+
+/** Trang mở từ link trong email (Safari): đọc phiên từ #access_token… */
+export async function sessionFromUrlHash(): Promise<{ ok: boolean; type: string | null; error: string | null }> {
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const q = new URLSearchParams(window.location.search);
+  const err = h.get('error_description') || q.get('error_description');
+  if (err) return { ok: false, type: null, error: err.replace(/\+/g, ' ') };
+  const access_token = h.get('access_token');
+  const refresh_token = h.get('refresh_token');
+  if (!access_token || !refresh_token) return { ok: false, type: null, error: null };
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+  history.replaceState(null, '', window.location.pathname);
+  return { ok: !error, type: h.get('type'), error: error?.message ?? null };
+}
+
+export async function setNewPassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw authError(error.message);
 }
 
 export async function signOut(wipeLocal: boolean) {

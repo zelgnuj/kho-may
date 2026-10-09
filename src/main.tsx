@@ -17,7 +17,10 @@ migrateFilmToRolls((st) => ({ iso: isoFromName(st), kind: findStock(st)?.kind })
 loadCatalog()
   .then(() => backfillLensSpecs(guessLens))
   .then(() => (navigator.onLine ? syncPending() : undefined))
-  .finally(() => { startSync().catch(() => {}); })
+  .finally(() => {
+    // trang mở từ link email (Safari) không tự đồng bộ
+    if (!/^\/(xac-nhan|dat-lai-mat-khau)/.test(location.pathname)) startSync().catch(() => {});
+  })
   .catch(() => {});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

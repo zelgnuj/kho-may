@@ -8,6 +8,7 @@ import Detail from './pages/Detail';
 import Edit from './pages/Edit';
 import Value from './pages/Value';
 import FilmPage from './pages/Film';
+import { AuthLanding } from './components/Account';
 import WishlistPage, { WishDetail, WishEdit } from './pages/Wishlist';
 import SettingsPage from './pages/Settings';
 
@@ -55,6 +56,8 @@ export default function App() {
         <Route path="/wishlist/:id" element={<WishDetail />} />
         <Route path="/wishlist/:id/sua" element={<WishEdit />} />
         <Route path="/du-lieu" element={<Navigate to="/cai-dat/nhap-xuat" replace />} />
+        <Route path="/xac-nhan" element={<AuthLanding kind="confirm" />} />
+        <Route path="/dat-lai-mat-khau" element={<AuthLanding kind="reset" />} />
         <Route path="/cai-dat" element={<SettingsPage />} />
         <Route path="/cai-dat/:section" element={<SettingsPage />} />
         <Route path="*" element={<Collection />} />

@@ -88,6 +88,7 @@ test('đồng bộ giữa hai thiết bị: máy, ảnh, cuộn film, sửa, xo�
       q.onsuccess = () => { const c = q.result; c.notes = 'sửa từ máy B'; c.updatedAt = Date.now(); s.put(c).onsuccess = () => { r.result.close(); res(); }; };
     };
   }), xa.id);
+  await syncNow(B.page); // sửa thẳng IndexedDB nên app không tự thấy thay đổi; sửa qua giao diện thì app tự đồng bộ
   await expect.poll(() => (server.rows.get(`camera:${xa.id}`)?.data as { notes?: string })?.notes, { timeout: 15000 }).toBe('sửa từ máy B');
   await syncNow(A.page);
   expect((await idb<{ id: string; notes: string }>(A.page, 'cameras')).find((c) => c.id === xa.id)?.notes).toBe('sửa từ máy B');

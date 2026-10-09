@@ -12,6 +12,7 @@ import { defaultLensKind, findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
 import { ContributeSheet } from '../components/ContributeSheet';
 import { FilmCard, FinishRollSheet, LoadFilmSheet } from '../components/Film';
+import { LoanSection } from '../components/Loan';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
@@ -164,6 +165,7 @@ export default function Detail() {
             <span className={'status-chip ' + cam.status}>{cam.status === 'owned' ? 'Trong kho' : 'Đã bán'}</span>
             {cam.marketValue != null && cam.status === 'owned' && <span className="status-chip">{trieu(cam.marketValue)} tr</span>}
             {cam.film && <span className="status-chip film">{cam.film.stock}</span>}
+            {cam.loan && <span className="status-chip loan">{cam.loan.to} mượn</span>}
           </div>
           <button type="button" className="swipe-hint" onClick={() => detailsRef.current?.scrollIntoView({ behavior: 'smooth' })}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
@@ -178,6 +180,7 @@ export default function Detail() {
           <FilmCard cam={cam} onLoad={() => setSheet('film')} onFinish={() => setSheet('finish')} />
         </div>
       )}
+      {cam.status === 'owned' && <LoanSection cam={cam} />}
 
       <section className="panel" aria-label="Giá thị trường" style={{ margin: '0 20px' }}>
         <div className="section-head">

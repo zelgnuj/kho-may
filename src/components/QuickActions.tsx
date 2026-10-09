@@ -6,10 +6,11 @@ import { compressImage } from '../lib/images';
 import { holdPhotos } from '../lib/quickPhotos';
 import { toast } from '../lib/toast';
 import { LoadFilmSheet } from './Film';
-import { IconCamera, IconFilm, IconHeart, IconPlus, IconSearch } from './Icons';
+import { LoanSheet } from './Loan';
+import { IconCamera, IconFilm, IconHandshake, IconHeart, IconPlus, IconSearch } from './Icons';
 import { CameraThumb, Sheet } from './ui';
 
-type Step = null | 'menu' | 'photo-pick' | 'film-pick';
+type Step = null | 'menu' | 'photo-pick' | 'film-pick' | 'loan-pick';
 
 /** Nút + giữa thanh dưới: các việc làm nhanh */
 export function QuickActions() {
@@ -18,6 +19,7 @@ export function QuickActions() {
   const [step, setStep] = useState<Step>(null);
   const [shots, setShots] = useState<Blob[]>([]);
   const [filmCam, setFilmCam] = useState<Camera | null>(null);
+  const [loanCam, setLoanCam] = useState<Camera | null>(null);
   const camInput = useRef<HTMLInputElement>(null);
   const onWish = loc.pathname.startsWith('/wishlist');
 
@@ -42,7 +44,8 @@ export function QuickActions() {
   const wish = { key: 'wish', icon: <IconHeart size={22} />, label: 'Thêm vào Wishlist', sub: 'Máy đang săn', run: () => go('/wishlist/them') };
   const film = { key: 'film', icon: <IconFilm size={22} />, label: 'Lắp film', sub: 'Chọn máy, chọn cuộn', run: () => setStep('film-pick') };
   const add = { key: 'add', icon: <IconPlus size={22} />, label: 'Thêm máy vào kho', sub: 'Máy mới về', run: () => go('/them') };
-  const others = onWish ? [wish, add, film] : [wish, film, add];
+  const loan = { key: 'loan', icon: <IconHandshake size={22} />, label: 'Cho mượn', sub: 'Ghi ai mượn, hẹn trả', run: () => setStep('loan-pick') };
+  const others = onWish ? [wish, add, film, loan] : [wish, film, loan, add];
 
   return (
     <>
@@ -75,12 +78,16 @@ export function QuickActions() {
       <CameraChooser open={step === 'film-pick'} title="Lắp film vào máy nào?" filmOnly onClose={close}
         onPick={(c) => { setFilmCam(c); close(); }} />
       {filmCam && <LoadFilmSheet open onClose={() => setFilmCam(null)} cam={filmCam} />}
+
+      <CameraChooser open={step === 'loan-pick'} title="Cho mượn máy nào?" onClose={close} showLoan
+        onPick={(c) => { if (c.loan) go(`/may/${c.id}`); else { setLoanCam(c); close(); } }} />
+      {loanCam && <LoanSheet open onClose={() => setLoanCam(null)} cam={loanCam} />}
     </>
   );
 }
 
-function CameraChooser({ open, title, onClose, onPick, extra, filmOnly }: {
-  open: boolean; title: string; onClose: () => void; onPick: (c: Camera) => void; extra?: React.ReactNode; filmOnly?: boolean;
+function CameraChooser({ open, title, onClose, onPick, extra, filmOnly, showLoan }: {
+  open: boolean; title: string; onClose: () => void; onPick: (c: Camera) => void; extra?: React.ReactNode; filmOnly?: boolean; showLoan?: boolean;
 }) {
   const cams = useCameras();
   const [q, setQ] = useState('');
@@ -108,6 +115,7 @@ function CameraChooser({ open, title, onClose, onPick, extra, filmOnly }: {
                 <span className="pick-meta">{[TYPE_LABEL[c.type], lensLabel(c.lens)].filter(Boolean).join(' · ')}</span>
               </span>
             </span>
+            {showLoan && c.loan && <span className="pick-spec" style={{ borderColor: '#7FB8FF', color: '#7FB8FF' }}>{c.loan.to} mượn · nhận lại</span>}
             {filmOnly && c.film && <span className="pick-spec" style={{ maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.film.stock}</span>}
           </button>
         ))}

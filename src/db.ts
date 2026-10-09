@@ -25,6 +25,8 @@ export interface LensSpec {
  * Mọi bản ghi đều có id (uuid), createdAt/updatedAt và deletedAt (xóa mềm)
  * để sau này đồng bộ lên tài khoản mà không phải đổi cấu trúc.
  */
+export interface Loan { id: string; to: string; since: string; due?: string; note?: string }
+
 export interface Camera {
   id: string;
   createdAt: number;
@@ -45,6 +47,10 @@ export interface Camera {
   purchaseFrom: string;
   tags: string[];
   notes: string;
+  /** Đang cho mượn */
+  loan?: Loan | null;
+  /** Các lần cho mượn đã trả */
+  loanHistory?: (Loan & { returnedAt: string })[];
   /** Cuộn đang lắp (bản tóm tắt; chi tiết ở bảng rolls) */
   film?: { stock: string; loadedAt: string; rollId?: string; iso?: number | null; ei?: number | null } | null;
   lenses: Lens[];

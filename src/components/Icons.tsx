@@ -35,3 +35,4 @@ export const IconPalette = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><
 export const IconChevron = ({ size, ...p }: P) => (<svg {...base(size)} strokeWidth={2} {...p}><path d="M9 6l6 6-6 6" /></svg>);
 export const IconLink = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>);
 export const IconCloud = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z" /></svg>);
+export const IconHandshake = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M3 12l4-4 4 2 3-2 7 5" /><path d="M7 8v6l4 4 3-2 3 1 4-4" /><path d="M11 18l-2-2" /><path d="M14 16l-2-2" /></svg>);

@@ -1,4 +1,5 @@
 import { BackupReminder } from '../components/Backup';
+import { loanStatus } from '../lib/loans';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -44,6 +45,7 @@ export default function Collection() {
     if (c.status !== 'owned') return false;
     if (f === 'all') return true;
     if (f === 'film') return !!c.film;
+    if (f === 'loan') return !!c.loan;
     if (f === 'zoom') return isZoom(c.lens);
     if (f === 'noprice') return c.marketValue == null;
     if (f === 'untyped') return !c.type;
@@ -60,6 +62,8 @@ export default function Collection() {
     if (zoom) out.push({ k: 'zoom', label: 'Zoom', n: zoom });
     const film = owned.filter((c) => c.film).length;
     if (film) out.push({ k: 'film', label: 'Có film', n: film });
+    const lent = owned.filter((c) => c.loan).length;
+    if (lent) out.splice(1, 0, { k: 'loan', label: 'Cho mượn', n: lent });
     const noprice = owned.filter((c) => c.marketValue == null).length;
     if (noprice) out.push({ k: 'noprice', label: 'Chưa có giá', n: noprice });
     const sold = all.filter((c) => c.status === 'sold').length;
@@ -88,6 +92,7 @@ export default function Collection() {
 
   const total = owned.reduce((s, c) => s + (c.marketValue ?? 0), 0);
   const loaded = owned.filter((c) => c.film).length;
+  const overdue = owned.filter((c) => c.loan && loanStatus(c.loan).overdue);
   const waitingDev = useLiveQuery(() => db.rolls.where('status').equals('shot').filter((r) => !r.deletedAt).count(), []) ?? 0;
 
   const pickView = (v: View) => { setView(v); writeLS('kho-view', v); };
@@ -107,6 +112,14 @@ export default function Collection() {
         </div>
       </header>
 
+      {overdue.length > 0 && (
+        <div className="px loan-nudge" role="status">
+          <button type="button" className="loan-card overdue" style={{ width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit', cursor: 'pointer' }} onClick={() => setFilter('loan')}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{overdue.length === 1 ? `${overdue[0].loan!.to} giữ ${overdue[0].model} quá hẹn ${-loanStatus(overdue[0].loan!).left!} ngày` : `${overdue.length} máy cho mượn đã quá hẹn trả`}</span>
+            <span className="muted" style={{ fontSize: 12 }}>Bấm để xem các máy đang cho mượn</span>
+          </button>
+        </div>
+      )}
       {all.length > 0 && <BackupReminder />}
 
       {all.length === 0 ? (
@@ -167,6 +180,7 @@ export default function Collection() {
                       <span className="badge">{c.type === 'DIG' ? 'Digital' : c.format}</span>
                       {c.status === 'sold' && <span className="pill">Đã bán</span>}
                       {c.film && <span className="film-tag"><IconFilm size={12} />{c.film.stock}</span>}
+                      {c.loan && <span className={'loan-tag' + (loanStatus(c.loan).overdue ? ' overdue' : '')}>{c.loan.to} mượn</span>}
                     </div>
                     <div className="meta">
                       <span className="sub">{c.brand} · {TYPE_LABEL[c.type]}</span>
@@ -197,7 +211,7 @@ export default function Collection() {
                   </div>
                   <div className="list-side">
                     <span className="mono" style={{ fontSize: 13 }}>{c.status === 'sold' ? '—' : trieuLabel(c.marketValue)}</span>
-                    <span style={{ color: c.status === 'sold' ? 'var(--muted)' : 'var(--up)' }}>{c.status === 'sold' ? 'Đã bán' : 'Trong kho'}</span>
+                    <span style={{ color: c.status === 'sold' ? 'var(--muted)' : c.loan ? '#7FB8FF' : 'var(--up)' }}>{c.status === 'sold' ? 'Đã bán' : c.loan ? `${c.loan.to} mượn` : 'Trong kho'}</span>
                   </div>
                 </Link>
               ))}

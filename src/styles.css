@@ -360,10 +360,18 @@ a.pill-btn { display: inline-flex; align-items: center; }
 button.nav-add { border: 0; cursor: pointer; }
 .quick-hero { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 18px; border: 0; background: var(--accent); color: var(--on-accent); font: inherit; cursor: pointer; }
 .quick-hero-icon { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: rgba(0, 0, 0, .14); flex: none; }
-.quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.quick-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font: inherit; text-align: left; cursor: pointer; min-height: 116px; }
+.quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.quick-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font: inherit; text-align: left; cursor: pointer; min-height: 96px; }
 .quick-tile b { font-size: 14px; font-weight: 600; line-height: 1.25; }
 .quick-tile .muted { font-size: 11px; line-height: 1.35; }
 .quick-tile-icon { color: var(--accent); }
 .chooser-thumb { width: 52px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; flex: none; }
 .chooser-thumb .thumb-img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Cho mượn */
+.loan-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 18px; background: color-mix(in srgb, #7FB8FF 12%, var(--surface)); border: 1px solid color-mix(in srgb, #7FB8FF 45%, transparent); }
+.loan-card.overdue { background: color-mix(in srgb, var(--down) 12%, var(--surface)); border-color: color-mix(in srgb, var(--down) 55%, transparent); }
+.status-chip.loan { background: #7FB8FF; color: #0b1a2b; }
+.loan-tag { position: absolute; right: 8px; bottom: 8px; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: #7FB8FF; color: #0b1a2b; z-index: 1; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loan-tag.overdue { background: var(--down); color: #fff; }
+.loan-nudge { margin: 0 0 14px; }

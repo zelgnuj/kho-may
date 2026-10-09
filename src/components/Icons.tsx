@@ -34,3 +34,4 @@ export const IconBook = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><pat
 export const IconPalette = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.7 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z" /><circle cx="7.5" cy="11" r="1.2" /><circle cx="10.5" cy="7" r="1.2" /><circle cx="15.5" cy="7.5" r="1.2" /></svg>);
 export const IconChevron = ({ size, ...p }: P) => (<svg {...base(size)} strokeWidth={2} {...p}><path d="M9 6l6 6-6 6" /></svg>);
 export const IconLink = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>);
+export const IconCloud = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z" /></svg>);

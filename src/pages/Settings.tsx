@@ -12,12 +12,14 @@ import { download } from '../lib/csv';
 import { useBackupStatus } from '../lib/backup';
 import { BackupPanel } from '../components/Backup';
 import { SubPage } from '../components/SubPage';
+import { AccountPage, accountLabel } from '../components/Account';
+import { syncState as syncStateNow, useSync, wipeLocalKeepCloud } from '../lib/sync';
 import { Segmented } from '../components/ui';
-import { IconBook, IconChevron, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
+import { IconBook, IconChevron, IconCloud, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
 import ImportExport from './Data';
 
 const ACCENTS = ['#F2A33A', '#FF6B4A', '#7FB8FF', '#C8E06A'];
-const VERSION = '0.2';
+const VERSION = '0.3';
 
 export default function SettingsPage() {
   const { section } = useParams();
@@ -28,6 +30,7 @@ export default function SettingsPage() {
     case 'ty-gia': return <RatesPage />;
     case 'thu-vien': return <LibraryPage />;
     case 'giao-dien': return <AppearancePage />;
+    case 'tai-khoan': return <AccountPage />;
     default: return <SettingsHome />;
   }
 }
@@ -50,6 +53,7 @@ function SettingsHome() {
   const cams = useCameras() ?? [];
   const wishN = useLiveQuery(() => db.wishlist.filter((w) => !w.deletedAt && !w.acquiredAt).count(), []) ?? 0;
   const backup = useBackupStatus();
+  const sync = useSync();
   useCatalogVersion();
   const [pending, setPending] = useState(0);
   useEffect(() => { pendingStats().then((p) => setPending(p.waiting)); }, []);
@@ -66,9 +70,17 @@ function SettingsHome() {
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
           <span style={{ fontSize: 17, fontWeight: 600 }}>{s.ownerName || 'Chưa đặt tên'}</span>
           <span className="muted mono" style={{ fontSize: 12 }}>{owned} máy trong kho · {wishN} đang săn</span>
+          {sync.session?.user.email && <span className="muted" style={{ fontSize: 12 }}>{sync.session.user.email}</span>}
         </span>
         <IconChevron size={16} className="menu-chev" />
       </Link>
+
+      <section className="menu-group px" aria-label="Tài khoản">
+        <h2 className="h-mono">TÀI KHOẢN</h2>
+        <div className="menu">
+          <MenuRow to="/cai-dat/tai-khoan" icon={<IconCloud size={18} />} label="Tài khoản" value={accountLabel(sync)} warn={!!sync.error || (sync.ready && !sync.session)} />
+        </div>
+      </section>
 
       <section className="menu-group px" aria-label="Dữ liệu">
         <h2 className="h-mono">DỮ LIỆU</h2>
@@ -109,10 +121,11 @@ function SettingsHome() {
 
 function BackupPage() {
   const wipe = async () => {
-    if (!window.confirm('Xóa TOÀN BỘ dữ liệu trên thiết bị này? Hãy chắc là bạn đã có bản sao lưu.')) return;
-    if (!window.confirm('Xác nhận lần nữa: xóa hết máy, ảnh, lịch sử giá, nhật ký và wishlist?')) return;
-    await Promise.all([db.cameras.clear(), db.photos.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear()]);
-    toast('Đã xóa toàn bộ dữ liệu');
+    const signedIn = !!syncStateNow().session;
+    if (!window.confirm(signedIn ? 'Xoá dữ liệu trên máy này? Dữ liệu trên tài khoản KHÔNG bị xoá và sẽ được tải lại ở lần đồng bộ sau.' : 'Xóa TOÀN BỘ dữ liệu trên thiết bị này? Hãy chắc là bạn đã có bản sao lưu.')) return;
+    if (!signedIn && !window.confirm('Xác nhận lần nữa: xóa hết máy, ảnh, lịch sử giá, nhật ký và wishlist?')) return;
+    await wipeLocalKeepCloud(() => Promise.all([db.cameras.clear(), db.photos.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear()]));
+    toast('Đã xóa dữ liệu trên máy này');
   };
   return (
     <SubPage title="Sao lưu">

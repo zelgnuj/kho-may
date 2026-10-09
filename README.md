@@ -80,10 +80,18 @@ Trang `/wishlist`: máy đang săn, mức độ muốn, giá muốn mua, link ti
 
 Cài đặt → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mục `photos/` (ảnh gốc). Trên iPhone, file được lưu thẳng vào Tệp / iCloud Drive qua bảng chia sẻ. Khôi phục gộp theo `updatedAt`: thêm cái chưa có, giữ bản sửa mới hơn, không xoá gì. Vẫn đọc được file JSON cũ. App nhắc sao lưu khi có thay đổi mà đã quá 7/14/30 ngày (chỉnh được).
 
+## Tài khoản & đồng bộ (Supabase)
+
+- Project Supabase `camera-cabinet` (Singapore). Schema ở `supabase/migrations/001_sync.sql`: một bảng `records` (mỗi bản ghi của app là một dòng, RLS theo `auth.uid()`), hàm `sync_push` (chỉ ghi khi bản gửi lên mới hơn), bucket riêng tư `photos/{user_id}/{photo_id}`.
+- App vẫn local-first (IndexedDB). `src/lib/sync.ts`: kéo thay đổi mới trước, rồi đẩy những bản ghi khác với `syncMeta`; bản ghi biến mất trên máy → gửi bia mộ. Tự đồng bộ vài giây sau khi dữ liệu đổi, khi mở app, khi có mạng lại, và mỗi 5 phút.
+- Đăng nhập bằng mã 6 số qua email (không dùng link vì app ngoài màn hình chính iPhone không nhận được link). Mẫu email "Magic Link" và "Confirm signup" trong Supabase phải có `{{ .Token }}`.
+- Khoá `anon` nằm trong `src/lib/supabase.ts` (công khai theo thiết kế của Supabase; ghi đè được bằng `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`).
+- Máy chủ email mặc định của Supabase chỉ gửi tới email thành viên của project; mở cho người khác cần cấu hình SMTP riêng.
+
 ## Kiểm thử
 
 - `npm test` — logic gộp đóng góp + kiểm tra toàn vẹn `data/` (chặn đóng góp lỗi)
-- `npm run build && npm run test:e2e` — Playwright trên khung iPhone: nhập CSV, chọn hãng/mẫu, sao lưu → khôi phục, lời nhắc
+- `npm run build && npm run test:e2e` — Playwright trên khung iPhone: nhập CSV, chọn hãng/mẫu, sao lưu → khôi phục, lời nhắc, film, wishlist, và đồng bộ hai thiết bị với Supabase giả lập (`tests/e2e/fakeSupabase.ts`)
 - GitHub Actions (`.github/workflows/ci.yml`) chạy cả hai mỗi lần push
 
 ## Cấu trúc

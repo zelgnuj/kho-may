@@ -7,6 +7,7 @@ import { backfillLensSpecs, migrateFilmToRolls } from './db';
 import { guessLens, loadCatalog } from './lib/catalog';
 import { syncPending } from './lib/contrib';
 import { ensurePersistent } from './lib/backup';
+import { startSync } from './lib/sync';
 import { findStock, isoFromName } from './lib/filmStocks';
 
 // Xin trình duyệt giữ dữ liệu lâu dài (giảm nguy cơ Safari tự xóa khi máy thiếu dung lượng)
@@ -16,6 +17,7 @@ migrateFilmToRolls((st) => ({ iso: isoFromName(st), kind: findStock(st)?.kind })
 loadCatalog()
   .then(() => backfillLensSpecs(guessLens))
   .then(() => (navigator.onLine ? syncPending() : undefined))
+  .finally(() => { startSync().catch(() => {}); })
   .catch(() => {});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -80,6 +80,9 @@ export interface PricePoint { id: string; cameraId: string; date: number; value:
 export interface ServiceEntry { id: string; cameraId: string; date: string; text: string; cost?: string; createdAt: number }
 export interface Setting { key: string; value: unknown }
 
+/** Phiên bản đã đồng bộ của từng bản ghi (để biết cái gì cần đẩy lên / đã bị xoá) */
+export interface SyncMeta { kind: string; id: string; ver: string }
+
 /** 1 = rất muốn, 2 = muốn, 3 = để ngắm */
 export type WishPriority = 1 | 2 | 3;
 export interface WishItem {
@@ -117,6 +120,7 @@ class KhoMayDB extends Dexie {
   settings!: Table<Setting, string>;
   wishlist!: Table<WishItem, string>;
   rolls!: Table<Roll, string>;
+  syncMeta!: Table<SyncMeta, [string, string]>;
 
   constructor() {
     super('kho-may');
@@ -132,6 +136,9 @@ class KhoMayDB extends Dexie {
     });
     this.version(3).stores({
       rolls: 'id, cameraId, status, loadedAt, updatedAt'
+    });
+    this.version(4).stores({
+      syncMeta: '[kind+id], kind'
     });
   }
 }

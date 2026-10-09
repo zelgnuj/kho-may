@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { addPhotos, addPrice, db, deleteCamera, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
+import { addPhotos, addPrice, db, deleteCamera, finishRoll, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
 import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
@@ -10,6 +10,7 @@ import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
 import { defaultLensKind, findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
 import { ContributeSheet } from '../components/ContributeSheet';
+import { FilmCard, FinishRollSheet, LoadFilmSheet } from '../components/Film';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
@@ -32,7 +33,7 @@ export default function Detail() {
   const photos = useLiveQuery(() => db.photos.where('cameraId').equals(id).sortBy('createdAt'), [id]);
   const prices = useLiveQuery(() => db.prices.where('cameraId').equals(id).sortBy('date'), [id]);
   const service = useLiveQuery(() => db.service.where('cameraId').equals(id).reverse().sortBy('date'), [id]);
-  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'lensSpec' | 'purchase' | 'profile'>(null);
+  const [sheet, setSheet] = useState<null | 'price' | 'film' | 'finish' | 'service' | 'lens' | 'lensSpec' | 'purchase' | 'profile'>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [looking, setLooking] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -91,7 +92,8 @@ export default function Detail() {
   const toggleStatus = async () => {
     const toSold = cam.status === 'owned';
     if (!window.confirm(toSold ? `Đánh dấu ${cam.brand} ${cam.model} là đã bán? Máy sẽ không còn tính vào giá trị bộ sưu tập.` : `Chuyển ${cam.brand} ${cam.model} về Trong kho?`)) return;
-    await patchCamera(cam.id, { status: toSold ? 'sold' : 'owned', film: toSold ? null : cam.film });
+    if (toSold && cam.film) await finishRoll(cam, todayISO());
+    await patchCamera(cam.id, { status: toSold ? 'sold' : 'owned' });
     toast(toSold ? 'Đã chuyển sang Đã bán' : 'Đã chuyển về Trong kho');
   };
 
@@ -161,30 +163,7 @@ export default function Detail() {
       <div className="detail-sheet" ref={detailsRef}>
       {cam.status === 'owned' && cam.type !== 'DIG' && (
         <div className="px">
-          {cam.film ? (
-            <section className="film-card" aria-label="Film đang lắp">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="mono" style={{ fontSize: 11, letterSpacing: '.12em', fontWeight: 500 }}>ĐANG LẮP FILM</span>
-                {cam.film.loadedAt && <span className="mono" style={{ fontSize: 11 }}>{daysSince(cam.film.loadedAt)} ngày</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span className="big">{cam.film.stock}</span>
-                {cam.film.loadedAt && <span style={{ fontSize: 13 }}>lắp {fmtDate(cam.film.loadedAt)}</span>}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="btn-dark" onClick={async () => {
-                  await db.service.put({ id: uid(), cameraId: cam.id, date: todayISO(), text: `Chụp xong cuộn ${cam.film!.stock}`, createdAt: Date.now() });
-                  await patchCamera(cam.id, { film: null });
-                  toast('Đã tháo film và ghi vào nhật ký');
-                }}>Tháo film</button>
-                <button type="button" className="btn-line" onClick={() => setSheet('film')}>Đổi cuộn</button>
-              </div>
-            </section>
-          ) : (
-            <button type="button" className="dashed" style={{ width: '100%', background: 'transparent', justifyContent: 'center', minHeight: 52 }} onClick={() => setSheet('film')}>
-              + Lắp film vào máy này
-            </button>
-          )}
+          <FilmCard cam={cam} onLoad={() => setSheet('film')} onFinish={() => setSheet('finish')} />
         </div>
       )}
 
@@ -359,7 +338,8 @@ export default function Detail() {
       </div>
 
       <PriceSheet open={sheet === 'price'} onClose={() => setSheet(null)} cam={cam} />
-      <FilmSheet open={sheet === 'film'} onClose={() => setSheet(null)} cam={cam} />
+      <LoadFilmSheet open={sheet === 'film'} onClose={() => setSheet(null)} cam={cam} />
+      <FinishRollSheet open={sheet === 'finish'} onClose={() => setSheet(null)} cam={cam} />
       <ServiceSheet open={sheet === 'service'} onClose={() => setSheet(null)} cam={cam} />
       <LensSheet open={sheet === 'lens'} onClose={() => setSheet(null)} cam={cam} />
       {sheet === 'purchase' && <PurchaseSheet open onClose={() => setSheet(null)} cam={cam} />}
@@ -415,35 +395,6 @@ function PriceSheet({ open, onClose, cam }: { open: boolean; onClose: () => void
       {missingRate && <p className="down" style={{ fontSize: 13 }}>Chưa có tỷ giá {cur}. Vào Cài đặt để lấy tỷ giá tự động hoặc nhập tay.</p>}
       {med != null && <p className="mono" style={{ fontSize: 14 }}>Giá giữa: {trieu(med)} tr{inVND.length > 1 ? ` · từ ${trieu(Math.min(...inVND))} đến ${trieu(Math.max(...inVND))} tr` : ''}</p>}
       <button type="button" className="btn" disabled={med == null} onClick={save}>Lưu giá</button>
-    </Sheet>
-  );
-}
-
-function FilmSheet({ open, onClose, cam }: { open: boolean; onClose: () => void; cam: Camera }) {
-  const [stock, setStock] = useState('');
-  const [date, setDate] = useState(todayISO());
-  const recent = useLiveQuery(async () => {
-    const all = await db.cameras.toArray();
-    return [...new Set(all.map((c) => c.film?.stock).filter(Boolean) as string[])];
-  }, []);
-  const save = async () => {
-    if (!stock.trim()) return;
-    if (cam.film) await db.service.put({ id: uid(), cameraId: cam.id, date: todayISO(), text: `Chụp xong cuộn ${cam.film.stock}`, createdAt: Date.now() });
-    await patchCamera(cam.id, { film: { stock: stock.trim(), loadedAt: date } });
-    setStock('');
-    toast('Đã lắp film');
-    onClose();
-  };
-  return (
-    <Sheet open={open} onClose={onClose} title={cam.film ? 'Đổi cuộn film' : 'Lắp film'}>
-      <label className="field">Loại film
-        <input className="input" list="film-stocks" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="vd: Portra 400, HP5 Plus, Gold 200" autoFocus />
-        <datalist id="film-stocks">{['Portra 160', 'Portra 400', 'Portra 800', 'Gold 200', 'Ultramax 400', 'ColorPlus 200', 'Ektar 100', 'HP5 Plus', 'FP4 Plus', 'Tri-X 400', 'Fujicolor 200', 'Superia X-TRA 400', 'Cinestill 800T', ...(recent ?? [])].filter((v, i, a) => a.indexOf(v) === i).map((s) => <option key={s} value={s} />)}</datalist>
-      </label>
-      <label className="field">Ngày lắp
-        <input className="input mono" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      </label>
-      <button type="button" className="btn" disabled={!stock.trim()} onClick={save}>Lưu</button>
     </Sheet>
   );
 }

@@ -111,7 +111,7 @@ function BackupPage() {
   const wipe = async () => {
     if (!window.confirm('Xóa TOÀN BỘ dữ liệu trên thiết bị này? Hãy chắc là bạn đã có bản sao lưu.')) return;
     if (!window.confirm('Xác nhận lần nữa: xóa hết máy, ảnh, lịch sử giá, nhật ký và wishlist?')) return;
-    await Promise.all([db.cameras.clear(), db.photos.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear()]);
+    await Promise.all([db.cameras.clear(), db.photos.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear()]);
     toast('Đã xóa toàn bộ dữ liệu');
   };
   return (

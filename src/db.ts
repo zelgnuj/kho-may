@@ -44,7 +44,8 @@ export interface Camera {
   purchaseFrom: string;
   tags: string[];
   notes: string;
-  film?: { stock: string; loadedAt: string } | null;
+  /** Cuộn đang lắp (bản tóm tắt; chi tiết ở bảng rolls) */
+  film?: { stock: string; loadedAt: string; rollId?: string; iso?: number | null; ei?: number | null } | null;
   lenses: Lens[];
   lens?: LensSpec | null;
   coverPhotoId?: string | null;
@@ -115,6 +116,7 @@ class KhoMayDB extends Dexie {
   service!: Table<ServiceEntry, string>;
   settings!: Table<Setting, string>;
   wishlist!: Table<WishItem, string>;
+  rolls!: Table<Roll, string>;
 
   constructor() {
     super('kho-may');
@@ -127,6 +129,9 @@ class KhoMayDB extends Dexie {
     });
     this.version(2).stores({
       wishlist: 'id, createdAt, updatedAt, priority'
+    });
+    this.version(3).stores({
+      rolls: 'id, cameraId, status, loadedAt, updatedAt'
     });
   }
 }
@@ -187,6 +192,79 @@ export async function deletePhoto(photo: Photo) {
   if (cam?.coverPhotoId === photo.id) {
     const next = await db.photos.where('cameraId').equals(photo.cameraId).first();
     await patchCamera(photo.cameraId, { coverPhotoId: next?.id ?? null });
+  }
+}
+
+/* ---------- Cuộn film ---------- */
+
+export type RollStatus = 'loaded' | 'shot' | 'developed';
+export interface Roll {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  cameraId: string;
+  stock: string;
+  kind?: string;
+  /** ISO hộp */
+  iso?: number | null;
+  /** ISO chụp (push/pull); trống = như ISO hộp */
+  ei?: number | null;
+  shots?: number | null;
+  expired?: boolean;
+  /** Chủ đề / chuyến đi */
+  note: string;
+  status: RollStatus;
+  loadedAt: string;
+  shotAt?: string;
+  devAt?: string;
+  lab?: string;
+  devCost?: number | null;
+  scansUrl?: string;
+}
+
+export async function loadRoll(cam: Camera, r: Omit<Roll, 'id' | 'createdAt' | 'updatedAt' | 'cameraId' | 'status'>) {
+  const now = Date.now();
+  const roll: Roll = { ...r, id: uid(), createdAt: now, updatedAt: now, cameraId: cam.id, status: 'loaded' };
+  await db.transaction('rw', db.rolls, db.cameras, async () => {
+    if (cam.film?.rollId) await db.rolls.update(cam.film.rollId, { status: 'shot', shotAt: todayISOLocal(), updatedAt: now });
+    await db.rolls.put(roll);
+    await patchCamera(cam.id, { film: { stock: roll.stock, loadedAt: roll.loadedAt, rollId: roll.id, iso: roll.iso ?? null, ei: roll.ei ?? null } });
+  });
+  return roll;
+}
+
+/** Chụp xong / tháo film: cuộn chuyển sang "chờ tráng" */
+export async function finishRoll(cam: Camera, shotAt: string) {
+  const now = Date.now();
+  await db.transaction('rw', db.rolls, db.cameras, async () => {
+    if (cam.film?.rollId) await db.rolls.update(cam.film.rollId, { status: 'shot', shotAt, updatedAt: now });
+    await patchCamera(cam.id, { film: null });
+  });
+}
+
+export async function patchRoll(id: string, patch: Partial<Roll>) {
+  await db.rolls.update(id, { ...patch, updatedAt: Date.now() });
+}
+
+export function useRolls() {
+  return useLiveQuery(() => db.rolls.filter((r) => !r.deletedAt).toArray(), []);
+}
+
+function todayISOLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Film đang lắp từ bản cũ (chưa có cuộn) → tạo cuộn tương ứng, chạy một lần */
+export async function migrateFilmToRolls(guess?: (stock: string) => { iso: number | null; kind?: string }) {
+  const cams = await db.cameras.filter((c) => !!c.film && !c.film.rollId).toArray();
+  for (const c of cams) {
+    const now = Date.now();
+    const g = guess?.(c.film!.stock);
+    const roll: Roll = { id: uid(), createdAt: now, updatedAt: now, cameraId: c.id, stock: c.film!.stock, iso: g?.iso ?? null, kind: g?.kind, note: '', status: 'loaded', loadedAt: c.film!.loadedAt || todayISOLocal() };
+    await db.rolls.put(roll);
+    await db.cameras.update(c.id, { film: { ...c.film!, rollId: roll.id, iso: roll.iso ?? null } });
   }
 }
 

@@ -68,6 +68,10 @@ Sau khi thêm biến, Redeploy một lần.
 | `CONTRIB_TOKEN` | Mã đóng góp tự đặt; nhập cùng mã trong Cài đặt → Thư viện mẫu máy |
 | `GITHUB_BRANCH` | Tùy chọn, mặc định `main` |
 
+## Film
+
+Mỗi cuộn là một bản ghi (bảng `rolls`): đang lắp → chờ tráng → đã tráng (lab, chi phí, link scan). Thư viện film ở `src/lib/filmStocks.ts` (ISO hộp, loại, khổ). Khi lắp, app đối chiếu với thông số máy: máy đọc DX chỉ có vài mức ISO, dải ISO đo sáng, push/pull, film cine cần ECN-2, film hết hạn. Trang `/film` gom các cuộn đang lắp, chờ tráng, đã tráng và thống kê.
+
 ## Wishlist
 
 Trang `/wishlist`: máy đang săn, mức độ muốn, giá muốn mua, link tin rao. Giá thị trường tra như máy trong kho (chung lượt; mẫu đã có trong kho thì dùng luôn giá đó, không tốn thêm lượt) và so với giá muốn mua. "Đã mua được" mở form Thêm máy điền sẵn, lưu xong mục wishlist chuyển sang "đã săn được".

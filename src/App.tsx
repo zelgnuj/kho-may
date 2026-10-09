@@ -7,6 +7,7 @@ import Collection from './pages/Collection';
 import Detail from './pages/Detail';
 import Edit from './pages/Edit';
 import Value from './pages/Value';
+import FilmPage from './pages/Film';
 import WishlistPage, { WishDetail, WishEdit } from './pages/Wishlist';
 import SettingsPage from './pages/Settings';
 
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/may/:id/sua" element={<Edit />} />
         <Route path="/them" element={<Edit />} />
         <Route path="/gia-tri" element={<Value />} />
+        <Route path="/film" element={<FilmPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/wishlist/them" element={<WishEdit />} />
         <Route path="/wishlist/:id" element={<WishDetail />} />

@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Camera, type Photo, type PricePoint, type ServiceEntry, type Setting, type WishItem } from '../db';
+import { db, type Camera, type Photo, type PricePoint, type ServiceEntry, type Roll, type Setting, type WishItem } from '../db';
 import { dataURLToBlob } from './images';
 
 /* ======================================================================
@@ -22,15 +22,17 @@ interface Payload {
   service: ServiceEntry[];
   settings: Setting[];
   wishlist?: WishItem[];
+  rolls?: Roll[];
   photos: { id: string; cameraId: string; createdAt: number; file?: string; type?: string; data?: string }[];
 }
 
 /** Dấu vân tay dữ liệu: đổi khi có máy/ảnh/giá/nhật ký mới hoặc sửa */
 export async function fingerprint() {
-  const [cams, photos, prices, service, wish] = await Promise.all([db.cameras.toArray(), db.photos.count(), db.prices.count(), db.service.count(), db.wishlist.toArray()]);
+  const [cams, photos, prices, service, wish, rolls] = await Promise.all([db.cameras.toArray(), db.photos.count(), db.prices.count(), db.service.count(), db.wishlist.toArray(), db.rolls.toArray()]);
   const last = cams.reduce((m, c) => Math.max(m, c.updatedAt ?? 0), 0);
   const lastW = wish.reduce((m, w) => Math.max(m, w.updatedAt ?? 0), 0);
-  return `${cams.length}:${last}:${photos}:${prices}:${service}:${wish.length}:${lastW}`;
+  const lastR = rolls.reduce((m, r) => Math.max(m, r.updatedAt ?? 0), 0);
+  return `${cams.length}:${last}:${photos}:${prices}:${service}:${wish.length}:${lastW}:${rolls.length}:${lastR}`;
 }
 
 const ext = (t: string) => (t.includes('png') ? 'png' : t.includes('webp') ? 'webp' : t.includes('heic') ? 'heic' : 'jpg');
@@ -38,9 +40,9 @@ const day = () => new Date().toISOString().slice(0, 10);
 
 /** Tạo file sao lưu (chưa lưu đi đâu) */
 export async function buildBackup(): Promise<{ file: File; info: BackupInfo }> {
-  const [cameras, prices, service, settings, photos, wishlist] = await Promise.all([
+  const [cameras, prices, service, settings, photos, wishlist, rolls] = await Promise.all([
     db.cameras.toArray(), db.prices.toArray(), db.service.toArray(),
-    db.settings.filter((s) => !SKIP_SETTING(s.key)).toArray(), db.photos.toArray(), db.wishlist.toArray()
+    db.settings.filter((s) => !SKIP_SETTING(s.key)).toArray(), db.photos.toArray(), db.wishlist.toArray(), db.rolls.toArray()
   ]);
   const files: Zippable = {};
   const photoMeta: Payload['photos'] = [];
@@ -49,7 +51,7 @@ export async function buildBackup(): Promise<{ file: File; info: BackupInfo }> {
     files[name] = [new Uint8Array(await p.blob.arrayBuffer()), { level: 0 }];
     photoMeta.push({ id: p.id, cameraId: p.cameraId, createdAt: p.createdAt, file: name, type: p.blob.type || 'image/jpeg' });
   }
-  const payload: Payload = { app: 'kho-may', version: 2, exportedAt: new Date().toISOString(), cameras, prices, service, settings, wishlist, photos: photoMeta };
+  const payload: Payload = { app: 'kho-may', version: 2, exportedAt: new Date().toISOString(), cameras, prices, service, settings, wishlist, rolls, photos: photoMeta };
   files['backup.json'] = [strToU8(JSON.stringify(payload)), { level: 6 }];
   const zip = zipSync(files);
   const file = new File([zip], `kho-may-saoluu-${day()}.zip`, { type: 'application/zip' });
@@ -122,12 +124,16 @@ export interface RestoreResult { added: number; updated: number; keptNewer: numb
 export async function applyRestore(plan: RestorePlan): Promise<RestoreResult> {
   const p = plan.payload;
   const r: RestoreResult = { added: 0, updated: 0, keptNewer: 0, photos: 0 };
-  await db.transaction('rw', [db.cameras, db.prices, db.service, db.settings, db.photos, db.wishlist], async () => {
+  await db.transaction('rw', [db.cameras, db.prices, db.service, db.settings, db.photos, db.wishlist, db.rolls], async () => {
     for (const c of p.cameras ?? []) {
       const cur = await db.cameras.get(c.id);
       if (!cur) { await db.cameras.put(c); if (!c.deletedAt) r.added++; }
       else if ((c.updatedAt ?? 0) > (cur.updatedAt ?? 0)) { await db.cameras.put(c); r.updated++; }
       else if ((c.updatedAt ?? 0) < (cur.updatedAt ?? 0)) r.keptNewer++;
+    }
+    for (const r of p.rolls ?? []) {
+      const cur = await db.rolls.get(r.id);
+      if (!cur || (r.updatedAt ?? 0) > (cur.updatedAt ?? 0)) await db.rolls.put(r);
     }
     for (const w of p.wishlist ?? []) {
       const cur = await db.wishlist.get(w.id);

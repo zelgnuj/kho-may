@@ -323,3 +323,24 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .wish-hero-meta { display: flex; flex-direction: column; gap: 8px; }
 .wish-hero-meta .sub { font-size: 13px; color: var(--muted); }
 a.pill-btn { display: inline-flex; align-items: center; }
+
+/* Film */
+.kind-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #E8A33D; }
+.kind-dot.k-bw { background: #D9D4CC; }
+.kind-dot.k-slide { background: #5BB0E8; }
+.kind-dot.k-cine { background: #E0584A; }
+.kind-dot.k-instant { background: #B98CE0; }
+.film-picked { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--accent); color: var(--text); font: inherit; font-size: 15px; cursor: pointer; }
+.advice { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.advice li { font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); color: var(--text-2); }
+.advice li.warn { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--text); }
+.film-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.film-tags span { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent); }
+.film-hint { font-size: 13px; line-height: 1.45; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--on-accent) 10%, transparent); }
+.film-history { display: block; margin-top: 10px; font-size: 13px; color: var(--accent); }
+.roll-row { gap: 10px; }
+.roll-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.roll-title { font-size: 15px; }
+.roll-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roll-open { flex: 1; min-width: 0; display: flex; background: transparent; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.sheet > * { flex-shrink: 0; }

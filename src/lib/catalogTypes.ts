@@ -35,6 +35,8 @@ export interface CatalogModel {
     frame_sizes_mm?: { width_mm?: number; height_mm?: number; mode?: string }[];
     iso_min?: number; iso_max?: number;
     date_imprint?: boolean;
+    iso_values?: number[];
+    iso_setting?: string;
     advance?: string;
   };
   lens?: { kind?: 'built_in' | 'interchangeable' | string; mount?: string; configurations?: LensConfig[] };

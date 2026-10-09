@@ -88,6 +88,7 @@ export default function Collection() {
 
   const total = owned.reduce((s, c) => s + (c.marketValue ?? 0), 0);
   const loaded = owned.filter((c) => c.film).length;
+  const waitingDev = useLiveQuery(() => db.rolls.where('status').equals('shot').filter((r) => !r.deletedAt).count(), []) ?? 0;
 
   const pickView = (v: View) => { setView(v); writeLS('kho-view', v); };
   const cycleSort = () => { const n = (sortIdx + 1) % SORTS.length; setSortIdx(n); writeLS('kho-sort', String(n)); };
@@ -123,9 +124,9 @@ export default function Collection() {
           <section className="stats px" aria-label="Tổng quan">
             <div className="stat"><span className="k">Số máy</span><span className="v">{owned.length}</span></div>
             <Link to="/gia-tri" className="stat"><span className="k">Ước tính</span><span className="v">{trieu(total)}<small> tr</small></span></Link>
-            <button type="button" className="stat" style={{ textAlign: 'left' }} onClick={() => setFilter('film')} disabled={!loaded}>
-              <span className="k">Đang lắp film</span><span className="v" style={{ color: 'var(--accent)' }}>{loaded}</span>
-            </button>
+            <Link to="/film" className="stat">
+              <span className="k">Film{waitingDev ? ` · ${waitingDev} chờ tráng` : ''}</span><span className="v" style={{ color: 'var(--accent)' }}>{loaded}<small> lắp</small></span>
+            </Link>
           </section>
 
           <div className="px">

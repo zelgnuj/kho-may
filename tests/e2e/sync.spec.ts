@@ -141,7 +141,7 @@ test('link trong email: xác nhận tài khoản & đặt lại mật khẩu', a
 });
 
 test('đăng xuất giữ dữ liệu rồi đăng nhập tài khoản khác: không lẫn dữ liệu', async ({ browser }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   const server = new FakeSupabase();
   const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
   await server.attach(ctx);

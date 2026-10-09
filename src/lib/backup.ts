@@ -54,7 +54,7 @@ export async function buildBackup(): Promise<{ file: File; info: BackupInfo }> {
   const payload: Payload = { app: 'kho-may', version: 2, exportedAt: new Date().toISOString(), cameras, prices, service, settings, wishlist, rolls, photos: photoMeta };
   files['backup.json'] = [strToU8(JSON.stringify(payload)), { level: 6 }];
   const zip = zipSync(files);
-  const file = new File([zip], `kho-may-saoluu-${day()}.zip`, { type: 'application/zip' });
+  const file = new File([zip], `camera-cabinet-saoluu-${day()}.zip`, { type: 'application/zip' });
   const live = cameras.filter((c) => !c.deletedAt).length;
   return { file, info: { at: Date.now(), fp: await fingerprint(), cameras: live, photos: photos.length, bytes: file.size, wishlist: wishlist.filter((w) => !w.deletedAt).length } };
 }
@@ -66,7 +66,7 @@ export function canShareFile(file: File) {
 /** Mở bảng chia sẻ của hệ điều hành (iPhone: Lưu vào Tệp → iCloud Drive). Trả về false nếu người dùng huỷ */
 export async function shareBackup(file: File): Promise<boolean> {
   try {
-    await navigator.share({ files: [file], title: 'Sao lưu Kho máy' });
+    await navigator.share({ files: [file], title: 'Sao lưu Camera Cabinet' });
     return true;
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') return false;
@@ -105,7 +105,7 @@ export async function readBackup(file: File): Promise<RestorePlan> {
   const blobs = new Map<string, Blob>();
   if (isZip) {
     const entries = unzipSync(buf);
-    if (!entries['backup.json']) throw new Error('File zip này không phải bản sao lưu của Kho máy');
+    if (!entries['backup.json']) throw new Error('File zip này không phải bản sao lưu của Camera Cabinet');
     payload = JSON.parse(strFromU8(entries['backup.json']));
     for (const p of payload.photos ?? []) {
       const data = p.file ? entries[p.file] : undefined;
@@ -115,7 +115,7 @@ export async function readBackup(file: File): Promise<RestorePlan> {
     try { payload = JSON.parse(new TextDecoder().decode(buf)); } catch { throw new Error('Không đọc được file này'); }
     for (const p of payload.photos ?? []) if (p.data) blobs.set(p.id, await dataURLToBlob(p.data));
   }
-  if (payload?.app !== 'kho-may') throw new Error('File không phải bản sao lưu của Kho máy');
+  if (payload?.app !== 'kho-may') throw new Error('File không phải bản sao lưu của Camera Cabinet');
   return { exportedAt: payload.exportedAt, cameras: (payload.cameras ?? []).filter((c) => !c.deletedAt).length, photos: blobs.size, payload, blobs };
 }
 

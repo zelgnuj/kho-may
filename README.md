@@ -1,4 +1,4 @@
-# Kho máy
+# Camera Cabinet
 
 Web app (PWA) quản lý bộ sưu tập máy ảnh film. Cài được lên màn hình chính điện thoại, chạy cả khi không có mạng.
 

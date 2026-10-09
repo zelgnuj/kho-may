@@ -52,7 +52,7 @@ export default function Data() {
       }
       const p = await parseCSVFile(file);
       if (p.source === 'unknown' || !p.rows.length) {
-        toast('Không đọc được file này. Cần CSV từ CamDex hoặc file xuất từ Kho máy.');
+        toast('Không đọc được file này. Cần CSV từ CamDex hoặc file xuất từ Camera Cabinet.');
         return;
       }
       setPreview(p);
@@ -90,13 +90,13 @@ export default function Data() {
           <button type="button" className="dashed" style={{ flexDirection: 'column', background: 'transparent', padding: '22px 14px', gap: 8 }} onClick={() => fileRef.current?.click()}>
             <IconData size={24} />
             <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>Chọn file CSV hoặc file sao lưu</span>
-            <span className="muted" style={{ fontSize: 12 }}>Đọc được CSV từ CamDex và file xuất từ Kho máy</span>
+            <span className="muted" style={{ fontSize: 12 }}>Đọc được CSV từ CamDex và file xuất từ Camera Cabinet</span>
           </button>
         ) : (
           <div className="panel" style={{ borderColor: 'var(--accent)', borderWidth: 1.5 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ fontSize: 13, fontWeight: 600, overflowWrap: 'anywhere' }}>{preview.fileName}</span>
-              <span className="muted" style={{ fontSize: 12 }}>Nhận dạng: {preview.source === 'camdex' ? 'định dạng CamDex' : 'file Kho máy'} · {rows.length} dòng</span>
+              <span className="muted" style={{ fontSize: 12 }}>Nhận dạng: {preview.source === 'camdex' ? 'định dạng CamDex' : 'file Camera Cabinet'} · {rows.length} dòng</span>
             </div>
             <div className="form-grid">
               <div style={{ padding: 10, borderRadius: 10, background: 'var(--surface-2)' }}>
@@ -163,7 +163,7 @@ export default function Data() {
           <label className="check"><span>Kèm giá mua &amp; nơi mua</span><input type="checkbox" checked={incPurchase} onChange={(e) => setIncPurchase(e.target.checked)} /></label>
           <label className="check"><span>Kèm số serial</span><input type="checkbox" checked={incSerial} onChange={(e) => setIncSerial(e.target.checked)} /></label>
         </div>
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Mở được bằng Excel, Google Sheets, Numbers. Nhập lại vào Kho máy cũng được.</p>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Mở được bằng Excel, Google Sheets, Numbers. Nhập lại vào Camera Cabinet cũng được.</p>
         <button type="button" className="btn" disabled={busy || !(cams ?? []).length} onClick={doExport}>
           Xuất {list.length} máy ra CSV
         </button>

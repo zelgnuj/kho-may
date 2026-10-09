@@ -196,5 +196,5 @@ export async function exportCSV(cams: Camera[], opts: { purchase: boolean; seria
     notes: c.notes
   }));
   const csv = '﻿' + Papa.unparse(rows);
-  download(`kho-may-${stamp()}.csv`, new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  download(`camera-cabinet-${stamp()}.csv`, new Blob([csv], { type: 'text/csv;charset=utf-8' }));
 }

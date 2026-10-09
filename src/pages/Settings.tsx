@@ -62,7 +62,7 @@ function SettingsHome() {
       <header className="px"><h1 className="title-xl" style={{ fontSize: 44 }}>Cài đặt</h1></header>
 
       <Link to="/cai-dat/giao-dien" className="profile-card px-card">
-        <span className="avatar" style={{ background: s.accent }}>{(s.ownerName || 'K').slice(0, 1).toUpperCase()}</span>
+        <span className="avatar" style={{ background: s.accent }}>{(s.ownerName || 'C').slice(0, 1).toUpperCase()}</span>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
           <span style={{ fontSize: 17, fontWeight: 600 }}>{s.ownerName || 'Chưa đặt tên'}</span>
           <span className="muted mono" style={{ fontSize: 12 }}>{owned} máy trong kho · {wishN} đang săn</span>
@@ -100,7 +100,7 @@ function SettingsHome() {
         </div>
       </section>
 
-      <p className="px muted mono" style={{ fontSize: 11, textAlign: 'center' }}>Kho máy · bản {VERSION}</p>
+      <p className="px muted mono" style={{ fontSize: 11, textAlign: 'center' }}>Camera Cabinet · bản {VERSION}</p>
     </div>
   );
 }

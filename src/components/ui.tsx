@@ -64,10 +64,11 @@ export function Sheet({ open, onClose, title, children, tall }: { open: boolean;
 export function CameraThumb({ camera, artWidth, strokeWidth, sampleUrl }: { camera: Camera; artWidth: number; strokeWidth?: number; sampleUrl?: string }) {
   const url = useThumb(camera.coverPhotoId);
   useCatalogVersion();
-  const model = camera.coverPhotoId || sampleUrl ? null : findModel(camera.brand, camera.model);
-  const auto = useSampleImage(model, !camera.coverPhotoId && !sampleUrl);
+  const hasPhoto = !!camera.coverPhotoId && url !== null;
+  const model = hasPhoto || sampleUrl ? null : findModel(camera.brand, camera.model);
+  const auto = useSampleImage(model, !hasPhoto && !sampleUrl);
   if (url) return <img className="thumb-img" src={url} alt="" decoding="async" />;
-  if (camera.coverPhotoId) return <span className="thumb-img thumb-wait" aria-hidden="true" />;
+  if (camera.coverPhotoId && url === undefined) return <span className="thumb-img thumb-wait" aria-hidden="true" />;
   const sample = sampleUrl ?? auto?.url;
   if (sample) return <SampleImg className="thumb-img sample" src={sample} />;
   return <CameraArt type={camera.type} width={artWidth} strokeWidth={strokeWidth} />;

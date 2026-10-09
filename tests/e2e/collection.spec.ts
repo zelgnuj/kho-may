@@ -86,3 +86,43 @@ test('lùi từ trang chi tiết về Kho máy: giữ vị trí cuộn, nội du
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before - 5);
   await expect(page.locator('a[href^="/may/"]').first()).toBeAttached();
 });
+
+test('sửa ảnh: xoá ảnh cũ, thêm ảnh mới, lưu → ảnh bìa ngoài lưới là ảnh mới', async ({ page }) => {
+  await mockApis(page);
+  await importSample(page);
+  const xa = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'XA')!;
+  await page.goto(`/may/${xa.id}`);
+  await page.locator('input[type=file]').first().setInputFiles(fixture('photo.jpg'));
+  await expect.poll(async () => (await idb(page, 'photos')).length).toBe(1);
+  const [oldPhoto] = await idb<{ id: string }>(page, 'photos');
+  await page.goto('/');
+  await expect(page.locator(`a[href="/may/${xa.id}"] img.thumb-img`)).toBeVisible();
+  const oldSrc = await page.locator(`a[href="/may/${xa.id}"] img.thumb-img`).getAttribute('src');
+
+  // Sửa máy: xoá ảnh cũ, thêm ảnh mới, đổi ghi chú, lưu
+  await page.goto(`/may/${xa.id}/sua`);
+  await page.getByRole('button', { name: 'Bỏ ảnh' }).first().click();
+  await page.locator('section[aria-label="Ảnh"] input[type=file]').last().setInputFiles(fixture('photo2.jpg'));
+  await page.getByRole('button', { name: 'Lưu máy' }).click();
+  await page.waitForURL(`**/may/${xa.id}`);
+
+  const cam = (await idb<{ id: string; coverPhotoId: string }>(page, 'cameras')).find((c) => c.id === xa.id)!;
+  const photos = await idb<{ id: string }>(page, 'photos');
+  expect(photos).toHaveLength(1);
+  expect(photos[0].id).not.toBe(oldPhoto.id);
+  expect(cam.coverPhotoId).toBe(photos[0].id);
+
+  await page.goto('/');
+  const img = page.locator(`a[href="/may/${xa.id}"] img.thumb-img`);
+  await expect(img).toBeVisible();
+  expect(await img.getAttribute('src')).not.toBe(oldSrc);
+
+  // xoá hết ảnh → lưới quay về hình vẽ / ảnh mẫu, không để ô trống
+  await page.goto(`/may/${xa.id}/sua`);
+  await page.getByRole('button', { name: 'Bỏ ảnh' }).first().click();
+  await page.getByRole('button', { name: 'Lưu máy' }).click();
+  await page.waitForURL(`**/may/${xa.id}`);
+  expect((await idb<{ id: string; coverPhotoId: string | null }>(page, 'cameras')).find((c) => c.id === xa.id)!.coverPhotoId).toBeNull();
+  await page.goto('/');
+  await expect(page.locator(`a[href="/may/${xa.id}"] .thumb-wait`)).toHaveCount(0);
+});

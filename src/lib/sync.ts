@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { liveQuery } from 'dexie';
 import type { Session } from '@supabase/supabase-js';
-import { db, type SyncMeta, type Camera, type Photo, type PricePoint, type Roll, type ServiceEntry, type WishItem } from '../db';
+import { ensureCover, db, type SyncMeta, type Camera, type Photo, type PricePoint, type Roll, type ServiceEntry, type WishItem } from '../db';
 import { supabase } from './supabase';
+import { forgetThumb } from './thumbCache';
 
 /* ======================================================================
  * Đồng bộ local-first với Supabase
@@ -72,7 +73,7 @@ async function localOne(kind: Kind, id: string): Promise<Local | undefined> {
     case 'roll': { const r = await db.rolls.get(id); return r && { id, ver: String(r.updatedAt), updated_at: r.updatedAt, data: r, deleted: !!r.deletedAt }; }
     case 'price': { const p = await db.prices.get(id); return p && { id, ver: String(p.date), updated_at: p.date, data: p, deleted: false }; }
     case 'service': { const v = await db.service.get(id); return v && { id, ver: String(v.createdAt), updated_at: v.createdAt, data: v, deleted: false }; }
-    case 'photo': { const n = await db.photos.where('id').equals(id).count(); if (!n) return undefined; const p = (await db.photos.get(id))!; return { id, ver: String(p.createdAt), updated_at: p.createdAt, data: null, deleted: false }; }
+    case 'photo': { const n = await db.photos.where('id').equals(id).count(); if (!n) return undefined; const p = (await db.photos.get(id))!; return { id, ver: String(p.createdAt), updated_at: p.createdAt, data: { cameraId: p.cameraId }, deleted: false }; }
     case 'setting': { const st = await db.settings.get(id); return st && { id, ver: hash(st.value), updated_at: 0, data: { value: st.value }, deleted: false }; }
   }
 }
@@ -129,6 +130,11 @@ async function applyRemote(uid: string, r: RemoteRow): Promise<boolean> {
     // bia mộ: xoá trên máy nếu máy chưa sửa sau thời điểm xoá
     if (local && local.updated_at > r.updated_at) return false;
     if (local) await tableFor(r.kind).delete(r.id);
+    if (r.kind === 'photo' && local) {
+      const cameraId = (local.data as { cameraId?: string } | null)?.cameraId ?? (r.data as { cameraId?: string })?.cameraId;
+      await db.thumbs.delete(r.id); forgetThumb(r.id);
+      if (cameraId) await ensureCover(cameraId);
+    }
     await db.syncMeta.delete(metaKey);
     return !!local;
   }

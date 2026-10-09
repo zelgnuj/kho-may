@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { addPhotos, addPrice, blankCamera, db, deletePhoto, patchCamera, patchWish, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
+import { addPhotos, addPrice, blankCamera, db, deletePhoto, ensureCover, patchCamera, patchWish, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
 import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { ModelPicker } from '../components/ModelPicker';
@@ -27,6 +27,12 @@ function Thumb({ blob, onRemove, isCover, onCover }: { blob: Blob; onRemove: () 
       )}
     </div>
   );
+}
+
+/** Các trường người dùng sửa trên form */
+function pickForm(c: Camera): Partial<Camera> {
+  const { brand, model, type, format, mount, serial, year, condition, status, purchasePrice, purchaseCurrency, purchaseDate, purchaseFrom, tags, notes, lenses, lens } = c;
+  return { brand, model, type, format, mount, serial, year, condition, status, purchasePrice, purchaseCurrency, purchaseDate, purchaseFrom, tags, notes, lenses, lens };
 }
 
 export default function Edit() {
@@ -107,8 +113,11 @@ export default function Edit() {
 
   const save = async (again: boolean) => {
     if (!canSave) return;
+    // Chỉ ghi các trường có trên form; phần còn lại (ảnh bìa, giá thị trường, film…) lấy bản mới nhất trong máy
+    const fresh = isNew ? null : await db.cameras.get(c.id);
     const cam: Camera = {
-      ...c,
+      ...(fresh ?? c),
+      ...pickForm(c),
       brand: c.brand.trim(),
       model: c.model.trim(),
       mount: c.mount.trim(),
@@ -118,6 +127,7 @@ export default function Edit() {
     };
     await saveCamera(cam);
     if (pending.length) await addPhotos(cam.id, pending);
+    else await ensureCover(cam.id);
     if (wish && !wish.acquiredAt) {
       await patchWish(wish.id, { acquiredAt: Date.now(), acquiredCameraId: cam.id });
       if (wish.marketValue != null) await addPrice(cam.id, wish.marketValue, wish.marketLow, wish.marketHigh, { source: 'auto', note: wish.marketNote, sources: wish.marketSources });

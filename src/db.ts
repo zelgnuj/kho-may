@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { forgetThumb } from './lib/thumbCache';
 
 export type CamType = 'PNS' | 'RF' | 'SLR' | 'HALF' | 'TLR' | 'MF' | 'INST' | 'DIG' | 'OTHER' | '';
 export type Status = 'owned' | 'sold';
@@ -194,18 +195,24 @@ export async function addPhotos(cameraId: string, blobs: Blob[]) {
   const now = Date.now();
   const rows = blobs.map((blob, i) => ({ id: uid(), cameraId, blob, createdAt: now + i }));
   await db.photos.bulkPut(rows);
-  const cam = await db.cameras.get(cameraId);
-  if (cam && !cam.coverPhotoId && rows[0]) await patchCamera(cameraId, { coverPhotoId: rows[0].id });
+  await ensureCover(cameraId);
 }
 
 export async function deletePhoto(photo: Photo) {
   await db.photos.delete(photo.id);
   await db.thumbs.delete(photo.id);
-  const cam = await db.cameras.get(photo.cameraId);
-  if (cam?.coverPhotoId === photo.id) {
-    const next = await db.photos.where('cameraId').equals(photo.cameraId).first();
-    await patchCamera(photo.cameraId, { coverPhotoId: next?.id ?? null });
-  }
+  forgetThumb(photo.id);
+  await ensureCover(photo.cameraId);
+}
+
+/** Ảnh bìa luôn trỏ tới một ảnh còn tồn tại (hoặc không có nếu máy hết ảnh) */
+export async function ensureCover(cameraId: string) {
+  const cam = await db.cameras.get(cameraId);
+  if (!cam) return;
+  const ids = (await db.photos.where('cameraId').equals(cameraId).sortBy('createdAt')).map((p) => p.id);
+  const ok = cam.coverPhotoId && ids.includes(cam.coverPhotoId);
+  const next = ok ? cam.coverPhotoId : ids[0] ?? null;
+  if (next !== (cam.coverPhotoId ?? null)) await patchCamera(cameraId, { coverPhotoId: next });
 }
 
 /* ---------- Cuộn film ---------- */

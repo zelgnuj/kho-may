@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { useSettings } from './db';
 import { BottomNav, PriceProgress } from './components/ui';
 import { autoRefreshStale } from './lib/autoPrice';
@@ -14,6 +14,8 @@ import { useSync } from './lib/sync';
 import WishlistPage, { WishDetail, WishEdit } from './pages/Wishlist';
 import SettingsPage from './pages/Settings';
 
+const scrollMemory = new Map<string, number>();
+
 export default function App() {
   const settings = useSettings();
   const loc = useLocation();
@@ -23,7 +25,33 @@ export default function App() {
     document.documentElement.style.setProperty('--accent', settings.accent);
   }, [settings.accent]);
 
-  useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
+  // Cuộn: trang mới lên đầu; bấm lùi thì về đúng chỗ cũ. Sau khi chuyển trang, nhích cuộn 1px để
+  // Safari trên iPhone vẽ lại toàn bộ màn hình (tránh lỗi màn hình đen chỉ còn vài mảng).
+  const navType = useNavigationType();
+  useEffect(() => {
+    const key = loc.pathname + loc.search;
+    const target = navType === 'POP' ? scrollMemory.get(key) ?? 0 : 0;
+    let tries = 0;
+    let raf = 0;
+    const apply = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (target > max && tries++ < 30) { raf = requestAnimationFrame(apply); return; }
+      window.scrollTo(0, Math.min(target, Math.max(0, max)));
+      raf = requestAnimationFrame(() => {
+        window.scrollBy(0, 1);
+        raf = requestAnimationFrame(() => window.scrollBy(0, -1));
+      });
+    };
+    raf = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(raf);
+  }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  // nhớ vị trí cuộn của trang đang xem (gỡ ngay khi đổi trang, trước khi trình duyệt tự kéo cuộn về)
+  useLayoutEffect(() => {
+    const key = loc.pathname + loc.search;
+    const save = () => scrollMemory.set(key, window.scrollY);
+    window.addEventListener('scroll', save, { passive: true });
+    return () => window.removeEventListener('scroll', save);
+  }, [loc.pathname, loc.search]);
 
   useEffect(() => {
     let t: number | undefined;

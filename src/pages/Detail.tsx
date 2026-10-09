@@ -21,11 +21,14 @@ import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } fro
 const BASIS: Record<string, string> = { sold: 'Theo giá đã bán eBay', asking: 'Theo giá rao bán eBay', mixed: 'Giá bán + giá rao' };
 const CONF: Record<string, string> = { high: 'cao', medium: 'vừa', low: 'thấp' };
 
-function HeroPhoto({ photo }: { photo: Photo }) {
-  // hiện ảnh thu nhỏ (đã có sẵn) ngay, ảnh gốc nét hơn thay vào khi giải mã xong
+function HeroPhoto({ photo, near }: { photo: Photo; near: boolean }) {
+  // hiện ảnh thu nhỏ (đã có sẵn) ngay, ảnh gốc nét hơn thay vào khi giải mã xong.
+  // Chỉ giải mã ảnh gốc cho ảnh đang xem và hai ảnh kề bên để iPhone đỡ tốn bộ nhớ.
   const thumb = useThumb(photo.id);
-  const full = useObjectURL(photo.blob);
+  const full = useObjectURL(near ? photo.blob : null);
   const [ready, setReady] = useState(false);
+  useEffect(() => { if (!full) setReady(false); }, [full]);
+  if (!full) return thumb ? <img src={thumb} alt="" /> : <span className="hero-wait" />;
   return (
     <>
       {thumb && !ready && <img src={thumb} alt="" />}
@@ -125,7 +128,7 @@ export default function Detail() {
       <div className="showcase">
         {orderedPhotos.length ? (
           <div className="hero-scroll" onScroll={(e) => { const el = e.currentTarget; setSlide(Math.round(el.scrollLeft / el.clientWidth)); }}>
-            {orderedPhotos.map((p) => <HeroPhoto key={p.id} photo={p} />)}
+            {orderedPhotos.map((p, i) => <HeroPhoto key={p.id} photo={p} near={Math.abs(i - slide) <= 1} />)}
           </div>
         ) : sample ? (
           <>

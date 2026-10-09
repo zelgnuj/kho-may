@@ -67,3 +67,22 @@ test('ảnh: lưới dùng ảnh thu nhỏ lưu sẵn trên máy', async ({ page
   await expect(page.locator(`a[href="/may/${xa.id}"] img.thumb-img`)).toBeVisible();
   expect(await idb(page, 'thumbs')).toHaveLength(1);
 });
+
+test('lùi từ trang chi tiết về Kho máy: giữ vị trí cuộn, nội dung hiện đủ', async ({ page }) => {
+  await mockApis(page);
+  await importSample(page);
+  await page.setViewportSize({ width: 390, height: 500 });
+  await page.goto('/');
+  await expect(page.locator('a[href^="/may/"]').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await page.waitForTimeout(200);
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(100);
+  await page.locator('a[href^="/may/"]').last().click();
+  await page.waitForURL('**/may/**');
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Kho máy' })).toBeAttached();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before - 5);
+  await expect(page.locator('a[href^="/may/"]').first()).toBeAttached();
+});

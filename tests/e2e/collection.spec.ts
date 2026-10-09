@@ -127,12 +127,21 @@ test('sửa ảnh: xoá ảnh cũ, thêm ảnh mới, lưu → ảnh bìa ngoài
   await expect(page.locator(`a[href="/may/${xa.id}"] .thumb-wait`)).toHaveCount(0);
 });
 
-test('thẻ máy mặc định không hiện giá, bật lại được trong Giao diện', async ({ page }) => {
+test('thẻ máy mặc định không hiện giá, chọn giá thị trường hoặc giá mua trong Giao diện', async ({ page }) => {
   await importSample(page);
   await expect(page.locator('.grid .card').first()).toBeVisible();
   await expect(page.locator('.grid .card .val')).toHaveCount(0);
   await page.goto('/cai-dat/giao-dien');
-  await page.getByRole('radiogroup', { name: 'Giá trên thẻ máy' }).getByRole('radio', { name: 'Hiện' }).click();
+  const group = page.getByRole('radiogroup', { name: 'Giá trên thẻ máy' });
+  await group.getByRole('radio', { name: 'Thị trường' }).click();
   await page.goto('/');
   await expect(page.locator('.grid .card .val').first()).toBeVisible();
+  await expect(page.locator('.grid .card .chg', { hasText: 'giá mua' })).toHaveCount(0);
+
+  // Giá mua: sample.csv có máy giá 1,5 triệu
+  await page.goto('/cai-dat/giao-dien');
+  await group.getByRole('radio', { name: 'Giá mua' }).click();
+  await page.goto('/');
+  await expect(page.locator('.grid .card', { hasText: 'giá mua' }).first()).toBeVisible();
+  await expect(page.locator('.grid .card .val', { hasText: '1,5 tr' })).toHaveCount(1);
 });

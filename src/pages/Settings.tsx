@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, setSetting, useCameras, useSettings } from '../db';
+import { cardPriceMode, db, setSetting, useCameras, useSettings } from '../db';
 import { fmtTs, parseAmount, preferredCurrency } from '../lib/format';
 import { refreshRates } from '../lib/rates';
 import { estimateMonthlyAuto, normalizeUsage, pingPriceApi, uniqueModels } from '../lib/autoPrice';
@@ -323,7 +323,7 @@ function AppearancePage() {
         </div>
         <div className="field">{tx("Kiểu xem mặc định ở Kho máy")}<Segmented label={tx("Kiểu xem mặc định")} value={s.defaultView} onChange={(v) => setSetting('defaultView', v)} options={[{ value: 'grid', label: tx("Lưới") }, { value: 'list', label: tx("Danh sách") }, { value: 'shelf', label: tx("Kệ") }]} />
         </div>
-        <div className="field">{tx("Giá trên thẻ máy ở Kho máy")}<Segmented label={tx("Giá trên thẻ máy")} value={s.cardPrice ? 'on' : 'off'} onChange={(v) => setSetting('cardPrice', v === 'on')} options={[{ value: 'off', label: tx("Ẩn") }, { value: 'on', label: tx("Hiện") }]} />
+        <div className="field">{tx("Giá trên thẻ máy ở Kho máy")}<Segmented label={tx("Giá trên thẻ máy")} value={cardPriceMode(s.cardPrice)} onChange={(v) => setSetting('cardPrice', v)} options={[{ value: 'off', label: tx("Ẩn") }, { value: 'market', label: tx("Thị trường") }, { value: 'purchase', label: tx("Giá mua") }]} />
           <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{tx("Tổng giá trị vẫn ở đầu Kho máy và trang Giá trị; giá từng máy xem trong trang chi tiết.")}</span>
         </div>
       </section>

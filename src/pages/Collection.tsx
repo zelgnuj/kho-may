@@ -3,8 +3,8 @@ import { loanStatus } from '../lib/loans';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, useCameras, useSettings, type Camera } from '../db';
-import { TYPE_LABEL, TYPE_ORDER, isZoom, lensLabel, valueLabel } from '../lib/format';
+import { cardPriceMode, db, useCameras, useSettings, type Camera } from '../db';
+import { TYPE_LABEL, TYPE_ORDER, isZoom, lensLabel, purchaseVND, valueLabel } from '../lib/format';
 import { changePct, groupPrices } from '../lib/stats';
 import { CameraThumb, Money } from '../components/ui';
 import { IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort } from '../components/Icons';
@@ -31,6 +31,10 @@ export default function Collection() {
   const cams = useCameras();
   const prices = useLiveQuery(() => db.prices.toArray(), []);
   const settings = useSettings();
+  const priceMode = cardPriceMode(settings.cardPrice);
+  const cardValue = (c: Camera) => priceMode === 'purchase'
+    ? valueLabel(purchaseVND(c, settings.rates))
+    : c.status === 'sold' ? '—' : valueLabel(c.marketValue);
   const [params, setParams] = useSearchParams();
   const filter = params.get('loc') ?? 'all';
   const [q, setQ] = useState('');
@@ -172,7 +176,7 @@ export default function Collection() {
           {view === 'grid' && (
             <div className="grid px">
               {items.map((c) => {
-                const pct = settings.cardPrice ? changePct(byCam.get(c.id)) : null;
+                const pct = priceMode === 'market' ? changePct(byCam.get(c.id)) : null;
                 return (
                   <Link key={c.id} to={`/may/${c.id}`} className="card">
                     <div className="tile">
@@ -186,9 +190,10 @@ export default function Collection() {
                       <span className="sub">{c.brand} · {TYPE_LABEL[c.type]}</span>
                       <span className="name">{c.model}</span>
                       {lensLabel(c.lens) && <span className="lens-spec">{lensLabel(c.lens)}</span>}
-                      {settings.cardPrice && (
+                      {priceMode !== 'off' && (
                         <div className="row">
-                          <span className="val">{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
+                          <span className="val">{cardValue(c)}</span>
+                          {priceMode === 'purchase' && <span className="chg">{tx("giá mua")}</span>}
                           {pct != null && <span className={'chg ' + (pct > 0 ? 'up' : pct < 0 ? 'down' : '')}>{pct > 0 ? '▲' : pct < 0 ? '▼' : '–'} {Math.abs(pct)}%</span>}
                         </div>
                       )}
@@ -212,7 +217,7 @@ export default function Collection() {
                     <span className="spec">{[TYPE_LABEL[c.type], lensLabel(c.lens) ?? (c.type === 'DIG' ? 'Digital' : c.format), c.lens?.kind === 'interchangeable' ? c.mount : ''].filter(Boolean).join(' · ')}</span>
                   </div>
                   <div className="list-side">
-                    {settings.cardPrice ? <span className="mono" style={{ fontSize: 13 }}>{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
+                    {priceMode !== 'off' ? <span className="mono" style={{ fontSize: 13 }}>{cardValue(c)}</span>
                       : c.year ? <span className="mono muted" style={{ fontSize: 12 }}>{c.year}</span> : null}
                     <span style={{ color: c.status === 'sold' ? 'var(--muted)' : c.loan ? '#7FB8FF' : 'var(--up)' }}>{c.status === 'sold' ? tx("Đã bán") : c.loan ? tx("{0} mượn", c.loan.to) : tx("Trong kho")}</span>
                   </div>

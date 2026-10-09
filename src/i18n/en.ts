@@ -372,6 +372,7 @@ export const en: Record<string, string> = {
   "Giá cần cập nhật": "Prices to update",
   "Giá giữa:": "Median:",
   "Giá lấy từ máy đã bán gần đây trên eBay (qua CompSniper), thiếu thì dùng giá đang rao; lọc máy hỏng, phụ kiện, biến thể khác tên rồi lấy giá giữa.": "Prices come from recently sold cameras on eBay (via CompSniper), falling back to current listings; broken units, accessories and differently named variants are filtered out, then the median is used.",
+  "giá mua": "paid",
   "Giá mua": "Purchase price",
   "Giá mua + tiền tệ": "Purchase price + currency",
   "Giá mua đã nhập": "Purchase prices entered",

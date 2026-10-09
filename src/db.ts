@@ -339,14 +339,18 @@ export interface Settings {
   /** Tiền hiển thị giá trị máy; null = theo ngôn ngữ */
   displayCurrency: 'VND' | 'USD' | null;
   /** Hiện giá thị trường trên thẻ máy ở Kho máy (mặc định ẩn cho đỡ giống sàn bán hàng) */
-  cardPrice: boolean;
+  cardPrice: CardPrice;
 }
+
+export type CardPrice = 'off' | 'market' | 'purchase';
+/** Bản cũ lưu true/false */
+export const cardPriceMode = (v: unknown): CardPrice => (v === true ? 'market' : v === 'market' || v === 'purchase' ? v : 'off');
 
 export const DEFAULT_SETTINGS: Settings = {
   ownerName: '',
   accent: '#F2A33A',
   defaultView: 'grid',
-  cardPrice: false,
+  cardPrice: 'off',
   rates: { JPY: null, USD: null, updatedAt: null },
   priceToken: '',
   autoPrice: true,

@@ -243,3 +243,24 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .spec-rows dt { color: var(--muted); }
 .spec-rows dd { margin: 0; overflow-wrap: anywhere; }
 .spec-note { font-size: 13px; line-height: 1.55; color: var(--text-2); }
+
+/* Trang chi tiết: trưng ảnh trước */
+.showcase { position: relative; height: calc(100svh - 56px); min-height: 460px; background: #070706; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.showcase .hero-scroll img { object-fit: cover; }
+.showcase-sample { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #d9d6d0; }
+.showcase-empty { display: flex; flex-direction: column; align-items: center; gap: 20px; transform: translateY(-12%); }
+.showcase-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: linear-gradient(to top, rgba(14,13,12,.96) 0%, rgba(14,13,12,.7) 45%, rgba(14,13,12,0) 100%); pointer-events: none; z-index: 1; }
+.showcase-info { position: absolute; left: 20px; right: 20px; bottom: 20px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
+.showcase-title { font-family: var(--display); font-weight: 800; font-size: 64px; line-height: .92; text-transform: uppercase; overflow-wrap: anywhere; margin: 0; }
+.showcase-sub { font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.status-chip { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: rgba(243,240,234,.12); color: var(--text); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.status-chip.owned { color: var(--up); }
+.status-chip.sold { color: var(--muted); }
+.status-chip.film { background: var(--accent); color: var(--on-accent); }
+.dots { display: flex; gap: 6px; margin-bottom: 10px; }
+.dots span { width: 6px; height: 6px; border-radius: 3px; background: rgba(243,240,234,.35); transition: width .2s; }
+.dots span.on { width: 18px; background: var(--text); }
+.swipe-hint { align-self: center; margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 11px; color: var(--muted); background: transparent; border: 0; min-height: 44px; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .swipe-hint { animation: none; } }
+.detail-sheet { position: relative; z-index: 3; margin-top: -14px; border-radius: 22px 22px 0 0; background: var(--bg); padding-top: 22px; display: flex; flex-direction: column; gap: 20px; scroll-margin-top: 0; }

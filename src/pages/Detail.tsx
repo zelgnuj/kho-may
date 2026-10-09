@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, db, deleteCamera, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
@@ -33,6 +33,11 @@ export default function Detail() {
   const [sheet, setSheet] = useState<null | 'price' | 'film' | 'service' | 'lens' | 'lensSpec' | 'purchase' | 'profile'>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [looking, setLooking] = useState(false);
+  const [slide, setSlide] = useState(0);
+  const detailsRef = useRef<HTMLDivElement>(null);
+
+  // Ghi lại lần xem (không đụng updatedAt để không ảnh hưởng đồng bộ sau này)
+  useEffect(() => { if (id) db.cameras.update(id, { lastViewedAt: Date.now() }).catch(() => {}); }, [id]);
 
   const orderedPhotos = useMemo(() => {
     if (!photos || !cam) return [];
@@ -77,6 +82,13 @@ export default function Detail() {
     toast(`Đã thêm ${blobs.length} ảnh`);
   };
 
+  const toggleStatus = async () => {
+    const toSold = cam.status === 'owned';
+    if (!window.confirm(toSold ? `Đánh dấu ${cam.brand} ${cam.model} là đã bán? Máy sẽ không còn tính vào giá trị bộ sưu tập.` : `Chuyển ${cam.brand} ${cam.model} về Trong kho?`)) return;
+    await patchCamera(cam.id, { status: toSold ? 'sold' : 'owned', film: toSold ? null : cam.film });
+    toast(toSold ? 'Đã chuyển sang Đã bán' : 'Đã chuyển về Trong kho');
+  };
+
   const onDelete = async () => {
     if (!window.confirm(`Xóa ${cam.brand} ${cam.model} khỏi kho?`)) return;
     await deleteCamera(cam.id);
@@ -87,16 +99,26 @@ export default function Detail() {
   const entry = findModel(cam.brand, cam.model);
   const lensKind = cam.lens?.kind ?? defaultLensKind(cam.type);
   const lensTag = lensLabel(cam.lens);
-  const tags = [cam.type === 'DIG' ? 'Digital' : cam.format, TYPE_LABEL[cam.type], lensKind === 'interchangeable' && cam.mount && `Ngàm ${cam.mount}`, cam.year ? String(cam.year) : entry?.released?.slice(0, 4)].filter(Boolean) as string[];
+
+  const sample = !orderedPhotos.length ? entry?.image?.url : undefined;
+  const subline = [TYPE_LABEL[cam.type], cam.type === 'DIG' ? null : cam.format, lensTag ?? (lensKind === 'interchangeable' && cam.mount ? `Ngàm ${cam.mount}` : null), cam.year ? String(cam.year) : entry?.released?.slice(0, 4)].filter(Boolean).join(' · ');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 'calc(var(--safe-bottom) + 40px)' }}>
-      <div className="hero">
+    <div style={{ paddingBottom: 'calc(var(--safe-bottom) + 40px)' }}>
+      <div className="showcase">
         {orderedPhotos.length ? (
-          <div className="hero-scroll">{orderedPhotos.map((p) => <HeroPhoto key={p.id} photo={p} />)}</div>
+          <div className="hero-scroll" onScroll={(e) => { const el = e.currentTarget; setSlide(Math.round(el.scrollLeft / el.clientWidth)); }}>
+            {orderedPhotos.map((p) => <HeroPhoto key={p.id} photo={p} />)}
+          </div>
+        ) : sample ? (
+          <img className="showcase-sample" src={sample} alt="" />
         ) : (
-          <CameraArt type={cam.type} width={230} strokeWidth={1.2} />
+          <div className="showcase-empty">
+            <CameraArt type={cam.type} width={260} strokeWidth={1.1} />
+            <button type="button" className="pill-btn" onClick={() => fileRef.current?.click()}>+ Thêm ảnh máy của bạn</button>
+          </div>
         )}
+        <div className="showcase-shade" aria-hidden="true" />
         <div className="hero-actions">
           <button type="button" className="icon-btn dark" aria-label="Quay lại" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}><IconBack /></button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -104,34 +126,30 @@ export default function Detail() {
             <Link to={`/may/${cam.id}/sua`} className="icon-btn dark" aria-label="Sửa thông tin"><IconEdit size={19} /></Link>
           </div>
         </div>
-        {orderedPhotos.length > 0 && <span className="hero-count">{orderedPhotos.length} ảnh</span>}
         <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { onPhotos(e.target.files); e.target.value = ''; }} />
-      </div>
 
-      <div className="px" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div>
-          <span style={{ fontSize: 14, color: 'var(--muted)' }}>{cam.brand}</span>
-          <h1 style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 56, lineHeight: 0.95, textTransform: 'uppercase', overflowWrap: 'anywhere' }}>{cam.model}</h1>
-        </div>
-        {(tags.length > 0 || lensTag) && (
-          <div className="tags">
-            {tags.slice(0, 2).map((t) => <span key={t} className="tag">{t}</span>)}
-            {lensTag && <span className="tag" style={{ textTransform: 'none' }}>{lensTag}</span>}
-            {tags.slice(2).map((t) => <span key={t} className="tag">{t}</span>)}
+        <div className="showcase-info">
+          {orderedPhotos.length > 1 && (
+            <div className="dots" aria-label={`Ảnh ${slide + 1}/${orderedPhotos.length}`}>
+              {orderedPhotos.map((p, i) => <span key={p.id} className={i === slide ? 'on' : ''} />)}
+            </div>
+          )}
+          <span style={{ fontSize: 15, color: 'var(--text-2)' }}>{cam.brand}</span>
+          <h1 className="showcase-title">{cam.model}</h1>
+          {subline && <span className="showcase-sub">{subline}</span>}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+            <span className={'status-chip ' + cam.status}>{cam.status === 'owned' ? 'Trong kho' : 'Đã bán'}</span>
+            {cam.marketValue != null && cam.status === 'owned' && <span className="status-chip">{trieu(cam.marketValue)} tr</span>}
+            {cam.film && <span className="status-chip film">{cam.film.stock}</span>}
           </div>
-        )}
+          <button type="button" className="swipe-hint" onClick={() => detailsRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            Vuốt lên xem chi tiết
+          </button>
+        </div>
       </div>
 
-      <div className="px">
-        <Segmented
-          label="Trạng thái máy"
-          value={cam.status}
-          options={[{ value: 'owned', label: 'Trong kho' }, { value: 'sold', label: 'Đã bán' }]}
-          colorFor={(v) => (v === 'owned' ? 'var(--up)' : undefined)}
-          onChange={(v) => patchCamera(cam.id, { status: v, film: v === 'sold' ? null : cam.film })}
-        />
-      </div>
-
+      <div className="detail-sheet" ref={detailsRef}>
       {cam.status === 'owned' && cam.type !== 'DIG' && (
         <div className="px">
           {cam.film ? (
@@ -318,6 +336,12 @@ export default function Detail() {
       <div className="px" style={{ display: 'flex', gap: 10 }}>
         <Link to={`/may/${cam.id}/sua`} className="btn secondary" style={{ flex: 1 }}>Sửa thông tin</Link>
         <button type="button" className="btn danger" onClick={onDelete}>Xóa</button>
+      </div>
+      <div className="px" style={{ display: 'flex', justifyContent: 'center' }}>
+        <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={toggleStatus}>
+          {cam.status === 'owned' ? 'Đánh dấu đã bán' : 'Chuyển về Trong kho'}
+        </button>
+      </div>
       </div>
 
       <PriceSheet open={sheet === 'price'} onClose={() => setSheet(null)} cam={cam} />

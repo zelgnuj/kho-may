@@ -10,6 +10,7 @@ import { IconData, IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort
 type View = 'grid' | 'list' | 'shelf';
 const SORTS = [
   { k: 'value', label: 'Giá trị: cao → thấp' },
+  { k: 'viewed', label: 'Đã xem gần đây' },
   { k: 'recent', label: 'Mới thêm gần đây' },
   { k: 'brand', label: 'Hãng: A → Z' },
   { k: 'type', label: 'Theo loại máy' },
@@ -76,6 +77,7 @@ export default function Collection() {
     list.sort((a, b) => {
       if (sk === 'value') return (b.marketValue ?? -1) - (a.marketValue ?? -1);
       if (sk === 'recent') return b.createdAt - a.createdAt;
+      if (sk === 'viewed') return (b.lastViewedAt ?? 0) - (a.lastViewedAt ?? 0) || b.createdAt - a.createdAt;
       if (sk === 'focal') return (a.lens?.focal ?? 9999) - (b.lens?.focal ?? 9999) || a.brand.localeCompare(b.brand);
       if (sk === 'type') return TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) || a.brand.localeCompare(b.brand);
       return a.brand.localeCompare(b.brand) || a.model.localeCompare(b.model);

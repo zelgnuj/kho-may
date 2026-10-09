@@ -55,6 +55,8 @@ export interface Camera {
   marketUpdatedAt?: number | null;
   /** Lần cuối app thử tự tra giá (kể cả khi không tìm được) */
   marketCheckedAt?: number | null;
+  /** Lần cuối mở trang chi tiết (dùng cho sắp xếp Đã xem gần đây) */
+  lastViewedAt?: number | null;
   marketSource?: 'auto' | 'manual' | null;
   marketNote?: string;
   marketBasis?: string;

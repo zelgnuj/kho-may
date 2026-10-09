@@ -355,3 +355,15 @@ a.pill-btn { display: inline-flex; align-items: center; }
 .welcome-skip { align-self: center; color: var(--muted); font-size: 12px; margin-top: auto; }
 .thumb-wait { background: var(--surface-2); display: block; width: 100%; height: 100%; }
 .hero-wait { display: block; flex: none; width: 100%; height: 100%; scroll-snap-align: start; background: var(--surface); }
+
+/* Nút + : làm nhanh */
+button.nav-add { border: 0; cursor: pointer; }
+.quick-hero { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 18px; border: 0; background: var(--accent); color: var(--on-accent); font: inherit; cursor: pointer; }
+.quick-hero-icon { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: rgba(0, 0, 0, .14); flex: none; }
+.quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.quick-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font: inherit; text-align: left; cursor: pointer; min-height: 116px; }
+.quick-tile b { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.quick-tile .muted { font-size: 11px; line-height: 1.35; }
+.quick-tile-icon { color: var(--accent); }
+.chooser-thumb { width: 52px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; flex: none; }
+.chooser-thumb .thumb-img { width: 100%; height: 100%; object-fit: cover; }

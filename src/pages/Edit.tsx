@@ -5,6 +5,7 @@ import { addPhotos, addPrice, blankCamera, db, deletePhoto, patchCamera, patchWi
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
 import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { ModelPicker } from '../components/ModelPicker';
+import { takeHeldPhotos } from '../lib/quickPhotos';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
@@ -63,6 +64,10 @@ export default function Edit() {
   // Mở từ wishlist ("Đã mua được"): điền sẵn hãng/mẫu
   const [params] = useSearchParams();
   const wishId = isNew ? params.get('wish') : null;
+  // ảnh vừa chụp từ nút + ("máy mới với ảnh này")
+  useEffect(() => {
+    if (isNew && params.get('anh')) { const held = takeHeldPhotos(); if (held.length) setPending((p) => [...p, ...held]); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const wish = useLiveQuery(() => (wishId ? db.wishlist.get(wishId) : undefined), [wishId]);
   useEffect(() => {
     if (wish) setC((prev) => ({ ...prev, brand: wish.brand, model: wish.model, notes: wish.wantNote ? `Muốn: ${wish.wantNote}` : prev.notes }));

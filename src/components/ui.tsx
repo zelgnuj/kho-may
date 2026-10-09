@@ -4,9 +4,10 @@ import type { Camera } from '../db';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { useThumb } from '../lib/thumbs';
 import { CameraArt } from './CameraArt';
+import { QuickActions } from './QuickActions';
 import { findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
-import { IconCamera, IconClose, IconHeart, IconPlus, IconSettings, IconTrend } from './Icons';
+import { IconCamera, IconClose, IconHeart, IconSettings, IconTrend } from './Icons';
 
 export function BottomNav() {
   const cls = ({ isActive }: { isActive: boolean }) => 'nav-item' + (isActive ? ' active' : '');
@@ -14,7 +15,7 @@ export function BottomNav() {
     <nav className="bottom-nav" aria-label="Điều hướng chính">
       <NavLink to="/" end className={cls}><IconCamera size={22} />Kho máy</NavLink>
       <NavLink to="/wishlist" className={cls}><IconHeart size={22} />Wishlist</NavLink>
-      <NavLink to="/them" className="nav-add" aria-label="Thêm máy"><IconPlus size={26} /></NavLink>
+      <QuickActions />
       <NavLink to="/gia-tri" className={cls}><IconTrend size={22} />Giá trị</NavLink>
       <NavLink to="/cai-dat" className={cls}><IconSettings size={22} />Cài đặt</NavLink>
     </nav>

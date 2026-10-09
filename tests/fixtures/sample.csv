@@ -1,0 +1,5 @@
+brand,name,category,purchasePrice,currency,groupName,status,quantity,serialNumber,lensSerialNumber,lensBrand,lensModel,focalLength,maxAperture,lensMount,medium,sensorSize,filmFormat,filmISO,filmType,filmExpiry,notes,manufactureYearStart,manufactureYearEnd,targetPrice,isGift,images
+Olympus,XA,Camera (Body Only),1500000,VND,Film Cameras,owned,1,,,,,,,,film,,35mm,,,,,,,,,
+Olympus,OM-2N,Camera (Body Only),,,Film Cameras,owned,1,,,,,,,,film,,35mm,,,,,,,,,
+Ricoh,R1,Camera (Body Only),,,Film Cameras,owned,1,,,,,,,,film,,35mm,,,,,,,,,
+Canon,AE-1,Camera (Body Only),,,Film Cameras,sold,1,,,,,,,,film,,35mm,,,,,,,,,

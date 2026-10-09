@@ -1,7 +1,6 @@
 import Papa from 'papaparse';
 import { blankCamera, db, type Camera, type Currency, uid } from '../db';
 import { guessLens, guessType } from './catalog';
-import { blobToDataURL, dataURLToBlob } from './images';
 
 export type ImportSource = 'camdex' | 'khomay' | 'unknown';
 
@@ -197,36 +196,4 @@ export async function exportCSV(cams: Camera[], opts: { purchase: boolean; seria
   }));
   const csv = '﻿' + Papa.unparse(rows);
   download(`kho-may-${stamp()}.csv`, new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-}
-
-export async function exportJSON(includePhotos: boolean) {
-  const [cameras, prices, service, settings] = await Promise.all([
-    db.cameras.toArray(), db.prices.toArray(), db.service.toArray(),
-    db.settings.filter((s) => s.key !== 'priceToken' && s.key !== 'contribToken' && !s.key.startsWith('img:')).toArray()
-  ]);
-  let photos: { id: string; cameraId: string; createdAt: number; data: string }[] = [];
-  if (includePhotos) {
-    const all = await db.photos.toArray();
-    photos = await Promise.all(all.map(async (p) => ({ id: p.id, cameraId: p.cameraId, createdAt: p.createdAt, data: await blobToDataURL(p.blob) })));
-  }
-  const payload = { app: 'kho-may', version: 1, exportedAt: new Date().toISOString(), cameras, prices, service, settings, photos };
-  download(`kho-may-saoluu-${stamp()}.json`, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-}
-
-export async function restoreJSON(file: File): Promise<number> {
-  const data = JSON.parse(await file.text());
-  if (data?.app !== 'kho-may') throw new Error('File không phải bản sao lưu của Kho máy');
-  const photos = await Promise.all(
-    (data.photos ?? []).map(async (p: { id: string; cameraId: string; createdAt: number; data: string }) => ({
-      id: p.id, cameraId: p.cameraId, createdAt: p.createdAt, blob: await dataURLToBlob(p.data)
-    }))
-  );
-  await db.transaction('rw', [db.cameras, db.prices, db.service, db.settings, db.photos], async () => {
-    await db.cameras.bulkPut(data.cameras ?? []);
-    await db.prices.bulkPut(data.prices ?? []);
-    await db.service.bulkPut(data.service ?? []);
-    await db.settings.bulkPut(data.settings ?? []);
-    if (photos.length) await db.photos.bulkPut(photos);
-  });
-  return (data.cameras ?? []).length;
 }

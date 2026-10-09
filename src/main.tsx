@@ -6,9 +6,10 @@ import './styles.css';
 import { backfillLensSpecs } from './db';
 import { guessLens, loadCatalog } from './lib/catalog';
 import { syncPending } from './lib/contrib';
+import { ensurePersistent } from './lib/backup';
 
 // Xin trình duyệt giữ dữ liệu lâu dài (giảm nguy cơ Safari tự xóa khi máy thiếu dung lượng)
-navigator.storage?.persist?.().catch(() => {});
+ensurePersistent();
 // Tải thư viện mẫu máy (file riêng, được lưu lại để dùng offline), rồi bổ sung thông số cho máy đã có
 loadCatalog()
   .then(() => backfillLensSpecs(guessLens))

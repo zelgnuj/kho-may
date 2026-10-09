@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCameras } from '../db';
-import { commitImport, exportCSV, exportJSON, parseCSVFile, restoreJSON, type ImportPreview } from '../lib/csv';
+import { commitImport, exportCSV, parseCSVFile, type ImportPreview } from '../lib/csv';
+import { applyRestore, readBackup } from '../lib/backup';
+import { BackupPanel } from '../components/Backup';
 import { TYPE_LABEL, fullName, money } from '../lib/format';
 import { toast } from '../lib/toast';
 import { Segmented } from '../components/ui';
@@ -19,11 +21,9 @@ const CAMDEX_MAP: [string, string][] = [
 export default function Data() {
   const cams = useCameras();
   const nav = useNavigate();
-  const [fmt, setFmt] = useState<'csv' | 'json'>('csv');
   const [scope, setScope] = useState<'owned' | 'all'>('owned');
   const [incPurchase, setIncPurchase] = useState(true);
   const [incSerial, setIncSerial] = useState(true);
-  const [incPhotos, setIncPhotos] = useState(false);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [lensOk, setLensOk] = useState(true);
   const [skipDup, setSkipDup] = useState(true);
@@ -35,18 +35,18 @@ export default function Data() {
   const doExport = async () => {
     setBusy(true);
     try {
-      if (fmt === 'csv') await exportCSV(list, { purchase: incPurchase, serial: incSerial });
-      else await exportJSON(incPhotos);
+      await exportCSV(list, { purchase: incPurchase, serial: incSerial });
     } finally { setBusy(false); }
   };
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      if (file.name.toLowerCase().endsWith('.json')) {
-        if (!window.confirm('Khôi phục từ bản sao lưu? Máy trùng mã sẽ được ghi đè bằng dữ liệu trong file.')) return;
-        const n = await restoreJSON(file);
-        toast(`Đã khôi phục ${n} máy`);
+      if (/\.(json|zip)$/i.test(file.name)) {
+        const plan = await readBackup(file);
+        if (!window.confirm(`Khôi phục bản sao lưu (${plan.cameras} máy, ${plan.photos} ảnh)? Máy đã có sẽ giữ bản sửa gần đây hơn, không xoá gì.`)) return;
+        const r = await applyRestore(plan);
+        toast(`Đã khôi phục: thêm ${r.added} máy, cập nhật ${r.updated}, ${r.photos} ảnh`);
         nav('/');
         return;
       }
@@ -89,12 +89,14 @@ export default function Data() {
         <h1 className="title-xl" style={{ fontSize: 44 }}>Nhập / Xuất</h1>
       </header>
 
+      <BackupPanel />
+
       <section className="section px" aria-label="Nhập dữ liệu">
         <h2 className="h-mono">NHẬP VÀO</h2>
         {!preview ? (
           <button type="button" className="dashed" style={{ flexDirection: 'column', background: 'transparent', padding: '22px 14px', gap: 8 }} onClick={() => fileRef.current?.click()}>
             <IconData size={24} />
-            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>Chọn file CSV hoặc bản sao lưu JSON</span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>Chọn file CSV hoặc file sao lưu</span>
             <span className="muted" style={{ fontSize: 12 }}>Đọc được CSV từ CamDex và file xuất từ Kho máy</span>
           </button>
         ) : (
@@ -158,36 +160,24 @@ export default function Data() {
             </div>
           </div>
         )}
-        <input ref={fileRef} type="file" accept=".csv,.json,text/csv,application/json" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
+        <input ref={fileRef} type="file" accept=".csv,.json,.zip,text/csv,application/json,application/zip" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
       </section>
 
       <section className="section px" aria-label="Xuất dữ liệu" style={{ gap: 12 }}>
-        <h2 className="h-mono">XUẤT RA</h2>
-        <Segmented label="Định dạng" value={fmt} onChange={setFmt} options={[{ value: 'csv', label: 'CSV · bảng tính' }, { value: 'json', label: 'JSON · sao lưu' }]} />
-        {fmt === 'csv' ? (
-          <>
-            <Segmented label="Phạm vi" value={scope} onChange={setScope} options={[{ value: 'owned', label: `Đang có · ${(cams ?? []).filter((c) => c.status === 'owned').length}` }, { value: 'all', label: `Tất cả · ${(cams ?? []).length}` }]} />
-            <div className="rows" style={{ padding: 0 }}>
-              <label className="check"><span>Kèm giá mua &amp; nơi mua</span><input type="checkbox" checked={incPurchase} onChange={(e) => setIncPurchase(e.target.checked)} /></label>
-              <label className="check"><span>Kèm số serial</span><input type="checkbox" checked={incSerial} onChange={(e) => setIncSerial(e.target.checked)} /></label>
-            </div>
-            <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Mở được bằng Excel, Google Sheets, Numbers. Nhập lại vào Kho máy cũng được.</p>
-          </>
-        ) : (
-          <>
-            <div className="rows" style={{ padding: 0 }}>
-              <label className="check"><span>Kèm ảnh (file sẽ nặng hơn)</span><input type="checkbox" checked={incPhotos} onChange={(e) => setIncPhotos(e.target.checked)} /></label>
-            </div>
-            <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Bản sao lưu đầy đủ: máy, lịch sử giá, nhật ký, cài đặt. Dùng để chuyển sang máy khác hoặc khôi phục khi cần.</p>
-          </>
-        )}
+        <h2 className="h-mono">XUẤT BẢNG TÍNH</h2>
+        <Segmented label="Phạm vi" value={scope} onChange={setScope} options={[{ value: 'owned', label: `Đang có · ${(cams ?? []).filter((c) => c.status === 'owned').length}` }, { value: 'all', label: `Tất cả · ${(cams ?? []).length}` }]} />
+        <div className="rows" style={{ padding: 0 }}>
+          <label className="check"><span>Kèm giá mua &amp; nơi mua</span><input type="checkbox" checked={incPurchase} onChange={(e) => setIncPurchase(e.target.checked)} /></label>
+          <label className="check"><span>Kèm số serial</span><input type="checkbox" checked={incSerial} onChange={(e) => setIncSerial(e.target.checked)} /></label>
+        </div>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Mở được bằng Excel, Google Sheets, Numbers. Nhập lại vào Kho máy cũng được.</p>
         <button type="button" className="btn" disabled={busy || !(cams ?? []).length} onClick={doExport}>
-          {fmt === 'csv' ? `Xuất ${list.length} máy ra CSV` : 'Tạo bản sao lưu'}
+          Xuất {list.length} máy ra CSV
         </button>
       </section>
 
       <p className="px muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
-        Dữ liệu đang lưu ngay trên thiết bị này, chưa đồng bộ lên mạng. Thỉnh thoảng hãy tạo bản sao lưu JSON để phòng mất máy hoặc xóa trình duyệt.
+        Dữ liệu đang lưu ngay trên thiết bị này, chưa đồng bộ lên mạng. Bản sao lưu (.zip) chứa đủ máy, ảnh, lịch sử giá và nhật ký — giữ nó ở iCloud Drive hoặc Google Drive.
       </p>
     </div>
   );

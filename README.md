@@ -68,6 +68,16 @@ Sau khi thêm biến, Redeploy một lần.
 | `CONTRIB_TOKEN` | Mã đóng góp tự đặt; nhập cùng mã trong Cài đặt → Thư viện mẫu máy |
 | `GITHUB_BRANCH` | Tùy chọn, mặc định `main` |
 
+## Sao lưu
+
+Trang Nhập / Xuất → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mục `photos/` (ảnh gốc). Trên iPhone, file được lưu thẳng vào Tệp / iCloud Drive qua bảng chia sẻ. Khôi phục gộp theo `updatedAt`: thêm cái chưa có, giữ bản sửa mới hơn, không xoá gì. Vẫn đọc được file JSON cũ. App nhắc sao lưu khi có thay đổi mà đã quá 7/14/30 ngày (chỉnh được).
+
+## Kiểm thử
+
+- `npm test` — logic gộp đóng góp + kiểm tra toàn vẹn `data/` (chặn đóng góp lỗi)
+- `npm run build && npm run test:e2e` — Playwright trên khung iPhone: nhập CSV, chọn hãng/mẫu, sao lưu → khôi phục, lời nhắc
+- GitHub Actions (`.github/workflows/ci.yml`) chạy cả hai mỗi lần push
+
 ## Cấu trúc
 
 - `src/db.ts` — schema Dexie, kiểu dữ liệu, cài đặt

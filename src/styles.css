@@ -286,3 +286,10 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .pick-spec { flex: none; font-size: 10px; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
 .pick-free { border: 1px dashed var(--accent); background: transparent; color: var(--accent); border-radius: 12px; padding: 12px 14px; text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
 .sheet.tall { height: 88dvh; }
+
+/* Sao lưu */
+.backup-file { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); word-break: break-all; }
+.backup-nudge { margin: 4px 0 14px; }
+.backup-nudge-card { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.pill-btn.on { background: var(--accent); border-color: var(--accent); color: #1a1208; font-weight: 600; }
+.warn { color: var(--accent); }

@@ -1,3 +1,4 @@
+import { BackupReminder } from '../components/Backup';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -105,6 +106,8 @@ export default function Collection() {
         </div>
         <Link to="/du-lieu" className="icon-btn" aria-label="Nhập / xuất dữ liệu"><IconData /></Link>
       </header>
+
+      {all.length > 0 && <BackupReminder />}
 
       {all.length === 0 ? (
         <div className="empty">

@@ -134,6 +134,7 @@ test('thẻ máy mặc định không hiện giá, chọn giá thị trường h
   await page.goto('/cai-dat/giao-dien');
   const group = page.getByRole('radiogroup', { name: 'Giá trên thẻ máy' });
   await group.getByRole('radio', { name: 'Thị trường' }).click();
+  await expect(group.getByRole('radio', { name: 'Thị trường' })).toHaveAttribute('aria-checked', 'true');
   await page.goto('/');
   await expect(page.locator('.grid .card .val').first()).toBeVisible();
   await expect(page.locator('.grid .card .chg', { hasText: 'giá mua' })).toHaveCount(0);
@@ -141,6 +142,7 @@ test('thẻ máy mặc định không hiện giá, chọn giá thị trường h
   // Giá mua: sample.csv có máy giá 1,5 triệu
   await page.goto('/cai-dat/giao-dien');
   await group.getByRole('radio', { name: 'Giá mua' }).click();
+  await expect(group.getByRole('radio', { name: 'Giá mua' })).toHaveAttribute('aria-checked', 'true');
   await page.goto('/');
   await expect(page.locator('.grid .card', { hasText: 'giá mua' }).first()).toBeVisible();
   await expect(page.locator('.grid .card .val', { hasText: '1,5 tr' })).toHaveCount(1);

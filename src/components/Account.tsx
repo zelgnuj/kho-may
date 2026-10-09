@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { db } from '../db';
+import { db, setSetting, useSettings } from '../db';
 import { sendReset, sessionFromUrlHash, setNewPassword, signIn, signOut, signUp, syncNow, useSync } from '../lib/sync';
 import { Segmented } from './ui';
 import { toast } from '../lib/toast';
@@ -41,6 +41,7 @@ export function AccountPage() {
     return (
       <SubPage title="Tài khoản">
         <section className="section px" style={{ gap: 12 }}>
+          <NameField />
           <div className="rows">
             <div><span>Email</span><span className="muted" style={{ fontSize: 13 }}>{sync.session.user.email}</span></div>
             <div><span>Đồng bộ lần cuối</span><span className={'mono ' + (sync.error ? 'down' : 'muted')} style={{ fontSize: 13 }}>{sync.running ? 'đang chạy…' : agoLabel(sync.lastAt)}</span></div>
@@ -184,4 +185,15 @@ function Counts() {
   const [n, setN] = useState<number | null>(null);
   useEffect(() => { db.syncMeta.count().then(setN); }, []);
   return n == null ? null : <div><span>Bản ghi đã đồng bộ</span><span className="mono muted" style={{ fontSize: 13 }}>{n.toLocaleString('vi-VN')}</span></div>;
+}
+
+function NameField() {
+  const s = useSettings();
+  const [name, setName] = useState(s.ownerName);
+  useEffect(() => { setName(s.ownerName); }, [s.ownerName]);
+  return (
+    <label className="field">Tên hiển thị
+      <input className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setSetting('ownerName', name.trim())} placeholder="vd: Lâm" />
+    </label>
+  );
 }

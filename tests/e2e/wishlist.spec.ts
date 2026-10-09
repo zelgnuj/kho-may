@@ -55,12 +55,14 @@ test('cài đặt: danh mục mở được từng trang con, /du-lieu chuyển 
   await mockApis(page);
   await importSample(page);
   await page.goto('/cai-dat');
-  for (const [label, title] of [['Sao lưu & khôi phục', 'Sao lưu'], ['Nhập / xuất bảng tính', 'Nhập / Xuất'], ['Tự tra giá thị trường', 'Tra giá'], ['Tỷ giá', 'Tỷ giá'], ['Thư viện mẫu máy', 'Thư viện'], ['Tên & giao diện', 'Giao diện']]) {
+  for (const [label, title] of [['Sao lưu & khôi phục', 'Sao lưu'], ['Nhập / xuất bảng tính', 'Nhập / Xuất'], ['Tự tra giá thị trường', 'Tra giá'], ['Tỷ giá', 'Tỷ giá'], ['Thư viện mẫu máy', 'Thư viện'], ['Giao diện', 'Giao diện']]) {
     await page.locator('.menu-row', { hasText: label }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await page.locator('.back-link').click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cài đặt');
   }
+  await page.locator('.profile-card').click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tài khoản');
   await page.goto('/du-lieu');
   await expect(page).toHaveURL(/\/cai-dat\/nhap-xuat$/);
 });

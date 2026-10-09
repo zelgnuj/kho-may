@@ -15,7 +15,7 @@ import { SubPage } from '../components/SubPage';
 import { AccountPage, accountLabel } from '../components/Account';
 import { syncState as syncStateNow, useSync, wipeLocalKeepCloud } from '../lib/sync';
 import { Segmented } from '../components/ui';
-import { IconBook, IconChevron, IconCloud, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
+import { IconBook, IconChevron, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
 import ImportExport from './Data';
 
 const ACCENTS = ['#F2A33A', '#FF6B4A', '#7FB8FF', '#C8E06A'];
@@ -65,22 +65,16 @@ function SettingsHome() {
     <div className="page">
       <header className="px"><h1 className="title-xl" style={{ fontSize: 44 }}>Cài đặt</h1></header>
 
-      <Link to="/cai-dat/giao-dien" className="profile-card px-card">
+      <Link to="/cai-dat/tai-khoan" className="profile-card px-card" aria-label="Tài khoản">
         <span className="avatar" style={{ background: s.accent }}>{(s.ownerName || 'C').slice(0, 1).toUpperCase()}</span>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
           <span style={{ fontSize: 17, fontWeight: 600 }}>{s.ownerName || 'Chưa đặt tên'}</span>
           <span className="muted mono" style={{ fontSize: 12 }}>{owned} máy trong kho · {wishN} đang săn</span>
-          {sync.session?.user.email && <span className="muted" style={{ fontSize: 12 }}>{sync.session.user.email}</span>}
+          {sync.session?.user.email && <span className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sync.session.user.email}</span>}
+          <span className={'mono ' + (sync.error || (sync.ready && !sync.session) ? 'warn' : 'muted')} style={{ fontSize: 11 }}>{accountLabel(sync)}</span>
         </span>
         <IconChevron size={16} className="menu-chev" />
       </Link>
-
-      <section className="menu-group px" aria-label="Tài khoản">
-        <h2 className="h-mono">TÀI KHOẢN</h2>
-        <div className="menu">
-          <MenuRow to="/cai-dat/tai-khoan" icon={<IconCloud size={18} />} label="Tài khoản" value={accountLabel(sync)} warn={!!sync.error || (sync.ready && !sync.session)} />
-        </div>
-      </section>
 
       <section className="menu-group px" aria-label="Dữ liệu">
         <h2 className="h-mono">DỮ LIỆU</h2>
@@ -108,7 +102,7 @@ function SettingsHome() {
       <section className="menu-group px" aria-label="Hiển thị">
         <h2 className="h-mono">HIỂN THỊ</h2>
         <div className="menu">
-          <MenuRow to="/cai-dat/giao-dien" icon={<IconPalette size={18} />} label="Tên & giao diện" value={{ grid: 'Lưới', list: 'Danh sách', shelf: 'Kệ' }[s.defaultView]} />
+          <MenuRow to="/cai-dat/giao-dien" icon={<IconPalette size={18} />} label="Giao diện" value={{ grid: 'Lưới', list: 'Danh sách', shelf: 'Kệ' }[s.defaultView]} />
         </div>
       </section>
 
@@ -314,14 +308,9 @@ function LibraryPage() {
 
 function AppearancePage() {
   const s = useSettings();
-  const [name, setName] = useState(s.ownerName);
-  useEffect(() => { setName(s.ownerName); }, [s.ownerName]);
   return (
     <SubPage title="Giao diện">
       <section className="section px" style={{ gap: 16 }}>
-        <label className="field">Tên hiển thị
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setSetting('ownerName', name.trim())} placeholder="vd: Lâm" />
-        </label>
         <div className="field">Màu nhấn
           <div style={{ display: 'flex', gap: 10 }}>
             {ACCENTS.map((a) => (

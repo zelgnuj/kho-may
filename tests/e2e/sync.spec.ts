@@ -59,14 +59,12 @@ test('đồng bộ giữa hai thiết bị: máy, ảnh, cuộn film, sửa, xo�
   await A.page.locator('[aria-label="Danh sách film"] .pick-row').first().click();
   await A.page.getByRole('button', { name: 'Lắp film', exact: true }).click();
   await expect.poll(async () => (await idb(A.page, 'rolls')).length).toBe(1);
-  await A.page.goto('/cai-dat/giao-dien');
+  await login(A.page, { create: true, server });
   await A.page.getByLabel('Tên hiển thị').fill('Lâm');
   await A.page.getByLabel('Tên hiển thị').blur();
-  await expect.poll(async () => (await idb<{ key: string; value: unknown }>(A.page, 'settings')).find((x) => x.key === 'ownerName')?.value).toBe('Lâm');
-  await login(A.page, { create: true, server });
+  await expect.poll(() => server.rows.get('setting:ownerName')?.data, { timeout: 15000 }).toEqual({ value: 'Lâm' });
   expect([...server.rows.values()].filter((r) => r.kind === 'camera')).toHaveLength(4);
   expect(server.files.size).toBe(1);
-  expect(server.rows.get('setting:ownerName')?.data).toEqual({ value: 'Lâm' });
 
   // Máy B: trống, đăng nhập → kéo về đủ
   const B = await mk();

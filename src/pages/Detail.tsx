@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, db, deleteCamera, finishRoll, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
-import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, daysSince, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
+import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';

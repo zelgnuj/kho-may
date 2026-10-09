@@ -12,8 +12,6 @@ test('lắp film (push), chụp xong, chờ tráng, đã tráng', async ({ page 
   await page.locator('[aria-label="Danh sách film"] .pick-row').first().click();
   await expect(page.locator('.film-picked')).toContainText('Kodak Portra 400');
   await page.getByRole('radio', { name: /800 · push \+1/ }).click();
-  await expect(page.locator('.advice')).toContainText('Nhớ chỉnh ISO trên máy về 800');
-  await expect(page.locator('.advice')).toContainText('push +1');
   await page.getByLabel('Ghi chú cuộn').fill('Đà Lạt');
   await page.getByRole('button', { name: 'Lắp film', exact: true }).click();
 
@@ -37,21 +35,6 @@ test('lắp film (push), chụp xong, chờ tráng, đã tráng', async ({ page 
   await expect(page.locator('section[aria-label="Thống kê"]')).toContainText('90.000 đ');
   const rolls = await idb<{ status: string; ei: number; iso: number; devCost: number }>(page, 'rolls');
   expect(rolls[0]).toMatchObject({ status: 'developed', iso: 400, ei: 800, devCost: 90000 });
-});
-
-test('máy đọc DX: báo ISO thực tế khi film không nằm trong mức máy hỗ trợ', async ({ page }) => {
-  await page.goto('/them');
-  await page.getByRole('button', { name: /Chọn hãng/ }).click();
-  await page.getByLabel('Tìm hãng').fill('nikon');
-  await page.locator('[aria-label="Danh sách hãng"] .pick-row').first().click();
-  await page.getByLabel('Tìm mẫu').fill('AF600');
-  await page.locator('[aria-label="Danh sách mẫu"] .pick-row').first().click();
-  await page.getByRole('button', { name: 'Lưu máy' }).click();
-  await page.waitForURL('**/may/**');
-  await page.getByRole('button', { name: '+ Lắp film vào máy này' }).click();
-  await page.getByLabel('Tìm film').fill('portra 160');
-  await page.locator('[aria-label="Danh sách film"] .pick-row').first().click();
-  await expect(page.locator('.advice')).toContainText('chụp ở ISO 100 (dư sáng ⅔ stop)');
 });
 
 test('đổi cuộn: cuộn cũ tự chuyển sang chờ tráng', async ({ page }) => {

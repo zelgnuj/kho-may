@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, finishRoll, loadRoll, patchRoll, type Camera, type Roll } from '../db';
 import { daysSince, fmtDate, parseAmount, todayISO } from '../lib/format';
-import { findModel, useCatalogVersion } from '../lib/catalog';
-import type { CatalogModel } from '../lib/catalogTypes';
+import { useCatalogVersion } from '../lib/catalog';
 import {
   FILM_STOCKS, KIND_DEV, KIND_LABEL, cameraFilmFormats, defaultShots, findStock, isoFromName, stockLabel, stops,
   type FilmKind, type FilmStock
@@ -22,47 +21,6 @@ function fmtStops(n: number, sign = true) {
 }
 
 /* ======================================================================
- * Gợi ý khi lắp film: ISO, mã DX, dải đo sáng, push/pull, film hết hạn
- * ====================================================================== */
-
-export interface Advice { tone: 'info' | 'warn'; text: string }
-
-export function filmAdvice(cam: Camera, model: CatalogModel | null, r: { stock: string; iso?: number | null; ei?: number | null; kind?: string; expired?: boolean }): Advice[] {
-  const out: Advice[] = [];
-  const box = r.iso ?? null;
-  const shoot = r.ei ?? box;
-  const f = model?.film;
-  const dx = f?.iso_setting === 'DX';
-  if (box && dx) {
-    const vals = (f?.iso_values ?? []).slice().sort((a, b) => a - b);
-    if (r.ei && r.ei !== box) {
-      out.push({ tone: 'warn', text: `Máy tự đọc mã DX nên sẽ chụp ở ISO ${box}, không đẩy/kéo tay được. Muốn push/pull cần film không có mã DX hoặc dán lại mã.` });
-    } else if (vals.length && !vals.includes(box)) {
-      const lower = [...vals].reverse().find((v) => v <= box) ?? vals[0];
-      const d = stops(box, lower);
-      out.push({ tone: Math.abs(d) > 1 ? 'warn' : 'info', text: `Máy đọc mã DX, chỉ có ISO ${vals.join(' / ')} → cuộn này sẽ được chụp ở ISO ${lower} (${d < 0 ? `dư sáng ${fmtStops(-d, false)} stop` : `thiếu sáng ${fmtStops(d, false)} stop`})${r.kind === 'slide' ? ' — dương bản sẽ lệch sáng rõ.' : ', film âm bản thường chịu được.'}` });
-    } else {
-      out.push({ tone: 'info', text: 'Máy tự đọc mã DX, không cần chỉnh ISO.' });
-    }
-  } else if (shoot && (f?.iso_setting === 'manual' || ['SLR', 'RF', 'TLR', 'MF', 'HALF'].includes(cam.type))) {
-    out.push({ tone: 'info', text: `Nhớ chỉnh ISO trên máy về ${shoot}.` });
-  }
-  if (shoot && f?.iso_min && f?.iso_max && (shoot < f.iso_min || shoot > f.iso_max)) {
-    out.push({ tone: 'warn', text: `Máy chỉ đo sáng được ISO ${f.iso_min}–${f.iso_max.toLocaleString('vi-VN')} — ISO ${shoot} nằm ngoài dải này, phải đo sáng ngoài.` });
-  }
-  if (box && r.ei && r.ei !== box) {
-    const d = stops(box, r.ei);
-    out.push({ tone: 'warn', text: `${d > 0 ? 'Push' : 'Pull'} ${fmtStops(d)} stop: nhớ dặn lab tráng ${d > 0 ? 'push' : 'pull'} ${fmtStops(d)}.` });
-  }
-  if (r.kind === 'slide' && (cam.type === 'PNS' || model?.exposure?.modes?.every((m) => m === 'program'))) {
-    out.push({ tone: 'info', text: 'Dương bản chỉ chịu lệch khoảng ±½ stop; máy tự động hoàn toàn dễ làm cháy hoặc tối ảnh.' });
-  }
-  if (r.kind === 'cine' && !/cinestill/i.test(r.stock)) out.push({ tone: 'warn', text: 'Film cine chưa bỏ lớp remjet: cần lab tráng ECN-2 hoặc báo lab trước.' });
-  if (r.expired) out.push({ tone: 'info', text: 'Film hết hạn: thường chụp dư khoảng 1 stop cho mỗi 10 năm quá hạn.' });
-  return out;
-}
-
-/* ======================================================================
  * Bảng lắp film
  * ====================================================================== */
 
@@ -70,7 +28,6 @@ type KindFilter = 'all' | FilmKind;
 
 export function LoadFilmSheet({ open, onClose, cam }: { open: boolean; onClose: () => void; cam: Camera }) {
   useCatalogVersion();
-  const model = findModel(cam.brand, cam.model);
   const formats = cameraFilmFormats(cam.format, cam.type);
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<KindFilter>('all');
@@ -110,7 +67,6 @@ export function LoadFilmSheet({ open, onClose, cam }: { open: boolean; onClose: 
   const box = Number(iso) || null;
   const shotOptions = cam.format === '120' ? [10, 12, 15, 16] : pick?.stock?.kind === 'instant' ? [8, 10] : cam.type === 'HALF' ? [48, 54, 72] : [24, 27, 36];
   const eiOptions = box ? [-1, 0, 1, 2].map((d) => ({ d, v: Math.round(box * 2 ** d) })) : [];
-  const advice = pick ? filmAdvice(cam, model, { stock: pick.label, iso: box, ei, kind: pick.stock?.kind, expired }) : [];
 
   const save = async () => {
     if (!pick) return;
@@ -182,7 +138,6 @@ export function LoadFilmSheet({ open, onClose, cam }: { open: boolean; onClose: 
             <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="vd: chuyến Đà Lạt, chụp đường phố" />
           </label>
           <div className="field">Ngày lắp<DateInput label="Ngày lắp" value={date} onChange={setDate} /></div>
-          {advice.length > 0 && <AdviceList items={advice} />}
           <button type="button" className="btn" onClick={save}>{cam.film ? 'Đổi sang cuộn này' : 'Lắp film'}</button>
         </>
       )}
@@ -199,14 +154,6 @@ function StockRow({ label, stock, onPick }: { label: string; stock: FilmStock | 
       </span>
       {stock && <span className="mono muted" style={{ fontSize: 12 }}>ISO {stock.iso}</span>}
     </button>
-  );
-}
-
-export function AdviceList({ items }: { items: Advice[] }) {
-  return (
-    <ul className="advice">
-      {items.map((a, i) => <li key={i} className={a.tone}>{a.text}</li>)}
-    </ul>
   );
 }
 
@@ -294,7 +241,6 @@ export function FilmCard({ cam, onLoad, onFinish }: { cam: Camera; onLoad: () =>
   const f = cam.film;
   const kind = roll?.kind ?? findStock(f.stock)?.kind;
   const days = f.loadedAt ? daysSince(f.loadedAt) : null;
-  const advice = filmAdvice(cam, findModel(cam.brand, cam.model), { stock: f.stock, iso: roll?.iso ?? f.iso ?? isoFromName(f.stock), ei: roll?.ei ?? f.ei, kind, expired: roll?.expired });
   const iso = roll?.iso ?? f.iso ?? isoFromName(f.stock);
   const ei = roll?.ei ?? f.ei;
   return (
@@ -313,8 +259,6 @@ export function FilmCard({ cam, onLoad, onFinish }: { cam: Camera; onLoad: () =>
           {f.loadedAt && <span>lắp {fmtDate(f.loadedAt)}</span>}
         </div>
         {roll?.note && <span style={{ fontSize: 13 }}>{roll.note}</span>}
-        {advice.length > 0 && <span className="film-hint">{advice[0].text}</span>}
-        {days != null && days > 60 && <span className="film-hint">Cuộn đã nằm trong máy {days} ngày — nhớ chụp nốt và đem tráng.</span>}
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn-dark" onClick={onFinish}>Chụp xong</button>
           <button type="button" className="btn-line" onClick={onLoad}>Đổi cuộn</button>

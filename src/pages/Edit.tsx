@@ -4,7 +4,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, blankCamera, db, deletePhoto, patchCamera, patchWish, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
 import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
-import { lensTitle } from '../lib/specs';
 import { ModelPicker } from '../components/ModelPicker';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';

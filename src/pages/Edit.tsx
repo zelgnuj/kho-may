@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, blankCamera, db, deletePhoto, patchCamera, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
-import { defaultLensKind, findModel, guessLens, guessType, searchCatalog, useCatalogVersion } from '../lib/catalog';
+import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { lensTitle } from '../lib/specs';
+import { ModelPicker } from '../components/ModelPicker';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
@@ -82,7 +83,6 @@ export default function Edit() {
 
   useCatalogVersion();
   const matched = findModel(c.brand, c.model);
-  const suggestions = useMemo(() => (c.model.trim().length >= 2 ? searchCatalog(`${c.brand} ${c.model}`).concat(searchCatalog(c.model)).filter((e, i, a) => a.findIndex((x) => x.id === e.id) === i).slice(0, 4) : []), [c.brand, c.model]);
 
   const priceValue = c.purchaseCurrency === 'VND' ? parseVND(price) : parseAmount(price);
   const canSave = c.brand.trim() && c.model.trim();
@@ -143,30 +143,16 @@ export default function Edit() {
 
       <section className="section px" aria-label="Thông tin máy" style={{ gap: 14 }}>
         <h2 className="h-mono">THÔNG TIN MÁY</h2>
-        <div className="form-grid">
-          <label className="field">Hãng
-            <input className="input" list="brands" value={c.brand} onChange={(e) => set('brand', e.target.value)} placeholder="Olympus" autoCapitalize="words" />
-            <datalist id="brands">{brands?.map((b) => <option key={b} value={b} />)}</datalist>
-          </label>
-          <label className="field">Mẫu
-            <input className="input" value={c.model} onChange={(e) => set('model', e.target.value)} placeholder="OM-2N" />
-          </label>
-        </div>
+        <ModelPicker brand={c.brand} model={c.model} ownBrands={brands ?? []} onChange={(brand, model) => setC((prev) => ({ ...prev, brand, model }))} />
         {matched ? (
           <div className="dashed" style={{ borderStyle: 'solid', borderColor: 'var(--line)', fontSize: 13 }}>
             <span>Có trong thư viện: <b>{matched.brand} {matched.model}</b>{matched.release?.year ? ` · ${matched.release.year}` : ''} — loại máy, ống kính và bảng thông số được điền sẵn.</span>
           </div>
-        ) : suggestions.length > 0 && (
-          <div className="rows" role="listbox" aria-label="Gợi ý từ thư viện">
-            {suggestions.map((e) => (
-              <button key={e.id} type="button" role="option" aria-selected={false} style={{ background: 'transparent', border: 0, textAlign: 'left', width: '100%' }}
-                onClick={() => setC((prev) => ({ ...prev, brand: e.brand, model: e.model }))}>
-                <span>{e.brand} {e.model}</span>
-                <span className="mono muted" style={{ fontSize: 11 }}>{[e.release?.year, lensTitle(e)].filter(Boolean).join(' · ')}</span>
-              </button>
-            ))}
+        ) : c.brand && c.model ? (
+          <div className="dashed" style={{ fontSize: 13 }}>
+            <span className="muted">Chưa có trong thư viện — lưu máy xong, bạn có thể bổ sung thông số ở trang chi tiết.</span>
           </div>
-        )}
+        ) : null}
         <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
           <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Loại máy {guess.type && !typeTouched && c.type === guess.type && <span style={{ color: 'var(--accent)' }}> · tự nhận dạng</span>}</legend>
           <div className="toggles">

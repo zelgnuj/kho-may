@@ -83,6 +83,85 @@ export function searchCatalog(q: string, limit = 5): CatalogModel[] {
   return hits.sort((a, b) => (QUALITY_RANK[a.quality ?? ''] ?? 3) - (QUALITY_RANK[b.quality ?? ''] ?? 3)).slice(0, limit);
 }
 
+/* ---------- Chọn hãng / mẫu ---------- */
+
+function editDistance(a: string, b: string) {
+  const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = d[0]; d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return d[b.length];
+}
+
+/** Điểm khớp (càng nhỏ càng sát), null = không khớp. Chịu được gõ sai 1–2 ký tự: "contex" → Contax */
+function fuzzyScore(q: string, target: string): number | null {
+  if (!q) return 0;
+  if (target === q) return 0;
+  if (target.startsWith(q)) return 1;
+  if (target.includes(q)) return 2;
+  if (q.length < 3) return null;
+  const tol = q.length <= 4 ? 1 : 2;
+  const pre = editDistance(q, target.slice(0, q.length));
+  const whole = editDistance(q, target);
+  const best = Math.min(pre, whole);
+  return best <= tol ? 3 + best : null;
+}
+
+/** Danh sách hãng trong thư viện, kèm số mẫu */
+export function listBrands(): { brand: string; count: number }[] {
+  const c = new Map<string, number>();
+  for (const m of models) c.set(m.brand, (c.get(m.brand) ?? 0) + 1);
+  return [...c].map(([brand, count]) => ({ brand, count })).sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+}
+
+export function searchBrands(q: string): { brand: string; count: number }[] {
+  const k = squash(q);
+  const all = listBrands();
+  if (!k) return all;
+  return all
+    .map((b) => ({ b, s: fuzzyScore(k, squash(b.brand)) }))
+    .filter((x) => x.s != null)
+    .sort((x, y) => x.s! - y.s! || y.b.count - x.b.count)
+    .map((x) => x.b);
+}
+
+/** Tên hãng chuẩn trong thư viện (bỏ qua hoa/thường, gõ sai nhẹ) */
+export function canonicalBrand(q: string): string | null {
+  const k = squash(q);
+  if (!k) return null;
+  const exact = listBrands().find((b) => squash(b.brand) === k);
+  if (exact) return exact.brand;
+  const near = searchBrands(q)[0];
+  return near && fuzzyScore(k, squash(near.brand))! >= 3 ? near.brand : null;
+}
+
+const byName = (a: CatalogModel, b: CatalogModel) => a.model.localeCompare(b.model, 'en', { numeric: true, sensitivity: 'base' });
+
+/** Mẫu máy của một hãng (hoặc toàn thư viện nếu chưa chọn hãng), lọc theo chữ đang gõ */
+export function searchModels(brand: string, q: string, media: 'all' | 'film' | 'digital' = 'all', limit = 120): CatalogModel[] {
+  const bk = squash(brand);
+  const k = squash(q);
+  const pool = models.filter((m) => (!bk || squash(m.brand) === bk) && (media === 'all' || (media === 'digital' ? m.media === 'digital' : m.media !== 'digital')));
+  if (!k) return pool.slice().sort(byName).slice(0, limit);
+  const scored: { m: CatalogModel; s: number }[] = [];
+  for (const m of pool) {
+    const names = [m.model, ...(m.aliases ?? [])].map(squash);
+    if (!bk) names.push(squash(`${m.brand} ${m.model}`));
+    let s: number | null = null;
+    for (const n of names) {
+      const v = fuzzyScore(k, n);
+      if (v != null && (s == null || v < s)) s = v;
+    }
+    if (s != null) scored.push({ m, s });
+  }
+  return scored.sort((a, b) => a.s - b.s || byName(a.m, b.m)).slice(0, limit).map((x) => x.m);
+}
+
 /* ---------- Từ thư viện → dữ liệu của app ---------- */
 
 export function mainLens(m: CatalogModel): LensConfig | null {

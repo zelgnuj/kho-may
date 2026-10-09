@@ -272,3 +272,17 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .quality-chip.partial { color: var(--muted); }
 select.input { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
 .showcase-credit { position: absolute; right: 12px; top: calc(var(--safe-top) + 70px); z-index: 2; font-size: 10px; color: #3a3733; background: rgba(217,214,208,.85); padding: 3px 7px; border-radius: 6px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Chọn hãng / mẫu */
+.input.picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; font: inherit; font-size: 16px; }
+.input.picker span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.input.picker svg { flex: none; color: var(--muted); }
+.input.picker.is-empty span { color: var(--muted); }
+.pick-head { font-size: 11px; margin: 2px 0 -6px; }
+.pick-list > .pick-row { background: transparent; border-left: 0; border-right: 0; border-top: 0; width: 100%; text-align: left; font: inherit; font-size: 15px; cursor: pointer; }
+.pick-row[aria-selected="true"] { color: var(--accent); }
+.pick-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pick-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.pick-spec { flex: none; font-size: 10px; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.pick-free { border: 1px dashed var(--accent); background: transparent; color: var(--accent); border-radius: 12px; padding: 12px 14px; text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
+.sheet.tall { height: 88dvh; }

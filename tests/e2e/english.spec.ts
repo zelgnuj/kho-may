@@ -51,7 +51,7 @@ test('giao diện tiếng Anh: không sót chữ Việt, giá bằng USD', async
     ['/gia-tri', 'Value'], ['/wishlist', 'Wishlist'], ['/film', 'Film'], ['/cai-dat', 'Settings'],
     ['/cai-dat/sao-luu', 'Backup'], ['/cai-dat/nhap-xuat', 'Import'], ['/cai-dat/tra-gia', 'Pricing'],
     ['/cai-dat/ty-gia', 'Rates'], ['/cai-dat/thu-vien', 'Library'], ['/cai-dat/giao-dien', 'Appearance'],
-    ['/cai-dat/tai-khoan', 'Account'], ['/them', 'Add'], ['/wishlist/them', 'Add wish']
+    ['/cai-dat/tai-khoan', 'Account'], ['/them', 'Add'], ['/wishlist/them', 'Add wish'], ['/trung-bay', 'Showcase']
   ] as const) {
     await page.goto(path);
     await noVietnamese(page, name);

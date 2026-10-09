@@ -1,3 +1,4 @@
+import Showcase from './pages/Showcase';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { useSettings } from './db';
@@ -96,7 +97,7 @@ export default function App() {
     );
   }
 
-  const hideNav = loc.pathname.startsWith('/may/') || loc.pathname === '/them' || /^\/wishlist\/.+/.test(loc.pathname);
+  const hideNav = loc.pathname.startsWith('/may/') || loc.pathname === '/trung-bay' || loc.pathname === '/them' || /^\/wishlist\/.+/.test(loc.pathname);
 
   return (
     <div className="app">
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/may/:id/sua" element={<Edit />} />
         <Route path="/them" element={<Edit />} />
         <Route path="/gia-tri" element={<Value />} />
+        <Route path="/trung-bay" element={<Showcase />} />
         <Route path="/film" element={<FilmPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/wishlist/them" element={<WishEdit />} />

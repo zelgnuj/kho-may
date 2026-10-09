@@ -17,7 +17,8 @@ import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
 import { DateInput, Money, SampleImg, Segmented, Sheet, Sparkline } from '../components/ui';
-import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
+import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconShare, IconTrash } from '../components/Icons';
+import { ShareSheet, collectionIndex, type ShareTarget } from '../components/ShareSheet';
 import { tx } from '../lib/i18n';
 
 const BASIS: Record<string, string> = { sold: tx("Theo giá đã bán eBay"), asking: tx("Theo giá rao bán eBay"), mixed: tx("Giá bán + giá rao") };
@@ -52,6 +53,7 @@ export default function Detail() {
   const [looking, setLooking] = useState(false);
   const [slide, setSlide] = useState(0);
   const [contrib, setContrib] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   useCatalogVersion();
   const entryEarly = cam ? findModel(cam.brand, cam.model) : null;
   const sampleImg = useSampleImage(entryEarly, !!cam && !cam.coverPhotoId);
@@ -147,6 +149,10 @@ export default function Detail() {
         <div className="hero-actions">
           <button type="button" className="icon-btn dark" aria-label={tx("Quay lại")} onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}><IconBack /></button>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="icon-btn dark" aria-label={tx("Chia sẻ ảnh máy")} onClick={async () => {
+              const all = await db.cameras.toArray();
+              setShareTarget({ kind: 'camera', camera: cam, photoId: orderedPhotos[slide]?.id ?? null, index: collectionIndex(all, cam.id) });
+            }}><IconShare size={19} /></button>
             <button type="button" className="icon-btn dark" aria-label={tx("Thêm ảnh")} onClick={() => fileRef.current?.click()}><IconImage size={19} /></button>
             <Link to={`/may/${cam.id}/sua`} className="icon-btn dark" aria-label={tx("Sửa thông tin")}><IconEdit size={19} /></Link>
           </div>
@@ -360,6 +366,7 @@ export default function Detail() {
       {sheet === 'purchase' && <PurchaseSheet open onClose={() => setSheet(null)} cam={cam} />}
       {sheet === 'lensSpec' && <LensSpecSheet onClose={() => setSheet(null)} cam={cam} />}
       {sheet === 'profile' && <ProfileSheet onClose={() => setSheet(null)} cam={cam} />}
+      <ShareSheet target={shareTarget} onClose={() => setShareTarget(null)} />
       {contrib && <ContributeSheet model={entry} brand={cam.brand} modelName={cam.model} onClose={() => setContrib(false)} />}
     </div>
   );

@@ -1,13 +1,14 @@
 import { BackupReminder } from '../components/Backup';
 import { loanStatus } from '../lib/loans';
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { cardPriceMode, db, useCameras, useSettings, type Camera } from '../db';
 import { TYPE_LABEL, TYPE_ORDER, isZoom, lensLabel, purchaseVND, valueLabel } from '../lib/format';
 import { changePct, groupPrices } from '../lib/stats';
 import { CameraThumb, Money } from '../components/ui';
-import { IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort } from '../components/Icons';
+import { IconFilm, IconGrid, IconList, IconPlay, IconSearch, IconShare, IconShelf, IconSort } from '../components/Icons';
+import { ShareSheet, type ShareTarget } from '../components/ShareSheet';
 import { tx } from '../lib/i18n';
 
 type View = 'grid' | 'list' | 'shelf';
@@ -31,6 +32,8 @@ export default function Collection() {
   const cams = useCameras();
   const prices = useLiveQuery(() => db.prices.toArray(), []);
   const settings = useSettings();
+  const nav = useNavigate();
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const priceMode = cardPriceMode(settings.cardPrice);
   const cardValue = (c: Camera) => priceMode === 'purchase'
     ? valueLabel(purchaseVND(c, settings.rates))
@@ -115,7 +118,14 @@ export default function Collection() {
           <span className="eyebrow">{ownerLine}</span>
           <h1 className="title-xl">{tx("Kho máy")}</h1>
         </div>
+        {owned.length > 0 && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="icon-btn" aria-label={tx("Chia sẻ bộ sưu tập")} onClick={() => setShareTarget({ kind: 'collection', cameras: all })}><IconShare size={19} /></button>
+            <button type="button" className="icon-btn accent" aria-label={tx("Trình diễn")} onClick={() => nav('/trung-bay')}><IconPlay size={17} /></button>
+          </div>
+        )}
       </header>
+      <ShareSheet target={shareTarget} onClose={() => setShareTarget(null)} />
 
       {overdue.length > 0 && (
         <div className="px loan-nudge" role="status">

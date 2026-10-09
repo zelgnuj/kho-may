@@ -1,6 +1,6 @@
 import type { CamType } from '../db';
 
-const ART: Record<string, string> = {
+export const ART: Record<string, string> = {
   SLR: 'M12 32 H108 V68 H12 Z M44 32 L50 16 H70 L76 32 M45 52 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0 M52 52 a8 8 0 1 0 16 0 a8 8 0 1 0 -16 0 M88 32 V27 H98 V32 M18 32 V28 H28 V32',
   MF: 'M10 28 H110 V70 H10 Z M42 28 L48 12 H72 L78 28 M42 50 a18 18 0 1 0 36 0 a18 18 0 1 0 -36 0 M50 50 a10 10 0 1 0 20 0 a10 10 0 1 0 -20 0',
   RF: 'M8 26 H112 V66 H8 Z M32 48 a14 14 0 1 0 28 0 a14 14 0 1 0 -28 0 M39 48 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0 M78 33 H92 V41 H78 Z M98 33 H106 V41 H98 Z M14 26 V22 H34 V26',

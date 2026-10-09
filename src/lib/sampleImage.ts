@@ -8,7 +8,7 @@ const memory = new Map<string, SampleImage | null>();
 const inflight = new Map<string, Promise<SampleImage | null>>();
 const DAY = 86400000;
 
-async function fetchImage(m: CatalogModel): Promise<SampleImage | null> {
+export async function fetchImage(m: CatalogModel): Promise<SampleImage | null> {
   const key = `img:${m.id}:${m.commons_file ?? ''}`;
   if (memory.has(key)) return memory.get(key)!;
   const cached = await db.settings.get(key);

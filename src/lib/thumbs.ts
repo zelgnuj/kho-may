@@ -59,3 +59,6 @@ export function useThumb(photoId: string | null | undefined) {
 export function warmThumbs(ids: string[]) {
   ids.forEach((id) => { load(id); });
 }
+
+/** URL ảnh thu nhỏ (480px), dùng ngoài React */
+export const thumbUrl = (photoId: string) => load(photoId);

@@ -341,3 +341,15 @@ a.pill-btn { display: inline-flex; align-items: center; }
 .roll-open { flex: 1; min-width: 0; display: flex; background: transparent; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
 .sheet > * { flex-shrink: 0; }
 .info-box { font-size: 13px; line-height: 1.55; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+
+/* Màn chào */
+.welcome { min-height: 100svh; display: flex; flex-direction: column; gap: 22px; padding: calc(var(--safe-top) + 36px) 20px calc(var(--safe-bottom) + 28px); max-width: 560px; margin: 0 auto; }
+.welcome-head { display: flex; flex-direction: column; gap: 14px; }
+.welcome-icon { border-radius: 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+.welcome-title { font-size: 58px; line-height: .9; }
+.welcome-tag { font-size: 15px; line-height: 1.55; color: var(--text-2); max-width: 34ch; }
+.welcome-card { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+.install-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.5; }
+.install-steps li::marker { color: var(--accent); font-family: var(--mono); }
+.welcome-skip { align-self: center; color: var(--muted); font-size: 12px; margin-top: auto; }

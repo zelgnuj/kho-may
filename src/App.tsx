@@ -9,6 +9,8 @@ import Edit from './pages/Edit';
 import Value from './pages/Value';
 import FilmPage from './pages/Film';
 import { AuthLanding } from './components/Account';
+import { Welcome } from './components/Welcome';
+import { useSync } from './lib/sync';
 import WishlistPage, { WishDetail, WishEdit } from './pages/Wishlist';
 import SettingsPage from './pages/Settings';
 
@@ -39,6 +41,21 @@ export default function App() {
     const t = window.setTimeout(() => { autoRefreshStale().catch(() => {}); }, 1500);
     return () => window.clearTimeout(t);
   }, [settings.priceToken, settings.autoPrice]);
+
+  const sync = useSync();
+  const [skipLogin, setSkipLogin] = useState(() => { try { return sessionStorage.getItem('skip-login') === '1'; } catch { return false; } });
+  const landing = /^\/(xac-nhan|dat-lai-mat-khau)/.test(loc.pathname);
+
+  // Chưa đăng nhập → màn chào (cài app + đăng nhập) trước khi vào app
+  if (!landing && !sync.ready) return <div className="app" />;
+  if (!landing && !sync.session && !skipLogin) {
+    return (
+      <div className="app">
+        <Welcome onSkip={() => { try { sessionStorage.setItem('skip-login', '1'); } catch { /* bỏ qua */ } setSkipLogin(true); }} />
+        {msg && <div className="toast" role="status">{msg}</div>}
+      </div>
+    );
+  }
 
   const hideNav = loc.pathname.startsWith('/may/') || loc.pathname === '/them' || /^\/wishlist\/.+/.test(loc.pathname);
 

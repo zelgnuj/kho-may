@@ -4,7 +4,9 @@ import path from 'node:path';
 export const fixture = (f: string) => path.join(import.meta.dirname, '..', 'fixtures', f);
 
 /** Chặn mọi API bên ngoài để test không phụ thuộc mạng */
-export async function mockApis(page: Page) {
+export async function mockApis(page: Page, opts: { welcome?: boolean } = {}) {
+  // các test chức năng bỏ qua màn chào (đã có test riêng cho màn chào)
+  if (!opts.welcome) await page.addInitScript(() => { try { sessionStorage.setItem('skip-login', '1'); } catch { /* */ } });
   await page.route('**/api/price', (r) => r.fulfill({ status: 503, json: { error: 'off' } }));
   await page.route('**/api/image*', (r) => r.fulfill({ json: { found: false } }));
   await page.route('**/api/contribute', (r) => r.fulfill({ status: 401, json: { error: 'no' } }));

@@ -25,43 +25,8 @@ export function accountLabel(sync: ReturnType<typeof useSync>) {
 
 export function AccountPage() {
   const sync = useSync();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'in' | 'up'>('in');
-  const [show, setShow] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const [info, setInfo] = useState('');
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(t); }, []);
-
-  const mail = email.trim().toLowerCase();
-  const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail);
-  const submit = async () => {
-    if (!okEmail) { setErr('Email chưa đúng'); return; }
-    if (password.length < 6) { setErr('Mật khẩu cần ít nhất 6 ký tự'); return; }
-    setBusy(true); setErr(''); setInfo('');
-    try {
-      if (mode === 'up') {
-        const needConfirm = await signUp(mail, password);
-        if (needConfirm) {
-          setMode('in');
-          setInfo(`Đã gửi thư xác nhận tới ${mail}. Mở thư, bấm link xác nhận (mở trong Safari cũng được), rồi quay lại đây bấm Đăng nhập.`);
-        } else toast('Đã tạo tài khoản · đang đồng bộ');
-      } else {
-        await signIn(mail, password);
-        toast('Đã đăng nhập · đang đồng bộ');
-      }
-    } catch (x) { setErr(x instanceof Error ? x.message : 'Không thực hiện được'); }
-    finally { setBusy(false); }
-  };
-  const forgot = async () => {
-    if (!okEmail) { setErr('Nhập email trước, rồi bấm Quên mật khẩu'); return; }
-    setBusy(true); setErr(''); setInfo('');
-    try { await sendReset(mail); setInfo(`Đã gửi link đặt lại mật khẩu tới ${mail}. Mở link, đặt mật khẩu mới, rồi quay lại app đăng nhập.`); }
-    catch (x) { setErr(x instanceof Error ? x.message : 'Không gửi được'); }
-    finally { setBusy(false); }
-  };
   const out = async (wipe: boolean) => {
     const msg = wipe
       ? 'Đăng xuất và XOÁ dữ liệu trên máy này? Dữ liệu vẫn còn trên tài khoản, đăng nhập lại sẽ tải về.'
@@ -103,29 +68,74 @@ export function AccountPage() {
         <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--text-2)' }}>
           Đăng nhập để dữ liệu được lưu vào tài khoản: không lo mất khi đổi điện thoại, và dùng được trên nhiều máy.
         </p>
-        <Segmented<'in' | 'up'> label="Đăng nhập hoặc tạo tài khoản" value={mode} onChange={(v) => { setMode(v); setErr(''); }}
-          options={[{ value: 'in', label: 'Đăng nhập' }, { value: 'up', label: 'Tạo tài khoản' }]} />
-        <label className="field">Email
-          <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email}
-            onChange={(e) => setEmail(e.target.value)} placeholder="ban@gmail.com" />
-        </label>
-        <label className="field">Mật khẩu
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input className="input" style={{ flex: 1, minWidth: 0 }} type={show ? 'text' : 'password'} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
-              value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-              placeholder={mode === 'up' ? 'Ít nhất 6 ký tự' : ''} />
-            <button type="button" className="btn small secondary" onClick={() => setShow((x) => !x)}>{show ? 'Ẩn' : 'Hiện'}</button>
-          </div>
-        </label>
-        <button type="button" className="btn" disabled={busy || !email.trim() || !password} onClick={submit}>
-          {busy ? 'Đang xử lý…' : mode === 'up' ? 'Tạo tài khoản' : 'Đăng nhập'}
-        </button>
-        {mode === 'in' && <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', padding: 0 }} disabled={busy} onClick={forgot}>Quên mật khẩu?</button>}
-        {err && <p className="down" style={{ fontSize: 13, lineHeight: 1.5 }}>{err}</p>}
-        {info && <p className="info-box">{info}</p>}
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>Dữ liệu đang có trên máy này sẽ được đưa lên tài khoản ngay sau khi đăng nhập.</p>
+        <AuthForm />
       </section>
     </SubPage>
+  );
+}
+
+/** Ô đăng nhập / tạo tài khoản (dùng ở màn chào và trang Tài khoản) */
+export function AuthForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [info, setInfo] = useState('');
+
+  const mail = email.trim().toLowerCase();
+  const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail);
+  const submit = async () => {
+    if (!okEmail) { setErr('Email chưa đúng'); return; }
+    if (password.length < 6) { setErr('Mật khẩu cần ít nhất 6 ký tự'); return; }
+    setBusy(true); setErr(''); setInfo('');
+    try {
+      if (mode === 'up') {
+        const needConfirm = await signUp(mail, password);
+        if (needConfirm) {
+          setMode('in');
+          setInfo(`Đã gửi thư xác nhận tới ${mail}. Mở thư, bấm link xác nhận (mở trong Safari cũng được), rồi quay lại đây bấm Đăng nhập.`);
+        } else toast('Đã tạo tài khoản · đang đồng bộ');
+      } else {
+        await signIn(mail, password);
+        toast('Đã đăng nhập · đang đồng bộ');
+      }
+    } catch (x) { setErr(x instanceof Error ? x.message : 'Không thực hiện được'); }
+    finally { setBusy(false); }
+  };
+  const forgot = async () => {
+    if (!okEmail) { setErr('Nhập email trước, rồi bấm Quên mật khẩu'); return; }
+    setBusy(true); setErr(''); setInfo('');
+    try { await sendReset(mail); setInfo(`Đã gửi link đặt lại mật khẩu tới ${mail}. Mở link, đặt mật khẩu mới, rồi quay lại app đăng nhập.`); }
+    catch (x) { setErr(x instanceof Error ? x.message : 'Không gửi được'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="auth-form">
+        <Segmented<'in' | 'up'> label="Đăng nhập hoặc tạo tài khoản" value={mode} onChange={(v) => { setMode(v); setErr(''); }}
+        options={[{ value: 'in', label: 'Đăng nhập' }, { value: 'up', label: 'Tạo tài khoản' }]} />
+      <label className="field">Email
+        <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email}
+          onChange={(e) => setEmail(e.target.value)} placeholder="ban@gmail.com" />
+      </label>
+      <label className="field">Mật khẩu
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="input" style={{ flex: 1, minWidth: 0 }} type={show ? 'text' : 'password'} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
+            value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+            placeholder={mode === 'up' ? 'Ít nhất 6 ký tự' : ''} />
+          <button type="button" className="btn small secondary" onClick={() => setShow((x) => !x)}>{show ? 'Ẩn' : 'Hiện'}</button>
+        </div>
+      </label>
+      <button type="button" className="btn" disabled={busy || !email.trim() || !password} onClick={submit}>
+        {busy ? 'Đang xử lý…' : mode === 'up' ? 'Tạo tài khoản' : 'Đăng nhập'}
+      </button>
+      {mode === 'in' && <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', padding: 0 }} disabled={busy} onClick={forgot}>Quên mật khẩu?</button>}
+      {err && <p className="down" style={{ fontSize: 13, lineHeight: 1.5 }}>{err}</p>}
+      {info && <p className="info-box">{info}</p>}
+      <p className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>Dữ liệu đang có trên máy này sẽ được đưa lên tài khoản ngay sau khi đăng nhập.</p>
+    </div>
   );
 }
 

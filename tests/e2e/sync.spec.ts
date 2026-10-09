@@ -140,3 +140,59 @@ test('link trong email: xác nhận tài khoản & đặt lại mật khẩu', a
   await expect(page.getByText('Email link is invalid or has expired')).toBeVisible();
   await ctx.close();
 });
+
+test('đăng xuất giữ dữ liệu rồi đăng nhập tài khoản khác: không lẫn dữ liệu', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const server = new FakeSupabase();
+  const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
+  await server.attach(ctx);
+  const page = await ctx.newPage();
+  await mockApis(page);
+
+  const account = async (email: string, create: boolean) => {
+    await page.goto('/cai-dat/tai-khoan');
+    if (create) await page.getByRole('radio', { name: 'Tạo tài khoản' }).click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Mật khẩu').fill('phim-35mm');
+    await page.getByRole('button', { name: create ? 'Tạo tài khoản' : 'Đăng nhập', exact: true }).last().click();
+    await expect(page.getByRole('button', { name: 'Đồng bộ ngay' })).toBeVisible();
+    await expect(page.locator('.rows')).toContainText('vừa xong', { timeout: 15000 });
+  };
+  const signOutKeep = async () => {
+    await page.goto('/cai-dat/tai-khoan');
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: 'Đăng xuất, giữ dữ liệu trên máy' }).click();
+    await expect(page.getByRole('radio', { name: 'Tạo tài khoản' })).toBeVisible();
+  };
+
+  // Tài khoản A: dữ liệu có sẵn trên máy được đưa lên
+  await importSample(page);
+  await account('lam@example.com', true);
+  expect([...server.rowsByEmail('lam@example.com').values()].filter((r) => r.kind === 'camera')).toHaveLength(4);
+
+  // Đăng xuất giữ dữ liệu → đăng nhập tài khoản B
+  await signOutKeep();
+  expect(await idb(page, 'cameras')).toHaveLength(4);
+  await account('ban@example.com', true);
+  expect(server.rowsByEmail('ban@example.com').size).toBe(0); // B không nhận dữ liệu của A
+  expect(await idb(page, 'cameras')).toHaveLength(0);         // máy chỉ còn dữ liệu của B (trống)
+
+  // B thêm một máy
+  await page.goto('/them');
+  await page.getByRole('button', { name: /Chọn hãng/ }).click();
+  await page.getByLabel('Tìm hãng').fill('nikon');
+  await page.locator('[aria-label="Danh sách hãng"] .pick-row').first().click();
+  await page.getByLabel('Tìm mẫu').fill('FM2');
+  await page.locator('[aria-label="Danh sách mẫu"] .pick-row').first().click();
+  await page.getByRole('button', { name: 'Lưu máy' }).click();
+  await expect.poll(() => [...server.rowsByEmail('ban@example.com').values()].filter((r) => r.kind === 'camera').length, { timeout: 15000 }).toBe(1);
+
+  // Quay lại A: thấy đúng 4 máy của A, không có máy của B
+  await signOutKeep();
+  await account('lam@example.com', false);
+  const cams = await idb<{ model: string }>(page, 'cameras');
+  expect(cams).toHaveLength(4);
+  expect(cams.some((c) => c.model.includes('FM2'))).toBe(false);
+  expect([...server.rowsByEmail('lam@example.com').values()].filter((r) => r.kind === 'camera')).toHaveLength(4);
+  await ctx.close();
+});

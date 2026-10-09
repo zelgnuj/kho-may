@@ -2,7 +2,13 @@ import type { BrowserContext, Route } from '@playwright/test';
 
 /** Supabase giả trong bộ nhớ, dùng chung cho nhiều "thiết bị" (context) trong một test */
 export class FakeSupabase {
-  rows = new Map<string, { kind: string; id: string; data: unknown; updated_at: number; deleted: boolean; server_ts: string }>();
+  store = new Map<string, Map<string, { kind: string; id: string; data: unknown; updated_at: number; deleted: boolean; server_ts: string }>>();
+  ids = new Map<string, string>([['lam@example.com', '11111111-1111-1111-1111-111111111111']]);
+  rowsOf(uid: string) { if (!this.store.has(uid)) this.store.set(uid, new Map()); return this.store.get(uid)!; }
+  rowsByEmail(email: string) { return this.rowsOf(this.idOf(email)); }
+  /** dữ liệu của tài khoản mặc định (lam@example.com) */
+  get rows() { return this.rowsOf(this.user.id); }
+  idOf(email: string) { if (!this.ids.has(email)) this.ids.set(email, `22222222-2222-2222-2222-${String(this.ids.size).padStart(12, '0')}`); return this.ids.get(email)!; }
   files = new Map<string, { body: Buffer; type: string }>();
   clock = Date.parse('2026-10-09T00:00:00Z');
   user = { id: '11111111-1111-1111-1111-111111111111', email: 'lam@example.com' };
@@ -13,13 +19,14 @@ export class FakeSupabase {
 
   private ts() { this.clock += 7; return new Date(this.clock).toISOString(); }
 
-  session() {
+  session(email = this.user.email) {
+    const user = { id: this.idOf(email), email };
     const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
     const exp = Math.floor(Date.now() / 1000) + 3600 * 24;
-    const access_token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: this.user.id, email: this.user.email, role: 'authenticated', aud: 'authenticated', exp })}.sig`;
+    const access_token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: user.id, email: user.email, role: 'authenticated', aud: 'authenticated', exp })}.sig`;
     return {
       access_token, token_type: 'bearer', expires_in: 86400, expires_at: exp, refresh_token: 'fake-refresh',
-      user: { id: this.user.id, aud: 'authenticated', role: 'authenticated', email: this.user.email, app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-10-09T00:00:00Z' }
+      user: { id: user.id, aud: 'authenticated', role: 'authenticated', email: user.email, app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-10-09T00:00:00Z' }
     };
   }
 
@@ -32,20 +39,24 @@ export class FakeSupabase {
     const url = new URL(req.url());
     const p = url.pathname;
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    const bearer = (req.headers()['authorization'] ?? '').replace(/^Bearer /i, '');
+    let uid = '';
+    try { uid = JSON.parse(Buffer.from(bearer.split('.')[1] ?? '', 'base64url').toString()).sub ?? ''; } catch { /* anon */ }
+    const mine = this.rowsOf(uid || 'anon');
 
     if (p === '/auth/v1/signup') {
       const b = req.postDataJSON();
-      if (this.accounts.has(b.email)) return json({ ...this.session().user, identities: [] });
+      if (this.accounts.has(b.email)) return json({ ...this.session(b.email).user, identities: [] });
       this.accounts.set(b.email, b.password);
-      if (this.confirmEmail) return json({ ...this.session().user, identities: [{ id: 'x' }], confirmation_sent_at: new Date().toISOString() });
+      if (this.confirmEmail) return json({ ...this.session(b.email).user, identities: [{ id: 'x' }], confirmation_sent_at: new Date().toISOString() });
       this.confirmed.add(b.email);
-      return json({ ...this.session(), user: { ...this.session().user, identities: [{ id: 'x' }] } });
+      return json({ ...this.session(b.email), user: { ...this.session(b.email).user, identities: [{ id: 'x' }] } });
     }
     if (p === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') {
       const b = req.postDataJSON();
       if (this.accounts.get(b.email) !== b.password) return json({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }, 400);
       if (!this.confirmed.has(b.email)) return json({ code: 400, error_code: 'email_not_confirmed', msg: 'Email not confirmed' }, 400);
-      return json(this.session());
+      return json(this.session(b.email));
     }
     if (p.startsWith('/auth/v1/logout')) return route.fulfill({ status: 204 });
     if (p.startsWith('/auth/v1/user')) return json(this.session().user);
@@ -56,9 +67,9 @@ export class FakeSupabase {
       let n = 0;
       for (const r of rows) {
         const k = `${r.kind}:${r.id}`;
-        const cur = this.rows.get(k);
+        const cur = mine.get(k);
         if (cur && cur.updated_at > r.updated_at) continue;
-        this.rows.set(k, { kind: r.kind, id: r.id, data: r.data, updated_at: r.updated_at, deleted: !!r.deleted, server_ts: this.ts() });
+        mine.set(k, { kind: r.kind, id: r.id, data: r.data, updated_at: r.updated_at, deleted: !!r.deleted, server_ts: this.ts() });
         n++;
       }
       return json(n);
@@ -67,7 +78,7 @@ export class FakeSupabase {
       const gt = (url.searchParams.get('server_ts') ?? 'gt.1970-01-01T00:00:00Z').slice(3);
       const offset = Number(url.searchParams.get('offset') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 1000);
-      const all = [...this.rows.values()].filter((r) => r.server_ts > gt).sort((a, b) => a.server_ts.localeCompare(b.server_ts));
+      const all = [...mine.values()].filter((r) => r.server_ts > gt).sort((a, b) => a.server_ts.localeCompare(b.server_ts));
       return json(all.slice(offset, offset + limit));
     }
     const obj = p.match(/^\/storage\/v1\/object\/(?:authenticated\/)?photos\/(.+)$/);

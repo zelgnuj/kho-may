@@ -217,9 +217,9 @@ export async function syncNow(): Promise<void> {
     const uid = session.user.id;
     const owner = (await db.settings.get('syncUser'))?.value;
     if (owner && owner !== uid) {
-      // đổi tài khoản trên cùng máy: quên trạng thái đồng bộ cũ
-      await db.syncMeta.clear();
-      await db.settings.delete('syncCursor');
+      // Dữ liệu trên máy thuộc tài khoản khác (đã lưu trên tài khoản đó) → dọn sạch rồi tải dữ liệu của tài khoản này.
+      // Chỉ dữ liệu CHƯA từng gắn với tài khoản nào (dùng app trước khi đăng nhập) mới được đưa lên tài khoản mới.
+      await clearAccountData();
     }
     await db.settings.put({ key: 'syncUser', value: uid });
     await pull(uid);
@@ -324,16 +324,33 @@ export async function setNewPassword(password: string) {
   if (error) throw authError(error.message);
 }
 
+/** Xoá toàn bộ dữ liệu thuộc tài khoản trên máy (máy, ảnh, giá, nhật ký, wishlist, cuộn film, cài đặt đồng bộ) */
+async function clearAccountData() {
+  await Promise.all([
+    db.cameras.clear(), db.photos.clear(), db.thumbs.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear(),
+    db.syncMeta.clear(), db.settings.bulkDelete(['syncCursor', 'syncLastAt', 'lastBackup', ...SYNCED_SETTINGS])
+  ]);
+}
+
+/**
+ * Đăng xuất.
+ * - Giữ dữ liệu: đồng bộ lần cuối, dữ liệu trên máy vẫn gắn với tài khoản này. Đăng nhập lại đúng tài khoản thì dùng tiếp;
+ *   đăng nhập tài khoản KHÁC thì dữ liệu này được dọn khỏi máy (vẫn còn nguyên trên tài khoản cũ).
+ * - Xoá dữ liệu: dọn sạch máy.
+ */
 export async function signOut(wipeLocal: boolean) {
+  if (!wipeLocal && state.session && navigator.onLine) {
+    await syncNow();
+    while (state.running) await new Promise((r) => setTimeout(r, 100));
+  }
   blocked = true;
   window.clearTimeout(debounce);
   try {
     while (state.running) await new Promise((r) => setTimeout(r, 100));
     try { await supabase.auth.signOut(); } catch { /* mất mạng vẫn đăng xuất trên máy */ }
-    await db.syncMeta.clear();
-    await db.settings.bulkDelete(['syncCursor', 'syncUser', 'syncLastAt']);
     if (wipeLocal) {
-      await Promise.all([db.cameras.clear(), db.photos.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear()]);
+      await clearAccountData();
+      await db.settings.delete('syncUser');
     }
   } finally {
     blocked = false;

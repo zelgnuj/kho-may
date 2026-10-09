@@ -30,7 +30,7 @@ export function AccountPage() {
   const out = async (wipe: boolean) => {
     const msg = wipe
       ? 'Đăng xuất và XOÁ dữ liệu trên máy này? Dữ liệu vẫn còn trên tài khoản, đăng nhập lại sẽ tải về.'
-      : 'Đăng xuất? Dữ liệu trên máy này được giữ nguyên nhưng không đồng bộ nữa.';
+      : 'Đăng xuất? Dữ liệu vẫn nằm trên máy và vẫn thuộc tài khoản này — đăng nhập lại là dùng tiếp. Nếu đăng nhập tài khoản khác, dữ liệu này sẽ được dọn khỏi máy (vẫn còn trên tài khoản cũ).';
     if (!window.confirm(msg)) return;
     await signOut(wipe);
     toast('Đã đăng xuất');

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { idb, importSample, mockApis } from './helpers';
+import { fixture, idb, importSample, mockApis } from './helpers';
 
 test.beforeEach(async ({ page }) => { await mockApis(page); });
 
@@ -39,4 +39,31 @@ test('chọn Hãng / Mẫu từ thư viện, chịu gõ sai', async ({ page }) =
   await page.getByLabel('Tìm mẫu').fill('Máy Tự Chế 1');
   await page.locator('.pick-free').click();
   await expect(page.locator('.input.picker').nth(1)).toHaveText('Máy Tự Chế 1');
+});
+
+test('ảnh: lưới dùng ảnh thu nhỏ lưu sẵn trên máy', async ({ page }) => {
+  await mockApis(page);
+  await importSample(page);
+  const xa = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'XA')!;
+  await page.goto(`/may/${xa.id}`);
+  await page.locator('input[type=file]').first().setInputFiles(fixture('photo.jpg'));
+  await expect(page.locator('.hero-scroll img').first()).toBeVisible();
+  await page.goto('/');
+  await expect(page.locator(`a[href="/may/${xa.id}"] img.thumb-img`)).toBeVisible();
+  const thumbs = await idb<{ id: string; blob: Blob }>(page, 'thumbs');
+  expect(thumbs).toHaveLength(1);
+  const sizes = await page.evaluate(() => new Promise<number[]>((res) => {
+    const r = indexedDB.open('kho-may');
+    r.onsuccess = () => {
+      const t = r.result.transaction(['thumbs', 'photos']);
+      const a = t.objectStore('thumbs').getAll(); const b = t.objectStore('photos').getAll();
+      t.oncomplete = () => { r.result.close(); res([a.result[0].blob.size, b.result[0].blob.size]); };
+    };
+  }));
+  expect(sizes[0]).toBeGreaterThan(0);
+  expect(sizes[0]).toBeLessThanOrEqual(sizes[1]);
+  // mở lại app: ảnh thu nhỏ có sẵn, không tạo lại
+  await page.reload();
+  await expect(page.locator(`a[href="/may/${xa.id}"] img.thumb-img`)).toBeVisible();
+  expect(await idb(page, 'thumbs')).toHaveLength(1);
 });

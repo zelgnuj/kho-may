@@ -12,7 +12,7 @@ import { ModelPicker } from '../components/ModelPicker';
 import { SpecCard } from '../components/SpecCard';
 import { ContributeSheet } from '../components/ContributeSheet';
 import { SubPage } from '../components/SubPage';
-import { Segmented } from '../components/ui';
+import { SampleImg, Segmented } from '../components/ui';
 import { IconExternal, IconHeart, IconPlus } from '../components/Icons';
 
 export const PRIORITY_LABEL: Record<WishPriority, string> = { 1: 'Rất muốn', 2: 'Muốn', 3: 'Để ngắm' };
@@ -37,7 +37,7 @@ function WishThumb({ w, size }: { w: WishItem; size: number }) {
   useCatalogVersion();
   const m = findModel(w.brand, w.model);
   const img = useSampleImage(m);
-  return img ? <img className="thumb-img sample" src={img.url} alt="" loading="lazy" /> : <CameraArt type={w.type} width={size} strokeWidth={size < 70 ? 3 : 2} />;
+  return img ? <SampleImg className="thumb-img sample" src={img.url} /> : <CameraArt type={w.type} width={size} strokeWidth={size < 70 ? 3 : 2} />;
 }
 
 /* ======================================================================
@@ -195,7 +195,7 @@ export function WishDetail() {
   return (
     <SubPage title={w.model} back="/wishlist" backLabel="Wishlist" action={<Link to={`/wishlist/${w.id}/sua`} className="pill-btn">Sửa</Link>}>
       <div className="wish-hero px">
-        <div className="wish-hero-img">{img ? <img src={img.url} alt={`${w.brand} ${w.model}`} /> : <CameraArt type={w.type} width={140} />}</div>
+        <div className="wish-hero-img">{img ? <SampleImg src={img.url} alt={`${w.brand} ${w.model}`} lazy={false} /> : <CameraArt type={w.type} width={140} />}</div>
         <div className="wish-hero-meta">
           <span className="sub">{w.brand}{w.type ? ` · ${TYPE_LABEL[w.type]}` : ''}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

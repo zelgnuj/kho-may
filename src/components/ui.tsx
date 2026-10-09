@@ -1,9 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import { db, type Camera } from '../db';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { useObjectURL } from '../lib/images';
+import type { Camera } from '../db';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
+import { useThumb } from '../lib/thumbs';
 import { CameraArt } from './CameraArt';
 import { findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
@@ -62,14 +61,14 @@ export function Sheet({ open, onClose, title, children, tall }: { open: boolean;
 
 /** Ảnh bìa của máy, hoặc hình vẽ theo loại máy nếu chưa có ảnh */
 export function CameraThumb({ camera, artWidth, strokeWidth, sampleUrl }: { camera: Camera; artWidth: number; strokeWidth?: number; sampleUrl?: string }) {
-  const photo = useLiveQuery(() => (camera.coverPhotoId ? db.photos.get(camera.coverPhotoId) : undefined), [camera.coverPhotoId]);
-  const url = useObjectURL(photo?.blob);
+  const url = useThumb(camera.coverPhotoId);
   useCatalogVersion();
   const model = camera.coverPhotoId || sampleUrl ? null : findModel(camera.brand, camera.model);
   const auto = useSampleImage(model, !camera.coverPhotoId && !sampleUrl);
-  if (url) return <img className="thumb-img" src={url} alt="" />;
+  if (url) return <img className="thumb-img" src={url} alt="" decoding="async" />;
+  if (camera.coverPhotoId) return <span className="thumb-img thumb-wait" aria-hidden="true" />;
   const sample = sampleUrl ?? auto?.url;
-  if (sample) return <img className="thumb-img sample" src={sample} alt="" loading="lazy" />;
+  if (sample) return <SampleImg className="thumb-img sample" src={sample} />;
   return <CameraArt type={camera.type} width={artWidth} strokeWidth={strokeWidth} />;
 }
 
@@ -126,5 +125,14 @@ export function Sparkline({ values, color, height = 64 }: { values: number[]; co
       <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       <circle cx={last[0]} cy={last[1]} r={3.5} fill={color} />
     </svg>
+  );
+}
+
+/** Ảnh mẫu từ Wikimedia: thử tải kiểu CORS (cache gọn hơn), lỗi thì tải kiểu thường */
+export function SampleImg({ src, className, alt = '', lazy = true }: { src: string; className?: string; alt?: string; lazy?: boolean }) {
+  const [cors, setCors] = useState(true);
+  return (
+    <img key={cors ? 'c' : 'n'} className={className} src={src} alt={alt} decoding="async" loading={lazy ? 'lazy' : undefined}
+      crossOrigin={cors ? 'anonymous' : undefined} onError={() => { if (cors) setCors(false); }} />
   );
 }

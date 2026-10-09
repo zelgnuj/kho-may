@@ -5,6 +5,7 @@ import { addPhotos, addPrice, db, deleteCamera, finishRoll, patchCamera, uid, us
 import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, toVND, todayISO, trieu, trieuLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
+import { useThumb } from '../lib/thumbs';
 import { toast } from '../lib/toast';
 import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
 import { defaultLensKind, findModel, useCatalogVersion } from '../lib/catalog';
@@ -14,15 +15,23 @@ import { FilmCard, FinishRollSheet, LoadFilmSheet } from '../components/Film';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
-import { DateInput, Segmented, Sheet, Sparkline } from '../components/ui';
+import { DateInput, SampleImg, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconTrash } from '../components/Icons';
 
 const BASIS: Record<string, string> = { sold: 'Theo giá đã bán eBay', asking: 'Theo giá rao bán eBay', mixed: 'Giá bán + giá rao' };
 const CONF: Record<string, string> = { high: 'cao', medium: 'vừa', low: 'thấp' };
 
 function HeroPhoto({ photo }: { photo: Photo }) {
-  const url = useObjectURL(photo.blob);
-  return url ? <img src={url} alt="" /> : null;
+  // hiện ảnh thu nhỏ (đã có sẵn) ngay, ảnh gốc nét hơn thay vào khi giải mã xong
+  const thumb = useThumb(photo.id);
+  const full = useObjectURL(photo.blob);
+  const [ready, setReady] = useState(false);
+  return (
+    <>
+      {thumb && !ready && <img src={thumb} alt="" />}
+      {full && <img src={full} alt="" decoding="async" onLoad={() => setReady(true)} style={ready ? undefined : { position: 'absolute', opacity: 0 }} />}
+    </>
+  );
 }
 
 export default function Detail() {
@@ -120,7 +129,7 @@ export default function Detail() {
           </div>
         ) : sample ? (
           <>
-            <img className="showcase-sample" src={sample} alt="" />
+            <SampleImg className="showcase-sample" src={sample} lazy={false} />
             <a className="showcase-credit" href={sampleImg?.page} target="_blank" rel="noreferrer">Ảnh mẫu · {sampleImg?.artist}{sampleImg?.license ? ` · ${sampleImg.license}` : ''}</a>
           </>
         ) : (

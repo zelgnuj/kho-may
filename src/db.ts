@@ -121,6 +121,7 @@ class KhoMayDB extends Dexie {
   wishlist!: Table<WishItem, string>;
   rolls!: Table<Roll, string>;
   syncMeta!: Table<SyncMeta, [string, string]>;
+  thumbs!: Table<{ id: string; blob: Blob }, string>;
 
   constructor() {
     super('kho-may');
@@ -139,6 +140,10 @@ class KhoMayDB extends Dexie {
     });
     this.version(4).stores({
       syncMeta: '[kind+id], kind'
+    });
+    // ảnh thu nhỏ: bộ nhớ đệm trên máy (không đồng bộ, không sao lưu, tự tạo lại khi thiếu)
+    this.version(5).stores({
+      thumbs: 'id'
     });
   }
 }
@@ -195,6 +200,7 @@ export async function addPhotos(cameraId: string, blobs: Blob[]) {
 
 export async function deletePhoto(photo: Photo) {
   await db.photos.delete(photo.id);
+  await db.thumbs.delete(photo.id);
   const cam = await db.cameras.get(photo.cameraId);
   if (cam?.coverPhotoId === photo.id) {
     const next = await db.photos.where('cameraId').equals(photo.cameraId).first();

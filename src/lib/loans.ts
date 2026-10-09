@@ -1,4 +1,5 @@
 import { db, patchCamera, uid, type Camera, type Loan } from '../db';
+import { tx } from './i18n';
 
 const DAY = 86400000;
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -27,11 +28,11 @@ export function loanStatus(l: Loan) {
 
 export function loanLabel(l: Loan) {
   const s = loanStatus(l);
-  const base = `${l.to} mượn ${s.days === 0 ? 'hôm nay' : `${s.days} ngày`}`;
+  const base = tx("{0} mượn {1}", l.to, s.days === 0 ? tx("hôm nay") : tx("{0} ngày", s.days));
   if (s.left == null) return base;
-  if (s.left < 0) return `${base} · quá hẹn ${-s.left} ngày`;
-  if (s.left === 0) return `${base} · hẹn trả hôm nay`;
-  return `${base} · còn ${s.left} ngày`;
+  if (s.left < 0) return tx("{0} · quá hẹn {1} ngày", base, -s.left);
+  if (s.left === 0) return tx("{0} · hẹn trả hôm nay", base);
+  return tx("{0} · còn {1} ngày", base, s.left);
 }
 
 /** Tên những người từng mượn (gợi ý khi nhập) */

@@ -1,6 +1,7 @@
 import { db, getSettings } from '../db';
 import { pendingContributions, refreshCatalog, squash } from './catalog';
 import type { Contribution } from './catalogTypes';
+import { tx } from './i18n';
 
 type Pending = { c: Contribution; syncedAt?: number; error?: string };
 
@@ -26,7 +27,7 @@ async function post(token: string, body: unknown) {
     body: JSON.stringify(body)
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.error ?? `Lỗi ${r.status}`);
+  if (!r.ok) throw new Error(data?.error ?? tx("Lỗi {0}", r.status));
   return data;
 }
 
@@ -48,7 +49,7 @@ export async function submitContribution(c: Contribution): Promise<{ state: 'syn
 
 async function trySync(item: Pending): Promise<{ state: 'synced' | 'local'; error?: string }> {
   const token = await contribToken();
-  if (!token) return { state: 'local', error: 'Chưa nhập mã đóng góp trong Cài đặt' };
+  if (!token) return { state: 'local', error: tx("Chưa nhập mã đóng góp trong Cài đặt") };
   try {
     await post(token, { contribution: item.c });
     const list = await pendingContributions() as Pending[];
@@ -57,7 +58,7 @@ async function trySync(item: Pending): Promise<{ state: 'synced' | 'local'; erro
     await savePending(list);
     return { state: 'synced' };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Lỗi';
+    const msg = e instanceof Error ? e.message : tx("Lỗi");
     return { state: 'local', error: msg };
   }
 }

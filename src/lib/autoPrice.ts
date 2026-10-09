@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { addPrice, db, getSettings, patchCamera, patchWish, setSetting, type Camera, type PriceSource, type Settings, type WishItem } from '../db';
+import { tx } from './i18n';
 
 export interface LookupResult {
   usd: { low: number | null; median: number | null; high: number | null };
@@ -67,13 +68,13 @@ async function callApi(token: string, body: unknown) {
       body: JSON.stringify(body)
     });
   } catch {
-    throw new PriceError('Không có mạng', true);
+    throw new PriceError(tx("Không có mạng"), true);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (data?.compsniperUsed) await recordUsage('manual', !!data.compsniperExhausted);
     const fatal = res.status === 401 || res.status === 503 || res.status === 404 || res.status === 405;
-    throw new PriceError(data?.error ?? `Lỗi ${res.status}`, fatal);
+    throw new PriceError(data?.error ?? tx("Lỗi {0}", res.status), fatal);
   }
   return data;
 }
@@ -90,7 +91,7 @@ export const modelKey = (c: Pick<Camera, 'brand' | 'model'>) => `${c.brand}|${c.
  */
 export async function refreshCameraPrice(cam: Camera, kind: 'auto' | 'manual' = 'manual'): Promise<number | null> {
   const s = await getSettings();
-  if (remainingQuota(s) <= 0) throw new PriceError(`Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này`, true);
+  if (remainingQuota(s) <= 0) throw new PriceError(tx("Đã dùng hết {0} lượt tra giá của tháng này", s.monthlyQuota), true);
 
   const r: LookupResult = await callApi(s.priceToken, {
     brand: cam.brand, model: cam.model, type: cam.type, format: cam.format,
@@ -103,7 +104,7 @@ export async function refreshCameraPrice(cam: Camera, kind: 'auto' | 'manual' = 
   const targets = siblings.some((c) => c.id === cam.id) ? siblings : [cam, ...siblings];
 
   if (r.vnd.median == null) {
-    const note = r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.';
+    const note = r.note || tx("Chưa tìm được dữ liệu giá đủ tin cậy.");
     await Promise.all(targets.map((c) => patchCamera(c.id, { marketCheckedAt: Date.now(), marketNote: c.marketValue == null ? note : c.marketNote })));
     await applyToWishlist(key, r);
     return null;
@@ -124,7 +125,7 @@ async function applyToWishlist(key: string, r: LookupResult, extra?: WishItem) {
   const now = Date.now();
   for (const w of items) {
     if (r.vnd.median == null) {
-      await patchWish(w.id, { marketCheckedAt: now, marketNote: w.marketValue == null ? r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.' : w.marketNote });
+      await patchWish(w.id, { marketCheckedAt: now, marketNote: w.marketValue == null ? r.note || tx("Chưa tìm được dữ liệu giá đủ tin cậy.") : w.marketNote });
     } else {
       await patchWish(w.id, {
         marketValue: r.vnd.median, marketLow: r.vnd.low, marketHigh: r.vnd.high, marketUpdatedAt: now, marketCheckedAt: now,
@@ -139,7 +140,7 @@ async function applyToWishlist(key: string, r: LookupResult, extra?: WishItem) {
  */
 export async function refreshWishPrice(w: WishItem, kind: 'auto' | 'manual' = 'manual'): Promise<number | null> {
   const s = await getSettings();
-  if (remainingQuota(s) <= 0) throw new PriceError(`Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này`, true);
+  if (remainingQuota(s) <= 0) throw new PriceError(tx("Đã dùng hết {0} lượt tra giá của tháng này", s.monthlyQuota), true);
   const r: LookupResult = await callApi(s.priceToken, { brand: w.brand, model: w.model, type: w.type, format: '', condition: '', lenses: [] });
   if (r.compsniperUsed) await recordUsage(kind, !!r.compsniperExhausted);
   const key = modelKey(w);
@@ -181,7 +182,7 @@ export async function runPriceQueue(cams: Camera[], opts: { silent?: boolean; ki
   const s = await getSettings();
   const list = uniqueModels(cams).slice(0, Math.min(opts.max ?? Infinity, remainingQuota(s)));
   if (!list.length) {
-    if (!opts.silent && cams.length) emit({ error: `Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này` });
+    if (!opts.silent && cams.length) emit({ error: tx("Đã dùng hết {0} lượt tra giá của tháng này", s.monthlyQuota) });
     return;
   }
   stopFlag = false;

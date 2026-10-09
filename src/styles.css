@@ -375,3 +375,7 @@ button.nav-add { border: 0; cursor: pointer; }
 .loan-tag { position: absolute; right: 8px; bottom: 8px; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: #7FB8FF; color: #0b1a2b; z-index: 1; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loan-tag.overdue { background: var(--down); color: #fff; }
 .loan-nudge { margin: 0 0 14px; }
+.welcome { position: relative; }
+.lang-toggle { position: absolute; top: calc(var(--safe-top) + 16px); right: 20px; display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.lang-toggle button { border: 0; background: transparent; color: var(--muted); font: inherit; font-family: var(--mono); font-size: 12px; padding: 6px 12px; cursor: pointer; }
+.lang-toggle button.on { background: var(--surface-2); color: var(--text); }

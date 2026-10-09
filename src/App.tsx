@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { useSettings } from './db';
+import { preferredCurrency, setDisplayMoney } from './lib/format';
+import { refreshRates } from './lib/rates';
 import { BottomNav, PriceProgress } from './components/ui';
 import { autoRefreshStale } from './lib/autoPrice';
 import Collection from './pages/Collection';
@@ -18,6 +20,8 @@ const scrollMemory = new Map<string, number>();
 
 export default function App() {
   const settings = useSettings();
+  // tiền hiển thị (VNĐ / USD) — đặt trước khi các trang con vẽ
+  setDisplayMoney(settings.displayCurrency, settings.rates.USD);
   const loc = useLocation();
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -63,6 +67,13 @@ export default function App() {
     window.addEventListener('kho-toast', on);
     return () => window.removeEventListener('kho-toast', on);
   }, []);
+
+  // Hiển thị bằng USD mà chưa có tỷ giá (hoặc tỷ giá cũ hơn 7 ngày) → tự lấy
+  useEffect(() => {
+    if (preferredCurrency() !== 'USD' || !navigator.onLine) return;
+    const old = !settings.rates.updatedAt || Date.now() - settings.rates.updatedAt > 7 * 86400000;
+    if (!settings.rates.USD || old) refreshRates(settings.rates).catch(() => {});
+  }, [settings.displayCurrency, settings.rates.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mở app → tự tra giá các máy có giá cũ (chạy ngầm)
   useEffect(() => {

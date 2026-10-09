@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCameras, useRolls, type Roll } from '../db';
-import { daysSince, fmtDate } from '../lib/format';
+import { daysSince, fmtDate, money } from '../lib/format';
 import { KIND_LABEL, findStock, type FilmKind } from '../lib/filmStocks';
 import { DevelopSheet } from '../components/Film';
 import { IconExternal } from '../components/Icons';
+import { tx } from '../lib/i18n';
 
 const year = new Date().getFullYear();
 const kindOf = (r: Roll) => (r.kind ?? findStock(r.stock)?.kind) as FilmKind | undefined;
@@ -27,38 +28,38 @@ export default function FilmPage() {
   const cost = done.filter((r) => (r.devAt ?? '').startsWith(String(year))).reduce((s, r) => s + (r.devCost ?? 0), 0);
   const top = Object.entries(mine.reduce<Record<string, number>>((m, r) => ({ ...m, [r.stock]: (m[r.stock] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const cam = only ? byId.get(only) : null;
-  const name = (r: Roll) => { const c = byId.get(r.cameraId); return c ? `${c.brand} ${c.model}` : 'Máy đã xoá'; };
+  const name = (r: Roll) => { const c = byId.get(r.cameraId); return c ? `${c.brand} ${c.model}` : tx("Máy đã xoá"); };
 
   return (
     <div className="page">
       <header className="page-head px">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span className="eyebrow">{cam ? `${cam.brand} ${cam.model}` : 'Nhật ký film'}</span>
+          <span className="eyebrow">{cam ? `${cam.brand} ${cam.model}` : tx("Nhật ký film")}</span>
           <h1 className="title-xl">Film</h1>
         </div>
-        {cam && <button type="button" className="pill-btn" onClick={() => setParams({})}>Tất cả máy</button>}
+        {cam && <button type="button" className="pill-btn" onClick={() => setParams({})}>{tx("Tất cả máy")}</button>}
       </header>
 
-      <section className="stats px" aria-label="Tổng quan film">
-        <div className="stat"><span className="k">Đang lắp</span><span className="v" style={{ color: 'var(--accent)' }}>{loaded.length}</span></div>
-        <div className="stat"><span className="k">Chờ tráng</span><span className="v">{waiting.length}</span></div>
-        <div className="stat"><span className="k">Cuộn năm {year}</span><span className="v">{thisYear.length}</span></div>
+      <section className="stats px" aria-label={tx("Tổng quan film")}>
+        <div className="stat"><span className="k">{tx("Đang lắp")}</span><span className="v" style={{ color: 'var(--accent)' }}>{loaded.length}</span></div>
+        <div className="stat"><span className="k">{tx("Chờ tráng")}</span><span className="v">{waiting.length}</span></div>
+        <div className="stat"><span className="k">{tx("Cuộn năm")}{' '}{year}</span><span className="v">{thisYear.length}</span></div>
       </section>
 
       {mine.length === 0 && (
         <div className="empty">
-          <p style={{ fontSize: 15, lineHeight: 1.55, color: 'var(--text-2)' }}>Chưa có cuộn nào. Mở một máy film trong kho và bấm “Lắp film” — app sẽ theo dõi cuộn từ lúc lắp, chụp xong, đến khi tráng.</p>
+          <p style={{ fontSize: 15, lineHeight: 1.55, color: 'var(--text-2)' }}>{tx("Chưa có cuộn nào. Mở một máy film trong kho và bấm “Lắp film” — app sẽ theo dõi cuộn từ lúc lắp, chụp xong, đến khi tráng.")}</p>
         </div>
       )}
 
       {loaded.length > 0 && (
-        <section className="section px" style={{ gap: 8 }} aria-label="Đang lắp">
-          <h2 className="h-mono">ĐANG LẮP</h2>
+        <section className="section px" style={{ gap: 8 }} aria-label={tx("Đang lắp")}>
+          <h2 className="h-mono">{tx("ĐANG LẮP")}</h2>
           <div className="rows">
             {loaded.map((r) => (
               <Link key={r.id} to={`/may/${r.cameraId}`} className="roll-row">
                 <RollMain r={r} title={r.stock} sub={name(r)} />
-                <span className="mono muted" style={{ fontSize: 12 }}>{daysSince(r.loadedAt)} ngày</span>
+                <span className="mono muted" style={{ fontSize: 12 }}>{daysSince(r.loadedAt)} {' '}{tx("ngày")}</span>
               </Link>
             ))}
           </div>
@@ -66,13 +67,13 @@ export default function FilmPage() {
       )}
 
       {waiting.length > 0 && (
-        <section className="section px" style={{ gap: 8 }} aria-label="Chờ tráng">
-          <h2 className="h-mono">CHỜ TRÁNG</h2>
+        <section className="section px" style={{ gap: 8 }} aria-label={tx("Chờ tráng")}>
+          <h2 className="h-mono">{tx("CHỜ TRÁNG")}</h2>
           <div className="rows">
             {waiting.map((r) => (
               <div key={r.id} className="roll-row">
                 <RollMain r={r} title={r.stock} sub={`${name(r)}${r.shotAt ? ` · xong ${fmtDate(r.shotAt)}` : ''}`} />
-                <button type="button" className="pill-btn on" onClick={() => setEdit(r)}>Đã tráng</button>
+                <button type="button" className="pill-btn on" onClick={() => setEdit(r)}>{tx("Đã tráng")}</button>
               </div>
             ))}
           </div>
@@ -80,15 +81,15 @@ export default function FilmPage() {
       )}
 
       {done.length > 0 && (
-        <section className="section px" style={{ gap: 8 }} aria-label="Đã tráng">
-          <h2 className="h-mono">ĐÃ TRÁNG</h2>
+        <section className="section px" style={{ gap: 8 }} aria-label={tx("Đã tráng")}>
+          <h2 className="h-mono">{tx("ĐÃ TRÁNG")}</h2>
           <div className="rows">
             {done.map((r) => (
               <div key={r.id} className="roll-row">
                 <button type="button" className="roll-open" onClick={() => setEdit(r)}>
                   <RollMain r={r} title={r.stock} sub={[name(r), r.lab, r.devAt && fmtDate(r.devAt)].filter(Boolean).join(' · ')} />
                 </button>
-                {r.scansUrl && <a href={r.scansUrl} target="_blank" rel="noreferrer" className="icon-btn ghost" aria-label="Xem ảnh scan"><IconExternal size={18} /></a>}
+                {r.scansUrl && <a href={r.scansUrl} target="_blank" rel="noreferrer" className="icon-btn ghost" aria-label={tx("Xem ảnh scan")}><IconExternal size={18} /></a>}
               </div>
             ))}
           </div>
@@ -96,12 +97,12 @@ export default function FilmPage() {
       )}
 
       {mine.length > 0 && (
-        <section className="section px" style={{ gap: 8 }} aria-label="Thống kê">
-          <h2 className="h-mono">THỐNG KÊ</h2>
+        <section className="section px" style={{ gap: 8 }} aria-label={tx("Thống kê")}>
+          <h2 className="h-mono">{tx("THỐNG KÊ")}</h2>
           <div className="rows">
-            {top.length > 0 && <div><span>Film dùng nhiều nhất</span><span className="muted" style={{ fontSize: 13, textAlign: 'right' }}>{top.map(([s, n]) => `${s} (${n})`).join(', ')}</span></div>}
-            <div><span>Chi phí tráng năm {year}</span><span className="mono muted">{cost ? `${cost.toLocaleString('vi-VN')} đ` : '—'}</span></div>
-            <div><span>Tổng số cuộn</span><span className="mono muted">{mine.length}</span></div>
+            {top.length > 0 && <div><span>{tx("Film dùng nhiều nhất")}</span><span className="muted" style={{ fontSize: 13, textAlign: 'right' }}>{top.map(([s, n]) => `${s} (${n})`).join(', ')}</span></div>}
+            <div><span>{tx("Chi phí tráng năm")}{' '}{year}</span><span className="mono muted">{cost ? money(cost, 'VND') : '—'}</span></div>
+            <div><span>{tx("Tổng số cuộn")}</span><span className="mono muted">{mine.length}</span></div>
           </div>
         </section>
       )}

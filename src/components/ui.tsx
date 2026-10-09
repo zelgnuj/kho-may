@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { Camera } from '../db';
+import { valueParts } from '../lib/format';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { useThumb } from '../lib/thumbs';
 import { CameraArt } from './CameraArt';
@@ -8,16 +9,17 @@ import { QuickActions } from './QuickActions';
 import { findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
 import { IconCamera, IconClose, IconHeart, IconSettings, IconTrend } from './Icons';
+import { lang, tx } from '../lib/i18n';
 
 export function BottomNav() {
   const cls = ({ isActive }: { isActive: boolean }) => 'nav-item' + (isActive ? ' active' : '');
   return (
-    <nav className="bottom-nav" aria-label="Điều hướng chính">
-      <NavLink to="/" end className={cls}><IconCamera size={22} />Kho máy</NavLink>
+    <nav className="bottom-nav" aria-label={tx("Điều hướng chính")}>
+      <NavLink to="/" end className={cls}><IconCamera size={22} />{tx("Kho máy")}</NavLink>
       <NavLink to="/wishlist" className={cls}><IconHeart size={22} />Wishlist</NavLink>
       <QuickActions />
-      <NavLink to="/gia-tri" className={cls}><IconTrend size={22} />Giá trị</NavLink>
-      <NavLink to="/cai-dat" className={cls}><IconSettings size={22} />Cài đặt</NavLink>
+      <NavLink to="/gia-tri" className={cls}><IconTrend size={22} />{tx("Giá trị")}</NavLink>
+      <NavLink to="/cai-dat" className={cls}><IconSettings size={22} />{tx("Cài đặt")}</NavLink>
     </nav>
   );
 }
@@ -52,7 +54,7 @@ export function Sheet({ open, onClose, title, children, tall }: { open: boolean;
       <div className={'sheet' + (tall ? ' tall' : '')} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-btn ghost" aria-label="Đóng" onClick={onClose}><IconClose /></button>
+          <button type="button" className="icon-btn ghost" aria-label={tx("Đóng")} onClick={onClose}><IconClose /></button>
         </div>
         {children}
       </div>
@@ -84,14 +86,14 @@ export function PriceProgress({ raised }: { raised: boolean }) {
         <>
           <span className="spinner" aria-hidden="true" />
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Đang tra giá {Math.min(q.done + 1, q.total)}/{q.total}{q.current ? ` · ${q.current}` : ''}
+            {tx("Đang tra giá")}{' '}{Math.min(q.done + 1, q.total)}/{q.total}{q.current ? ` · ${q.current}` : ''}
           </span>
-          <button type="button" className="link-btn" onClick={stopPriceQueue}>Dừng</button>
+          <button type="button" className="link-btn" onClick={stopPriceQueue}>{tx("Dừng")}</button>
         </>
       ) : (
         <>
-          <span style={{ flex: 1, color: 'var(--down)' }}>Tra giá: {q.error}</span>
-          <button type="button" className="link-btn" onClick={clearPriceQueueError}>Đóng</button>
+          <span style={{ flex: 1, color: 'var(--down)' }}>{tx("Tra giá:")}{' '}{q.error}</span>
+          <button type="button" className="link-btn" onClick={clearPriceQueueError}>{tx("Đóng")}</button>
         </>
       )}
     </div>
@@ -103,9 +105,9 @@ export function DateInput({ value, onChange, label }: { value: string; onChange:
   return (
     <div className="date-input">
       <input className={'input mono' + (value ? '' : ' empty')} type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
-      {!value && <span className="date-empty" aria-hidden="true">Chưa chọn</span>}
+      {!value && <span className="date-empty" aria-hidden="true">{tx("Chưa chọn")}</span>}
       {value && (
-        <button type="button" className="date-clear" aria-label={`Xóa ${label.toLowerCase()}`} onClick={() => onChange('')}>
+        <button type="button" className="date-clear" aria-label={tx("Xóa {0}", label.toLowerCase())} onClick={() => onChange('')}>
           <IconClose size={16} />
         </button>
       )}
@@ -123,7 +125,7 @@ export function Sparkline({ values, color, height = 64 }: { values: number[]; co
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
   const last = pts[pts.length - 1];
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" role="img" aria-label="Diễn biến giá">
+    <svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" role="img" aria-label={tx("Diễn biến giá")}>
       <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       <circle cx={last[0]} cy={last[1]} r={3.5} fill={color} />
     </svg>
@@ -137,4 +139,10 @@ export function SampleImg({ src, className, alt = '', lazy = true }: { src: stri
     <img key={cors ? 'c' : 'n'} className={className} src={src} alt={alt} decoding="async" loading={lazy ? 'lazy' : undefined}
       crossOrigin={cors ? 'anonymous' : undefined} onError={() => { if (cors) setCors(false); }} />
   );
+}
+
+/** Số tiền lớn: "84,3 tr" / "$3,290" (đơn vị nhỏ hơn) */
+export function Money({ vnd, digits }: { vnd: number; digits?: number }) {
+  const p = valueParts(vnd, digits);
+  return <>{p.pre}{p.num}{p.unit && <small>{lang === 'vi' ? ' ' : ''}{p.unit}</small>}</>;
 }

@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { forgetThumb } from './lib/thumbCache';
+import { lang } from './lib/i18n';
 
 export type CamType = 'PNS' | 'RF' | 'SLR' | 'HALF' | 'TLR' | 'MF' | 'INST' | 'DIG' | 'OTHER' | '';
 export type Status = 'owned' | 'sold';
@@ -167,7 +168,7 @@ export function blankCamera(): Camera {
     id: uid(), createdAt: now, updatedAt: now, deletedAt: null,
     brand: '', model: '', type: '', format: '35mm', mount: '', serial: '', year: null,
     condition: '', status: 'owned',
-    purchasePrice: null, purchaseCurrency: 'VND', purchaseDate: '', purchaseFrom: '',
+    purchasePrice: null, purchaseCurrency: lang === 'vi' ? 'VND' : 'USD', purchaseDate: '', purchaseFrom: '',
     tags: [], notes: '', film: null, lenses: [], lens: null, coverPhotoId: null,
     marketValue: null, marketLow: null, marketHigh: null, marketUpdatedAt: null
   };
@@ -335,6 +336,8 @@ export interface Settings {
   contribToken: string;
   /** Tên hiển thị khi đóng góp */
   contribName: string;
+  /** Tiền hiển thị giá trị máy; null = theo ngôn ngữ */
+  displayCurrency: 'VND' | 'USD' | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -349,7 +352,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autoBudget: 60,
   priceUsage: { month: '', total: 0, auto: 0, day: '', dayAuto: 0, exhausted: false },
   contribToken: '',
-  contribName: ''
+  contribName: '',
+  displayCurrency: null
 };
 
 export function useSettings(): Settings {

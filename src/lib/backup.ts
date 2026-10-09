@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Camera, type Photo, type PricePoint, type ServiceEntry, type Roll, type Setting, type WishItem } from '../db';
 import { dataURLToBlob } from './images';
+import { lang, tx } from './i18n';
 
 /* ======================================================================
  * Sao lưu đầy đủ: một file .zip gồm backup.json + thư mục photos/ (ảnh gốc, không mã hoá base64)
@@ -66,7 +67,7 @@ export function canShareFile(file: File) {
 /** Mở bảng chia sẻ của hệ điều hành (iPhone: Lưu vào Tệp → iCloud Drive). Trả về false nếu người dùng huỷ */
 export async function shareBackup(file: File): Promise<boolean> {
   try {
-    await navigator.share({ files: [file], title: 'Sao lưu Camera Cabinet' });
+    await navigator.share({ files: [file], title: tx("Sao lưu Camera Cabinet") });
     return true;
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') return false;
@@ -105,17 +106,17 @@ export async function readBackup(file: File): Promise<RestorePlan> {
   const blobs = new Map<string, Blob>();
   if (isZip) {
     const entries = unzipSync(buf);
-    if (!entries['backup.json']) throw new Error('File zip này không phải bản sao lưu của Camera Cabinet');
+    if (!entries['backup.json']) throw new Error(tx("File zip này không phải bản sao lưu của Camera Cabinet"));
     payload = JSON.parse(strFromU8(entries['backup.json']));
     for (const p of payload.photos ?? []) {
       const data = p.file ? entries[p.file] : undefined;
       if (data) blobs.set(p.id, new Blob([data], { type: p.type || 'image/jpeg' }));
     }
   } else {
-    try { payload = JSON.parse(new TextDecoder().decode(buf)); } catch { throw new Error('Không đọc được file này'); }
+    try { payload = JSON.parse(new TextDecoder().decode(buf)); } catch { throw new Error(tx("Không đọc được file này")); }
     for (const p of payload.photos ?? []) if (p.data) blobs.set(p.id, await dataURLToBlob(p.data));
   }
-  if (payload?.app !== 'kho-may') throw new Error('File không phải bản sao lưu của Camera Cabinet');
+  if (payload?.app !== 'kho-may') throw new Error(tx("File không phải bản sao lưu của Camera Cabinet"));
   return { exportedAt: payload.exportedAt, cameras: (payload.cameras ?? []).filter((c) => !c.deletedAt).length, photos: blobs.size, payload, blobs };
 }
 
@@ -214,6 +215,6 @@ export async function snoozeBackup(days = 3) {
 
 export function formatBytes(n: number) {
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
-  return `${(n / 1024 ** 3).toFixed(1).replace('.', ',')} GB`;
+  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1).replace('.', lang === 'vi' ? ',' : '.')} MB`;
+  return `${(n / 1024 ** 3).toFixed(1).replace('.', lang === 'vi' ? ',' : '.')} GB`;
 }

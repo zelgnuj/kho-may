@@ -12,6 +12,7 @@ export default defineConfig({
     browserName: 'chromium',
     baseURL: 'http://localhost:4173',
     serviceWorkers: 'block',
+    locale: 'vi-VN',
     launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}
   },
   webServer: {

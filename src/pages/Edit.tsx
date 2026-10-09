@@ -11,6 +11,7 @@ import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
 import { DateInput, Segmented } from '../components/ui';
 import { IconCamera, IconClose, IconImage, IconStar } from '../components/Icons';
+import { tx } from '../lib/i18n';
 
 const TYPES: CamType[] = ['PNS', 'RF', 'SLR', 'HALF', 'TLR', 'MF', 'INST', 'DIG', 'OTHER'];
 
@@ -19,9 +20,9 @@ function Thumb({ blob, onRemove, isCover, onCover }: { blob: Blob; onRemove: () 
   return (
     <div className="photo-slot" style={isCover ? { borderColor: 'var(--accent)' } : undefined}>
       {url && <img src={url} alt="" />}
-      <button type="button" className="x" aria-label="Bỏ ảnh" onClick={onRemove}><IconClose size={14} /></button>
+      <button type="button" className="x" aria-label={tx("Bỏ ảnh")} onClick={onRemove}><IconClose size={14} /></button>
       {onCover && (
-        <button type="button" className="x" style={{ top: 'auto', bottom: 4, color: isCover ? 'var(--accent)' : undefined }} aria-label="Đặt làm ảnh bìa" aria-pressed={isCover} onClick={onCover}>
+        <button type="button" className="x" style={{ top: 'auto', bottom: 4, color: isCover ? 'var(--accent)' : undefined }} aria-label={tx("Đặt làm ảnh bìa")} aria-pressed={isCover} onClick={onCover}>
           <IconStar size={14} />
         </button>
       )}
@@ -76,7 +77,7 @@ export default function Edit() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const wish = useLiveQuery(() => (wishId ? db.wishlist.get(wishId) : undefined), [wishId]);
   useEffect(() => {
-    if (wish) setC((prev) => ({ ...prev, brand: wish.brand, model: wish.model, notes: wish.wantNote ? `Muốn: ${wish.wantNote}` : prev.notes }));
+    if (wish) setC((prev) => ({ ...prev, brand: wish.brand, model: wish.model, notes: wish.wantNote ? tx("Muốn: {0}", wish.wantNote) : prev.notes }));
   }, [wish?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gợi ý loại máy khi gõ hãng + mẫu (chỉ khi người dùng chưa tự chọn)
@@ -132,7 +133,7 @@ export default function Edit() {
       await patchWish(wish.id, { acquiredAt: Date.now(), acquiredCameraId: cam.id });
       if (wish.marketValue != null) await addPrice(cam.id, wish.marketValue, wish.marketLow, wish.marketHigh, { source: 'auto', note: wish.marketNote, sources: wish.marketSources });
     }
-    toast(wish ? `Đã chuyển ${cam.brand} ${cam.model} từ wishlist vào kho` : isNew ? `Đã thêm ${cam.brand} ${cam.model}` : 'Đã lưu');
+    toast(wish ? tx("Đã chuyển {0} {1} từ wishlist vào kho", cam.brand, cam.model) : isNew ? tx("Đã thêm {0} {1}", cam.brand, cam.model) : tx("Đã lưu"));
     if (again) {
       setC({ ...blankCamera(), brand: cam.brand, format: cam.format });
       setTypeTouched(false);
@@ -149,14 +150,14 @@ export default function Edit() {
   return (
     <div className="page with-bar" style={{ paddingTop: 'calc(var(--safe-top) + 12px)', paddingBottom: 'calc(var(--safe-bottom) + 110px)' }}>
       <header className="topbar px">
-        <button type="button" onClick={() => nav(-1)} style={{ height: 44, border: 0, background: 'transparent', fontSize: 15, color: 'var(--text-2)', padding: 0 }}>Hủy</button>
-        <h1>{wish ? 'Đã mua được' : isNew ? 'Thêm máy' : 'Sửa máy'}</h1>
-        {isNew ? <Link to="/cai-dat/nhap-xuat" style={{ fontSize: 13, height: 44, display: 'flex', alignItems: 'center' }}>Nhập CSV</Link> : <span style={{ width: 44 }} />}
+        <button type="button" onClick={() => nav(-1)} style={{ height: 44, border: 0, background: 'transparent', fontSize: 15, color: 'var(--text-2)', padding: 0 }}>{tx("Hủy")}</button>
+        <h1>{wish ? tx("Đã mua được") : isNew ? tx("Thêm máy") : tx("Sửa máy")}</h1>
+        {isNew ? <Link to="/cai-dat/nhap-xuat" style={{ fontSize: 13, height: 44, display: 'flex', alignItems: 'center' }}>{tx("Nhập CSV")}</Link> : <span style={{ width: 44 }} />}
       </header>
 
-      <section className="photo-row px" aria-label="Ảnh">
-        <button type="button" className="photo-slot add" onClick={() => camRef.current?.click()}><IconCamera size={22} />Chụp</button>
-        <button type="button" className="photo-slot" onClick={() => libRef.current?.click()}><IconImage size={22} />Thư viện</button>
+      <section className="photo-row px" aria-label={tx("Ảnh")}>
+        <button type="button" className="photo-slot add" onClick={() => camRef.current?.click()}><IconCamera size={22} />{tx("Chụp")}</button>
+        <button type="button" className="photo-slot" onClick={() => libRef.current?.click()}><IconImage size={22} />{tx("Thư viện")}</button>
         {savedPhotos?.map((p) => (
           <Thumb key={p.id} blob={p.blob} isCover={existing?.coverPhotoId === p.id}
             onCover={() => patchCamera(p.cameraId, { coverPhotoId: p.id })}
@@ -167,20 +168,20 @@ export default function Edit() {
         <input ref={libRef} type="file" accept="image/*" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
       </section>
 
-      <section className="section px" aria-label="Thông tin máy" style={{ gap: 14 }}>
-        <h2 className="h-mono">THÔNG TIN MÁY</h2>
+      <section className="section px" aria-label={tx("Thông tin máy")} style={{ gap: 14 }}>
+        <h2 className="h-mono">{tx("THÔNG TIN MÁY")}</h2>
         <ModelPicker brand={c.brand} model={c.model} ownBrands={brands ?? []} onChange={(brand, model) => setC((prev) => ({ ...prev, brand, model }))} />
         {matched ? (
           <div className="dashed" style={{ borderStyle: 'solid', borderColor: 'var(--line)', fontSize: 13 }}>
-            <span>Có trong thư viện: <b>{matched.brand} {matched.model}</b>{matched.release?.year ? ` · ${matched.release.year}` : ''} — loại máy, ống kính và bảng thông số được điền sẵn.</span>
+            <span>{tx("Có trong thư viện:")}{' '}<b>{matched.brand} {matched.model}</b>{matched.release?.year ? ` · ${matched.release.year}` : ''} {' '}{tx("— loại máy, ống kính và bảng thông số được điền sẵn.")}</span>
           </div>
         ) : c.brand && c.model ? (
           <div className="dashed" style={{ fontSize: 13 }}>
-            <span className="muted">Chưa có trong thư viện — lưu máy xong, bạn có thể bổ sung thông số ở trang chi tiết.</span>
+            <span className="muted">{tx("Chưa có trong thư viện — lưu máy xong, bạn có thể bổ sung thông số ở trang chi tiết.")}</span>
           </div>
         ) : null}
         <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-          <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Loại máy {guess.type && !typeTouched && c.type === guess.type && <span style={{ color: 'var(--accent)' }}> · tự nhận dạng</span>}</legend>
+          <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>{tx("Loại máy")}{' '}{guess.type && !typeTouched && c.type === guess.type && <span style={{ color: 'var(--accent)' }}> {' '}{tx("· tự nhận dạng")}</span>}</legend>
           <div className="toggles">
             {TYPES.map((t) => (
               <button key={t} type="button" className={'toggle' + (c.type === t ? ' on' : '')} aria-pressed={c.type === t}
@@ -192,26 +193,23 @@ export default function Edit() {
         </fieldset>
         {c.type !== 'DIG' && (
           <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-            <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Khổ film</legend>
-            <Segmented label="Khổ film" value={c.format} onChange={(v) => set('format', v)} options={FORMATS.filter((f) => f !== 'Digital').map((f) => ({ value: f, label: f }))} />
+            <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>{tx("Khổ film")}</legend>
+            <Segmented label={tx("Khổ film")} value={c.format} onChange={(v) => set('format', v)} options={FORMATS.filter((f) => f !== 'Digital').map((f) => ({ value: f, label: f }))} />
           </fieldset>
         )}
         <div className="form-grid">
-          <label className="field">Ngàm
-            <input className="input" list="mounts" value={c.mount} onChange={(e) => set('mount', e.target.value)} placeholder="Không bắt buộc" />
+          <label className="field">{tx("Ngàm")}<input className="input" list="mounts" value={c.mount} onChange={(e) => set('mount', e.target.value)} placeholder={tx("Không bắt buộc")} />
             <datalist id="mounts">{mounts?.map((m) => <option key={m} value={m} />)}</datalist>
           </label>
-          <label className="field">Năm sản xuất
-            <input className="input mono" inputMode="numeric" value={c.year ?? ''} onChange={(e) => set('year', e.target.value ? Number(e.target.value.replace(/\D/g, '')) || null : null)} placeholder="Không bắt buộc" />
+          <label className="field">{tx("Năm sản xuất")}<input className="input mono" inputMode="numeric" value={c.year ?? ''} onChange={(e) => set('year', e.target.value ? Number(e.target.value.replace(/\D/g, '')) || null : null)} placeholder={tx("Không bắt buộc")} />
           </label>
         </div>
-        <label className="field">Số serial
-          <input className="input mono" value={c.serial} onChange={(e) => set('serial', e.target.value)} placeholder="Không bắt buộc" />
+        <label className="field">{tx("Số serial")}<input className="input mono" value={c.serial} onChange={(e) => set('serial', e.target.value)} placeholder={tx("Không bắt buộc")} />
         </label>
       </section>
 
-      <section className="section px" aria-label="Ống kính" style={{ gap: 14 }}>
-        <h2 className="h-mono">ỐNG KÍNH {c.lens?.auto && <span style={{ color: 'var(--accent)', letterSpacing: 0 }}> · tự điền theo mẫu, kiểm tra lại</span>}</h2>
+      <section className="section px" aria-label={tx("Ống kính")} style={{ gap: 14 }}>
+        <h2 className="h-mono">{tx("ỐNG KÍNH")}{' '}{c.lens?.auto && <span style={{ color: 'var(--accent)', letterSpacing: 0 }}> {' '}{tx("· tự điền theo mẫu, kiểm tra lại")}</span>}</h2>
         <LensSpecFields
           key={lensKey}
           value={c.lens ?? { kind: defaultLensKind(c.type), focal: null, focalMax: null, aperture: null, apertureMax: null }}
@@ -219,30 +217,30 @@ export default function Edit() {
         />
       </section>
 
-      <section className="section px" aria-label="Tình trạng" style={{ gap: 14 }}>
-        <h2 className="h-mono">TÌNH TRẠNG</h2>
+      <section className="section px" aria-label={tx("Tình trạng")} style={{ gap: 14 }}>
+        <h2 className="h-mono">{tx("TÌNH TRẠNG")}</h2>
         <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-          <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>Ngoại hình</legend>
+          <legend className="field" style={{ padding: '0 0 8px', display: 'block' }}>{tx("Ngoại hình")}</legend>
           <div className="grade">
             {CONDITIONS.map((g) => (
               <button key={g} type="button" className={c.condition === g ? 'on' : ''} aria-pressed={c.condition === g} onClick={() => set('condition', c.condition === g ? '' : g)}>{g}</button>
             ))}
           </div>
         </fieldset>
-        <Segmented label="Trạng thái" value={c.status} onChange={(v) => set('status', v)} options={[{ value: 'owned', label: 'Trong kho' }, { value: 'sold', label: 'Đã bán' }]} colorFor={(v) => (v === 'owned' ? 'var(--up)' : undefined)} />
+        <Segmented label={tx("Trạng thái")} value={c.status} onChange={(v) => set('status', v)} options={[{ value: 'owned', label: tx("Trong kho") }, { value: 'sold', label: tx("Đã bán") }]} colorFor={(v) => (v === 'owned' ? 'var(--up)' : undefined)} />
       </section>
 
-      <section className="section px" aria-label="Mua" style={{ gap: 14 }}>
-        <h2 className="h-mono">MUA</h2>
+      <section className="section px" aria-label={tx("Mua")} style={{ gap: 14 }}>
+        <h2 className="h-mono">{tx("MUA")}</h2>
         <div className="field">
-          <label htmlFor="price">Giá mua</label>
+          <label htmlFor="price">{tx("Giá mua")}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input id="price" className="input mono" inputMode="decimal" style={{ flex: 1, minWidth: 0 }} value={price} onChange={(e) => setPrice(e.target.value)}
-              placeholder={c.purchaseCurrency === 'VND' ? 'vd 3,2tr' : 'vd 4800'} />
-            <div className="views" role="group" aria-label="Đơn vị tiền">
+              placeholder={c.purchaseCurrency === 'VND' ? tx("vd 3,2tr") : tx("vd 4800")} />
+            <div className="views" role="group" aria-label={tx("Đơn vị tiền")}>
               {(['VND', 'JPY', 'USD'] as Currency[]).map((cur) => (
                 <button key={cur} type="button" aria-pressed={c.purchaseCurrency === cur} onClick={() => set('purchaseCurrency', cur)} style={{ width: cur === 'VND' ? 50 : 40, fontSize: 13 }}>
-                  {cur === 'VND' ? 'VNĐ' : cur === 'JPY' ? '¥' : '$'}
+                  {cur === 'VND' ? tx("VNĐ") : cur === 'JPY' ? '¥' : '$'}
                 </button>
               ))}
             </div>
@@ -250,20 +248,18 @@ export default function Edit() {
           {priceValue != null && <span className="mono">= {money(priceValue, c.purchaseCurrency)}</span>}
         </div>
         <div className="form-grid">
-          <div className="field"><span>Ngày mua</span><DateInput label="Ngày mua" value={c.purchaseDate} onChange={(v) => set('purchaseDate', v)} /></div>
-          <label className="field">Mua ở đâu<input className="input" value={c.purchaseFrom} onChange={(e) => set('purchaseFrom', e.target.value)} placeholder="Buyee, shop…" /></label>
+          <div className="field"><span>{tx("Ngày mua")}</span><DateInput label={tx("Ngày mua")} value={c.purchaseDate} onChange={(v) => set('purchaseDate', v)} /></div>
+          <label className="field">{tx("Mua ở đâu")}<input className="input" value={c.purchaseFrom} onChange={(e) => set('purchaseFrom', e.target.value)} placeholder="Buyee, shop…" /></label>
         </div>
-        <label className="field">Thẻ (cách nhau bằng dấu phẩy)
-          <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="máy đi phố, kỷ niệm" />
+        <label className="field">{tx("Thẻ (cách nhau bằng dấu phẩy)")}<input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder={tx("máy đi phố, kỷ niệm")} />
         </label>
-        <label className="field">Ghi chú
-          <textarea className="input" rows={3} value={c.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Lỗi nhỏ, lịch sử máy, cảm nhận khi chụp…" />
+        <label className="field">{tx("Ghi chú")}<textarea className="input" rows={3} value={c.notes} onChange={(e) => set('notes', e.target.value)} placeholder={tx("Lỗi nhỏ, lịch sử máy, cảm nhận khi chụp…")} />
         </label>
       </section>
 
       <div className="savebar">
-        {isNew && <button type="button" className="btn secondary" style={{ flex: 1 }} disabled={!canSave} onClick={() => save(true)}>Lưu &amp; thêm tiếp</button>}
-        <button type="button" className="btn" style={{ flex: 1.3 }} disabled={!canSave} onClick={() => save(false)}>Lưu máy</button>
+        {isNew && <button type="button" className="btn secondary" style={{ flex: 1 }} disabled={!canSave} onClick={() => save(true)}>{tx("Lưu & thêm tiếp")}</button>}
+        <button type="button" className="btn" style={{ flex: 1.3 }} disabled={!canSave} onClick={() => save(false)}>{tx("Lưu máy")}</button>
       </div>
     </div>
   );

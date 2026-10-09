@@ -9,6 +9,7 @@ import { LoadFilmSheet } from './Film';
 import { LoanSheet } from './Loan';
 import { IconCamera, IconFilm, IconHandshake, IconHeart, IconPlus, IconSearch } from './Icons';
 import { CameraThumb, Sheet } from './ui';
+import { tx } from '../lib/i18n';
 
 type Step = null | 'menu' | 'photo-pick' | 'film-pick' | 'loan-pick';
 
@@ -35,29 +36,29 @@ export function QuickActions() {
   };
   const attach = async (cam: Camera) => {
     await addPhotos(cam.id, shots);
-    toast(`Đã thêm ${shots.length > 1 ? `${shots.length} ảnh` : 'ảnh'} vào ${cam.brand} ${cam.model}`);
+    toast(tx("Đã thêm {0} vào {1} {2}", shots.length > 1 ? tx("{0} ảnh", shots.length) : tx("ảnh"), cam.brand, cam.model));
     setShots([]);
     go(`/may/${cam.id}`);
   };
   const newWithShots = () => { holdPhotos(shots); setShots([]); go('/them?anh=1'); };
 
-  const wish = { key: 'wish', icon: <IconHeart size={22} />, label: 'Thêm vào Wishlist', sub: 'Máy đang săn', run: () => go('/wishlist/them') };
-  const film = { key: 'film', icon: <IconFilm size={22} />, label: 'Lắp film', sub: 'Chọn máy, chọn cuộn', run: () => setStep('film-pick') };
-  const add = { key: 'add', icon: <IconPlus size={22} />, label: 'Thêm máy vào kho', sub: 'Máy mới về', run: () => go('/them') };
-  const loan = { key: 'loan', icon: <IconHandshake size={22} />, label: 'Cho mượn', sub: 'Ghi ai mượn, hẹn trả', run: () => setStep('loan-pick') };
+  const wish = { key: 'wish', icon: <IconHeart size={22} />, label: tx("Thêm vào Wishlist"), sub: tx("Máy đang săn"), run: () => go('/wishlist/them') };
+  const film = { key: 'film', icon: <IconFilm size={22} />, label: tx("Lắp film"), sub: tx("Chọn máy, chọn cuộn"), run: () => setStep('film-pick') };
+  const add = { key: 'add', icon: <IconPlus size={22} />, label: tx("Thêm máy vào kho"), sub: tx("Máy mới về"), run: () => go('/them') };
+  const loan = { key: 'loan', icon: <IconHandshake size={22} />, label: tx("Cho mượn"), sub: tx("Ghi ai mượn, hẹn trả"), run: () => setStep('loan-pick') };
   const others = onWish ? [wish, add, film, loan] : [wish, film, loan, add];
 
   return (
     <>
-      <button type="button" className="nav-add" aria-label="Làm nhanh" aria-haspopup="dialog" onClick={() => setStep('menu')}><IconPlus size={26} /></button>
+      <button type="button" className="nav-add" aria-label={tx("Làm nhanh")} aria-haspopup="dialog" onClick={() => setStep('menu')}><IconPlus size={26} /></button>
       <input ref={camInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onShots(e.target.files); e.target.value = ''; }} />
 
-      <Sheet open={step === 'menu'} onClose={close} title="Làm nhanh">
+      <Sheet open={step === 'menu'} onClose={close} title={tx("Làm nhanh")}>
         <button type="button" className="quick-hero" onClick={takePhoto}>
           <span className="quick-hero-icon"><IconCamera size={28} /></span>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left' }}>
-            <b style={{ fontSize: 17 }}>Chụp ảnh máy</b>
-            <span style={{ fontSize: 13, opacity: .75 }}>Chụp xong chọn máy để gắn ảnh</span>
+            <b style={{ fontSize: 17 }}>{tx("Chụp ảnh máy")}</b>
+            <span style={{ fontSize: 13, opacity: .75 }}>{tx("Chụp xong chọn máy để gắn ảnh")}</span>
           </span>
         </button>
         <div className="quick-grid">
@@ -71,15 +72,15 @@ export function QuickActions() {
         </div>
       </Sheet>
 
-      <CameraChooser open={step === 'photo-pick'} title={`Ảnh này của máy nào?${shots.length > 1 ? ` (${shots.length} ảnh)` : ''}`}
+      <CameraChooser open={step === 'photo-pick'} title={tx("Ảnh này của máy nào?{0}", shots.length > 1 ? tx(" ({0} ảnh)", shots.length) : '')}
         onClose={() => { setShots([]); close(); }} onPick={attach}
-        extra={<button type="button" className="pick-free" onClick={newWithShots}>Máy mới, chưa có trong kho → thêm máy với ảnh này</button>} />
+        extra={<button type="button" className="pick-free" onClick={newWithShots}>{tx("Máy mới, chưa có trong kho → thêm máy với ảnh này")}</button>} />
 
-      <CameraChooser open={step === 'film-pick'} title="Lắp film vào máy nào?" filmOnly onClose={close}
+      <CameraChooser open={step === 'film-pick'} title={tx("Lắp film vào máy nào?")} filmOnly onClose={close}
         onPick={(c) => { setFilmCam(c); close(); }} />
       {filmCam && <LoadFilmSheet open onClose={() => setFilmCam(null)} cam={filmCam} />}
 
-      <CameraChooser open={step === 'loan-pick'} title="Cho mượn máy nào?" onClose={close} showLoan
+      <CameraChooser open={step === 'loan-pick'} title={tx("Cho mượn máy nào?")} onClose={close} showLoan
         onPick={(c) => { if (c.loan) go(`/may/${c.id}`); else { setLoanCam(c); close(); } }} />
       {loanCam && <LoanSheet open onClose={() => setLoanCam(null)} cam={loanCam} />}
     </>
@@ -102,10 +103,10 @@ function CameraChooser({ open, title, onClose, onPick, extra, filmOnly, showLoan
     <Sheet open={open} onClose={() => { setQ(''); onClose(); }} title={title} tall>
       <label className="search" style={{ flex: 'none' }}>
         <IconSearch size={18} />
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm máy…" aria-label="Tìm máy trong kho" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("Tìm máy…")} aria-label={tx("Tìm máy trong kho")} />
       </label>
       {extra}
-      <div className="rows pick-list" role="listbox" aria-label="Chọn máy">
+      <div className="rows pick-list" role="listbox" aria-label={tx("Chọn máy")}>
         {list.map((c) => (
           <button key={c.id} type="button" role="option" aria-selected={false} className="pick-row" onClick={() => { setQ(''); onPick(c); }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -115,11 +116,11 @@ function CameraChooser({ open, title, onClose, onPick, extra, filmOnly, showLoan
                 <span className="pick-meta">{[TYPE_LABEL[c.type], lensLabel(c.lens)].filter(Boolean).join(' · ')}</span>
               </span>
             </span>
-            {showLoan && c.loan && <span className="pick-spec" style={{ borderColor: '#7FB8FF', color: '#7FB8FF' }}>{c.loan.to} mượn · nhận lại</span>}
+            {showLoan && c.loan && <span className="pick-spec" style={{ borderColor: '#7FB8FF', color: '#7FB8FF' }}>{c.loan.to} {' '}{tx("mượn · nhận lại")}</span>}
             {filmOnly && c.film && <span className="pick-spec" style={{ maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.film.stock}</span>}
           </button>
         ))}
-        {!list.length && <div className="muted" style={{ fontSize: 13 }}>Không có máy nào khớp.</div>}
+        {!list.length && <div className="muted" style={{ fontSize: 13 }}>{tx("Không có máy nào khớp.")}</div>}
       </div>
     </Sheet>
   );

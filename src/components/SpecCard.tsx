@@ -4,6 +4,7 @@ import { QUALITY_LABEL, category, lensElements, lensTitle, specRows } from '../l
 import { useSampleImage } from '../lib/sampleImage';
 import { CameraThumb } from './ui';
 import { IconExternal } from './Icons';
+import { tx } from '../lib/i18n';
 
 /** Bảng thông số kỹ thuật của một mẫu máy, lấy từ thư viện */
 export function SpecCard({ camera, model, onContribute }: { camera: Camera; model: CatalogModel; onContribute: () => void }) {
@@ -37,24 +38,24 @@ export function SpecCard({ camera, model, onContribute }: { camera: Camera; mode
           {rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
         </dl>
       ) : (
-        <p className="spec-note">Thư viện mới có tên mẫu này, chưa có thông số. Bạn có thể bổ sung kèm nguồn.</p>
+        <p className="spec-note">{tx("Thư viện mới có tên mẫu này, chưa có thông số. Bạn có thể bổ sung kèm nguồn.")}</p>
       )}
       {model.text_vi?.note && <p className="spec-note">{model.text_vi.note}</p>}
-      {q.tone === 'auto' && <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Số liệu trích tự động từ trang của hãng, chưa đối chiếu từng mẫu. Thấy sai thì bấm “Sửa thông số”.</p>}
+      {q.tone === 'auto' && <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>{tx("Số liệu trích tự động từ trang của hãng, chưa đối chiếu từng mẫu. Thấy sai thì bấm “Sửa thông số”.")}</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
-        {sources.length > 0 && <span>Nguồn: {sources.map((s, i) => <span key={s.url}>{i ? ' · ' : ''}<a href={s.url} target="_blank" rel="noreferrer">{s.name ?? new URL(s.url!).hostname}</a></span>)}</span>}
-        {last && <span>Cập nhật bởi {last.by || 'cộng đồng'}{last.at ? ` · ${last.at.split('-').reverse().join('/')}` : ''}{last.note ? ` — ${last.note}` : ''}</span>}
-        {img && !camera.coverPhotoId && <span>Ảnh mẫu: <a href={img.page} target="_blank" rel="noreferrer">{img.artist}</a>{img.license ? `, ${img.license}` : ''} · Wikimedia Commons</span>}
+        {sources.length > 0 && <span>{tx("Nguồn:")}{' '}{sources.map((s, i) => <span key={s.url}>{i ? ' · ' : ''}<a href={s.url} target="_blank" rel="noreferrer">{s.name ?? new URL(s.url!).hostname}</a></span>)}</span>}
+        {last && <span>{tx("Cập nhật bởi")}{' '}{last.by || tx("cộng đồng")}{last.at ? ` · ${last.at.split('-').reverse().join('/')}` : ''}{last.note ? ` — ${last.note}` : ''}</span>}
+        {img && !camera.coverPhotoId && <span>{tx("Ảnh mẫu:")}{' '}<a href={img.page} target="_blank" rel="noreferrer">{img.artist}</a>{img.license ? `, ${img.license}` : ''} · Wikimedia Commons</span>}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="pill-btn" style={{ height: 40, padding: '0 14px', borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={onContribute}>
-          {rows.length > 1 ? 'Sửa thông số' : '+ Bổ sung thông số'}
+          {rows.length > 1 ? tx("Sửa thông số") : tx("+ Bổ sung thông số")}
         </button>
         {sources[0] && (
           <a className="pill-btn" href={sources[0].url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px' }}>
-            Xem thông số gốc <IconExternal size={14} />
+            {tx("Xem thông số gốc")}{' '}<IconExternal size={14} />
           </a>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { ensureCover, db, type SyncMeta, type Camera, type Photo, type PricePoint, type Roll, type ServiceEntry, type WishItem } from '../db';
 import { supabase } from './supabase';
 import { forgetThumb } from './thumbCache';
+import { tx } from './i18n';
 
 /* ======================================================================
  * Đồng bộ local-first với Supabase
@@ -19,7 +20,7 @@ import { forgetThumb } from './thumbCache';
 type Kind = 'camera' | 'price' | 'service' | 'photo' | 'wish' | 'roll' | 'setting';
 
 /** Cài đặt được đồng bộ giữa các thiết bị (mã bí mật & bộ đệm thì không) */
-const SYNCED_SETTINGS = ['ownerName', 'accent', 'defaultView', 'rates', 'autoPrice', 'autoPriceDays', 'autoBudget', 'monthlyQuota', 'contribName', 'backupEvery'];
+const SYNCED_SETTINGS = ['ownerName', 'accent', 'defaultView', 'rates', 'autoPrice', 'autoPriceDays', 'autoBudget', 'monthlyQuota', 'contribName', 'backupEvery', 'displayCurrency'];
 
 interface RemoteRow { kind: Kind; id: string; data: unknown; updated_at: number; deleted: boolean; server_ts: string }
 
@@ -101,7 +102,7 @@ async function pull(uid: string) {
     }
     if (rows.length < PAGE) break;
     from += PAGE;
-    emit({ detail: `Đang tải về… ${from}` });
+    emit({ detail: tx("Đang tải về… {0}", from) });
   }
   await db.settings.put({ key: 'syncCursor', value: cursor });
   return applied;
@@ -185,7 +186,7 @@ async function push(uid: string) {
         const p = await db.photos.get(r.id);
         if (!p?.blob) continue;
         const { error } = await supabase.storage.from('photos').upload(`${uid}/${r.id}`, p.blob, { upsert: true, contentType: p.blob.type || 'image/jpeg' });
-        if (error && !/exists/i.test(error.message)) throw new Error(`Tải ảnh lên: ${error.message}`);
+        if (error && !/exists/i.test(error.message)) throw new Error(tx("Tải ảnh lên: {0}", error.message));
       }
       out.push({ kind, id: r.id, data: r.data, updated_at: updated, deleted: r.deleted });
       newMeta.push({ kind, id: r.id, ver: r.ver });
@@ -199,7 +200,7 @@ async function push(uid: string) {
       const chunk = out.slice(i, i + 200);
       const { error } = await supabase.rpc('sync_push', { rows: chunk });
       if (error) throw new Error(error.message);
-      emit({ detail: `Đang tải lên… ${pushed + i + chunk.length}` });
+      emit({ detail: tx("Đang tải lên… {0}", pushed + i + chunk.length) });
     }
     pushed += out.length;
     if (newMeta.length) await db.syncMeta.bulkPut(newMeta);
@@ -233,7 +234,7 @@ export async function syncNow(): Promise<void> {
     emit({ lastAt: Date.now(), detail: '' });
     await db.settings.put({ key: 'syncLastAt', value: Date.now() });
   } catch (e) {
-    emit({ error: e instanceof Error ? e.message : 'Lỗi đồng bộ' });
+    emit({ error: e instanceof Error ? e.message : tx("Lỗi đồng bộ") });
   } finally {
     emit({ running: false });
     if (pending) { pending = false; setTimeout(() => { syncNow(); }, 500); }
@@ -283,12 +284,12 @@ export async function startSync() {
 const SITE = typeof window !== 'undefined' ? window.location.origin : 'https://kho-may.vercel.app';
 
 function authError(msg: string): Error {
-  if (/invalid login credentials/i.test(msg)) return new Error('Sai email hoặc mật khẩu');
-  if (/email not confirmed/i.test(msg)) return new Error('Email chưa được xác nhận — mở thư xác nhận Supabase gửi, bấm link, rồi đăng nhập lại');
-  if (/already registered|already exists/i.test(msg)) return new Error('Email này đã có tài khoản — chuyển sang Đăng nhập');
-  if (/password should be|at least 6/i.test(msg)) return new Error('Mật khẩu cần ít nhất 6 ký tự');
-  if (/not authorized/i.test(msg)) return new Error('Máy chủ chưa gửi được thư tới email này (hiện chỉ gửi tới email của tài khoản Supabase quản lý app)');
-  if (/rate|seconds|too many/i.test(msg)) return new Error('Thao tác hơi nhiều — đợi một chút rồi thử lại');
+  if (/invalid login credentials/i.test(msg)) return new Error(tx("Sai email hoặc mật khẩu"));
+  if (/email not confirmed/i.test(msg)) return new Error(tx("Email chưa được xác nhận — mở thư xác nhận Supabase gửi, bấm link, rồi đăng nhập lại"));
+  if (/already registered|already exists/i.test(msg)) return new Error(tx("Email này đã có tài khoản — chuyển sang Đăng nhập"));
+  if (/password should be|at least 6/i.test(msg)) return new Error(tx("Mật khẩu cần ít nhất 6 ký tự"));
+  if (/not authorized/i.test(msg)) return new Error(tx("Máy chủ chưa gửi được thư tới email này (hiện chỉ gửi tới email của tài khoản Supabase quản lý app)"));
+  if (/rate|seconds|too many/i.test(msg)) return new Error(tx("Thao tác hơi nhiều — đợi một chút rồi thử lại"));
   return new Error(msg);
 }
 

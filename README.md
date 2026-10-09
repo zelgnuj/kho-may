@@ -88,6 +88,14 @@ Cài đặt → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mụ
 - Khoá `anon` nằm trong `src/lib/supabase.ts` (công khai theo thiết kế của Supabase; ghi đè được bằng `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`).
 - Máy chủ email mặc định của Supabase chỉ gửi tới email thành viên của project; mở cho người khác cần cấu hình SMTP riêng.
 
+## Ngôn ngữ (tiếng Anh / tiếng Việt)
+
+- Mặc định theo ngôn ngữ trình duyệt: máy tiếng Việt → tiếng Việt, còn lại → tiếng Anh. Đổi tay ở Cài đặt → Giao diện → Ngôn ngữ, hoặc nút EN | VI ở màn chào.
+- Chuỗi giao diện viết bằng tiếng Việt và bọc `tx("…")` (`src/lib/i18n.ts`); bản tiếng Anh nằm ở `src/i18n/en.ts`, key chính là câu tiếng Việt. Tham số dạng `{0}`.
+- Thêm/sửa chữ: chạy `node scripts/i18n-extract.mjs` — thiếu bản dịch thì báo lỗi (CI cũng chạy bước này). `--missing` in danh sách cần dịch.
+- Giá trị máy hiển thị bằng VNĐ hoặc USD (Cài đặt → Giao diện), mặc định theo ngôn ngữ; dữ liệu vẫn lưu bằng VNĐ, quy đổi theo tỷ giá.
+- Test `tests/e2e/english.spec.ts` duyệt mọi màn hình ở en-US, bắt chữ Việt sót lại.
+
 ## Kiểm thử
 
 - `npm test` — logic gộp đóng góp + kiểm tra toàn vẹn `data/` (chặn đóng góp lỗi)

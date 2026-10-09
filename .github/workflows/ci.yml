@@ -16,6 +16,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Đủ bản dịch tiếng Anh
+        run: node scripts/i18n-extract.mjs
       - name: Kiểm tra dữ liệu thư viện & logic
         run: npm test
       - name: Build

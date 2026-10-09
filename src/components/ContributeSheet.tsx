@@ -7,6 +7,7 @@ import { speed, specRows } from '../lib/specs';
 import { todayISO } from '../lib/format';
 import { toast } from '../lib/toast';
 import { Segmented, Sheet } from './ui';
+import { tx } from '../lib/i18n';
 
 const TYPES = [
   { value: 'compact', label: 'Compact / PNS' }, { value: 'rangefinder', label: 'Rangefinder' }, { value: 'slr', label: 'SLR' },
@@ -49,8 +50,8 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     fMin: str(l?.focal_length_min_mm), fMax: str(l?.focal_length_max_mm !== l?.focal_length_min_mm ? l?.focal_length_max_mm : undefined),
     aWide: str(l?.max_aperture_wide_f), aTele: str(l?.max_aperture_tele_f !== l?.max_aperture_wide_f ? l?.max_aperture_tele_f : undefined),
     elements: str(l?.elements), groups: str(l?.groups),
-    slow: model?.shutter?.slowest_s ? speed(model.shutter.slowest_s).replace(' giây', '') : '',
-    fast: model?.shutter?.fastest_s ? speed(model.shutter.fastest_s).replace(' giây', '') : '',
+    slow: model?.shutter?.slowest_s ? speed(model.shutter.slowest_s).replace(tx(" giây"), '') : '',
+    fast: model?.shutter?.fastest_s ? speed(model.shutter.fastest_s).replace(tx(" giây"), '') : '',
     isoMin: str(model?.film?.iso_min ?? model?.digital?.iso_min), isoMax: str(model?.film?.iso_max ?? model?.digital?.iso_max),
     focus: model?.text_vi?.focus ?? rowMap['Lấy nét'] ?? '',
     exposure: model?.text_vi?.exposure ?? rowMap['Phơi sáng'] ?? '',
@@ -105,9 +106,9 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
 
   const save = async () => {
     const s = buildSet();
-    if (!Object.keys(s).length) { toast('Bạn chưa thay đổi gì'); return; }
-    if (isAdd && (!f.brand.trim() || !f.model.trim())) { toast('Cần có hãng và tên mẫu'); return; }
-    if (!f.srcUrl.trim() && !f.srcName.trim()) { toast('Ghi nguồn giúp mình (link hoặc tên tài liệu)'); return; }
+    if (!Object.keys(s).length) { toast(tx("Bạn chưa thay đổi gì")); return; }
+    if (isAdd && (!f.brand.trim() || !f.model.trim())) { toast(tx("Cần có hãng và tên mẫu")); return; }
+    if (!f.srcUrl.trim() && !f.srcName.trim()) { toast(tx("Ghi nguồn giúp mình (link hoặc tên tài liệu)")); return; }
     const c: Contribution = {
       id: model?.id ?? newModelId(f.brand, f.model),
       action: isAdd ? 'add' : 'edit',
@@ -120,7 +121,7 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     setBusy(true);
     const r = await submitContribution(c);
     setBusy(false);
-    toast(r.state === 'synced' ? 'Đã gửi đóng góp — thư viện sẽ cập nhật sau ~1 phút' : `Đã lưu trên máy. Chưa gửi: ${r.error}`);
+    toast(r.state === 'synced' ? tx("Đã gửi đóng góp — thư viện sẽ cập nhật sau ~1 phút") : tx("Đã lưu trên máy. Chưa gửi: {0}", r.error));
     onClose();
   };
 
@@ -129,41 +130,40 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
   );
 
   return (
-    <Sheet open onClose={onClose} title={isAdd ? 'Thêm mẫu vào thư viện' : `Sửa thông số · ${init.brand} ${init.model}`}>
-      <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>Chỉ những ô bạn sửa mới được ghi lại. Nhớ ghi nguồn để người khác kiểm tra được.</p>
-      {isAdd && <div className="form-grid">{input('Hãng', 'brand', 'Olympus')}{input('Tên mẫu', 'model', 'Trip 35')}</div>}
-      <div className="form-grid">{input('Năm ra mắt', 'year', '1994', true, 'decimal')}{input('Tháng', 'month', '9', true, 'decimal')}</div>
-      <Segmented label="Film hay máy số" value={f.media} onChange={(v) => setF((p) => ({ ...p, media: v }))} options={[{ value: 'film', label: 'Máy film' }, { value: 'digital', label: 'Máy số' }]} />
-      <label className="field">Loại máy
-        <select className="input" value={f.type} onChange={set('type')}>{TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
+    <Sheet open onClose={onClose} title={isAdd ? tx("Thêm mẫu vào thư viện") : tx("Sửa thông số · {0} {1}", init.brand, init.model)}>
+      <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>{tx("Chỉ những ô bạn sửa mới được ghi lại. Nhớ ghi nguồn để người khác kiểm tra được.")}</p>
+      {isAdd && <div className="form-grid">{input(tx("Hãng"), 'brand', 'Olympus')}{input(tx("Tên mẫu"), 'model', 'Trip 35')}</div>}
+      <div className="form-grid">{input(tx("Năm ra mắt"), 'year', '1994', true, 'decimal')}{input(tx("Tháng"), 'month', '9', true, 'decimal')}</div>
+      <Segmented label={tx("Film hay máy số")} value={f.media} onChange={(v) => setF((p) => ({ ...p, media: v }))} options={[{ value: 'film', label: tx("Máy film") }, { value: 'digital', label: tx("Máy số") }]} />
+      <label className="field">{tx("Loại máy")}<select className="input" value={f.type} onChange={set('type')}>{TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
       </label>
-      {f.media === 'film' && input('Khổ film', 'format', '135, 120, 110…', true)}
+      {f.media === 'film' && input(tx("Khổ film"), 'format', '135, 120, 110…', true)}
 
-      <h3 className="h-mono" style={{ marginTop: 6 }}>ỐNG KÍNH</h3>
-      <Segmented label="Kiểu ống kính" value={f.lensKind} onChange={(v) => setF((p) => ({ ...p, lensKind: v }))} options={[{ value: 'built_in', label: 'Ống kính liền' }, { value: 'interchangeable', label: 'Thay ống kính' }]} />
+      <h3 className="h-mono" style={{ marginTop: 6 }}>{tx("ỐNG KÍNH")}</h3>
+      <Segmented label={tx("Kiểu ống kính")} value={f.lensKind} onChange={(v) => setF((p) => ({ ...p, lensKind: v }))} options={[{ value: 'built_in', label: tx("Ống kính liền") }, { value: 'interchangeable', label: tx("Thay ống kính") }]} />
       {f.lensKind === 'built_in' ? (
         <>
-          <div className="form-grid">{input('Tiêu cự (mm)', 'fMin', '35', true, 'decimal')}{input('Zoom tới (mm)', 'fMax', 'bỏ trống nếu không zoom', true, 'decimal')}</div>
-          <div className="form-grid">{input('Khẩu độ lớn nhất f/', 'aWide', '2.8', true, 'decimal')}{input('Ở tele f/', 'aTele', 'nếu zoom', true, 'decimal')}</div>
-          <div className="form-grid">{input('Số thấu kính', 'elements', '4', true, 'decimal')}{input('Số nhóm', 'groups', '4', true, 'decimal')}</div>
+          <div className="form-grid">{input(tx("Tiêu cự (mm)"), 'fMin', '35', true, 'decimal')}{input(tx("Zoom tới (mm)"), 'fMax', tx("bỏ trống nếu không zoom"), true, 'decimal')}</div>
+          <div className="form-grid">{input(tx("Khẩu độ lớn nhất f/"), 'aWide', '2.8', true, 'decimal')}{input(tx("Ở tele f/"), 'aTele', tx("nếu zoom"), true, 'decimal')}</div>
+          <div className="form-grid">{input(tx("Số thấu kính"), 'elements', '4', true, 'decimal')}{input(tx("Số nhóm"), 'groups', '4', true, 'decimal')}</div>
         </>
-      ) : input('Ngàm', 'mount', 'Olympus OM, Nikon F…')}
+      ) : input(tx("Ngàm"), 'mount', 'Olympus OM, Nikon F…')}
 
-      <h3 className="h-mono" style={{ marginTop: 6 }}>THÔNG SỐ</h3>
-      {input('Lấy nét', 'focus', 'vd: Autofocus, gần nhất 0,35 m')}
-      {input('Phơi sáng', 'exposure', 'vd: Program, đo sáng CdS')}
-      <div className="form-grid">{input('Màn trập chậm nhất', 'slow', '2 hoặc 1/8', true)}{input('Nhanh nhất', 'fast', '1/500', true)}</div>
-      <div className="form-grid">{input('ISO thấp nhất', 'isoMin', '50', true, 'decimal')}{input('ISO cao nhất', 'isoMax', '3200', true, 'decimal')}</div>
-      {input('Pin', 'battery', 'vd: 1 × CR2')}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>{input('Rộng (mm)', 'w', '117', true, 'decimal')}{input('Cao', 'h', '61', true, 'decimal')}{input('Dày', 'd', '25', true, 'decimal')}</div>
-      {input('Khối lượng (g)', 'weight', '145', true, 'decimal')}
-      <label className="field">Ghi chú<textarea className="input" rows={2} value={f.note} onChange={set('note')} placeholder="Điểm đặc biệt, tên gọi khác…" /></label>
-      {input('Ảnh mẫu trên Wikimedia Commons (tên file hoặc link)', 'image', 'File:Ricoh R1.jpg')}
+      <h3 className="h-mono" style={{ marginTop: 6 }}>{tx("THÔNG SỐ")}</h3>
+      {input(tx("Lấy nét"), 'focus', tx("vd: Autofocus, gần nhất 0,35 m"))}
+      {input(tx("Phơi sáng"), 'exposure', tx("vd: Program, đo sáng CdS"))}
+      <div className="form-grid">{input(tx("Màn trập chậm nhất"), 'slow', tx("2 hoặc 1/8"), true)}{input(tx("Nhanh nhất"), 'fast', '1/500', true)}</div>
+      <div className="form-grid">{input(tx("ISO thấp nhất"), 'isoMin', '50', true, 'decimal')}{input(tx("ISO cao nhất"), 'isoMax', '3200', true, 'decimal')}</div>
+      {input(tx("Pin"), 'battery', tx("vd: 1 × CR2"))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>{input(tx("Rộng (mm)"), 'w', '117', true, 'decimal')}{input(tx("Cao (mm)"), 'h', '61', true, 'decimal')}{input(tx("Dày"), 'd', '25', true, 'decimal')}</div>
+      {input(tx("Khối lượng (g)"), 'weight', '145', true, 'decimal')}
+      <label className="field">{tx("Ghi chú")}<textarea className="input" rows={2} value={f.note} onChange={set('note')} placeholder={tx("Điểm đặc biệt, tên gọi khác…")} /></label>
+      {input(tx("Ảnh mẫu trên Wikimedia Commons (tên file hoặc link)"), 'image', 'File:Ricoh R1.jpg')}
 
-      <h3 className="h-mono" style={{ marginTop: 6 }}>NGUỒN</h3>
-      <div className="form-grid">{input('Tên nguồn', 'srcName', 'Sách hướng dẫn, trang hãng…')}{input('Link', 'srcUrl', 'https://…')}</div>
-      {input('Bạn sửa gì? (không bắt buộc)', 'why', 'vd: sửa pin theo sách hướng dẫn')}
-      <button type="button" className="btn" disabled={busy} onClick={save}>{busy ? 'Đang gửi…' : 'Lưu đóng góp'}</button>
+      <h3 className="h-mono" style={{ marginTop: 6 }}>{tx("NGUỒN")}</h3>
+      <div className="form-grid">{input(tx("Tên nguồn"), 'srcName', tx("Sách hướng dẫn, trang hãng…"))}{input('Link', 'srcUrl', 'https://…')}</div>
+      {input(tx("Bạn sửa gì? (không bắt buộc)"), 'why', tx("vd: sửa pin theo sách hướng dẫn"))}
+      <button type="button" className="btn" disabled={busy} onClick={save}>{busy ? tx("Đang gửi…") : tx("Lưu đóng góp")}</button>
     </Sheet>
   );
 }

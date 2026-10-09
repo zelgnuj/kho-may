@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { blankCamera, blankWish, db, patchWish, saveWish, useCameras, useSettings, useWishlist, type Camera, type WishItem, type WishPriority } from '../db';
-import { TYPE_LABEL, fmtTs, lensLabel, parseVND, trieu, trieuLabel } from '../lib/format';
+import { TYPE_LABEL, displayCurrency, fmtTs, formatDisplayInput, lensLabel, parseDisplayMoney, valueLabel } from '../lib/format';
 import { findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { modelKey, refreshWishPrice, remainingQuota } from '../lib/autoPrice';
 import { useSampleImage } from '../lib/sampleImage';
@@ -12,10 +12,11 @@ import { ModelPicker } from '../components/ModelPicker';
 import { SpecCard } from '../components/SpecCard';
 import { ContributeSheet } from '../components/ContributeSheet';
 import { SubPage } from '../components/SubPage';
-import { SampleImg, Segmented } from '../components/ui';
+import { Money, SampleImg, Segmented } from '../components/ui';
 import { IconExternal, IconHeart, IconPlus } from '../components/Icons';
+import { tx } from '../lib/i18n';
 
-export const PRIORITY_LABEL: Record<WishPriority, string> = { 1: 'Rất muốn', 2: 'Muốn', 3: 'Để ngắm' };
+export const PRIORITY_LABEL: Record<WishPriority, string> = { 1: tx("Rất muốn"), 2: tx("Muốn"), 3: tx("Để ngắm") };
 
 /** Giá thị trường hiển thị: của mục wishlist, hoặc mượn từ máy cùng mẫu trong kho */
 function marketOf(w: WishItem, owned: Camera[]) {
@@ -28,9 +29,9 @@ function marketOf(w: WishItem, owned: Camera[]) {
 function verdict(market: number | null | undefined, target: number | null | undefined) {
   if (market == null || target == null) return null;
   const pct = Math.round(((market - target) / target) * 100);
-  if (pct <= 0) return { tone: 'up', short: 'Trong tầm', long: pct === 0 ? 'Giá thị trường đúng bằng giá bạn muốn' : `Thị trường đang thấp hơn mục tiêu ${-pct}%` };
-  if (pct <= 15) return { tone: 'warn', short: `+${pct}%`, long: `Thị trường cao hơn mục tiêu ${pct}% — gần tầm, có thể trả giá` };
-  return { tone: 'muted', short: `+${pct}%`, long: `Thị trường cao hơn mục tiêu ${pct}%` };
+  if (pct <= 0) return { tone: 'up', short: tx("Trong tầm"), long: pct === 0 ? tx("Giá thị trường đúng bằng giá bạn muốn") : tx("Thị trường đang thấp hơn mục tiêu {0}%", -pct) };
+  if (pct <= 15) return { tone: 'warn', short: `+${pct}%`, long: tx("Thị trường cao hơn mục tiêu {0}% — gần tầm, có thể trả giá", pct) };
+  return { tone: 'muted', short: `+${pct}%`, long: tx("Thị trường cao hơn mục tiêu {0}%", pct) };
 }
 
 function WishThumb({ w, size }: { w: WishItem; size: number }) {
@@ -71,29 +72,28 @@ export default function WishlistPage() {
     <div className="page">
       <header className="page-head px">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span className="eyebrow">Đang săn</span>
+          <span className="eyebrow">{tx("Đang săn")}</span>
           <h1 className="title-xl">Wishlist</h1>
         </div>
-        <Link to="/wishlist/them" className="icon-btn" aria-label="Thêm vào wishlist"><IconPlus size={20} /></Link>
+        <Link to="/wishlist/them" className="icon-btn" aria-label={tx("Thêm vào wishlist")}><IconPlus size={20} /></Link>
       </header>
 
       {active.length === 0 ? (
         <div className="empty">
           <IconHeart size={28} style={{ color: 'var(--accent)' }} />
           <p style={{ fontSize: 15, lineHeight: 1.55, color: 'var(--text-2)' }}>
-            Ghi lại những máy bạn đang săn, đặt giá muốn mua. App tự theo dõi giá thị trường và báo khi máy về tầm giá.
-          </p>
-          <Link to="/wishlist/them" className="btn">Thêm máy đầu tiên</Link>
+            {tx("Ghi lại những máy bạn đang săn, đặt giá muốn mua. App tự theo dõi giá thị trường và báo khi máy về tầm giá.")}</p>
+          <Link to="/wishlist/them" className="btn">{tx("Thêm máy đầu tiên")}</Link>
         </div>
       ) : (
         <>
-          <section className="stats px" aria-label="Tổng quan wishlist">
-            <div className="stat"><span className="k">Đang săn</span><span className="v">{active.length}</span></div>
-            <div className="stat"><span className="k">Ngân sách</span><span className="v">{trieu(budget)}<small> tr</small></span></div>
-            <div className="stat"><span className="k">Trong tầm giá</span><span className="v" style={{ color: inRange ? 'var(--up)' : undefined }}>{inRange}</span></div>
+          <section className="stats px" aria-label={tx("Tổng quan wishlist")}>
+            <div className="stat"><span className="k">{tx("Đang săn")}</span><span className="v">{active.length}</span></div>
+            <div className="stat"><span className="k">{tx("Ngân sách")}</span><span className="v"><Money vnd={budget} /></span></div>
+            <div className="stat"><span className="k">{tx("Trong tầm giá")}</span><span className="v" style={{ color: inRange ? 'var(--up)' : undefined }}>{inRange}</span></div>
           </section>
           <div className="px">
-            <Segmented<Sort> label="Sắp xếp" value={sort} onChange={pickSort} options={[{ value: 'priority', label: 'Ưu tiên' }, { value: 'recent', label: 'Mới thêm' }, { value: 'price', label: 'Giá' }]} />
+            <Segmented<Sort> label={tx("Sắp xếp")} value={sort} onChange={pickSort} options={[{ value: 'priority', label: tx("Ưu tiên") }, { value: 'recent', label: tx("Mới thêm") }, { value: 'price', label: tx("Giá") }]} />
           </div>
           <div className="list px">
             {rows.map(({ w, m }) => {
@@ -105,13 +105,13 @@ export default function WishlistPage() {
                     <span className="name">{w.brand} {w.model}</span>
                     <span className="spec">
                       <span className={'prio p' + w.priority}>{PRIORITY_LABEL[w.priority]}</span>
-                      {ownedKeys.has(modelKey(w)) && <span className="chip-mini">Đã có 1 máy</span>}
+                      {ownedKeys.has(modelKey(w)) && <span className="chip-mini">{tx("Đã có 1 máy")}</span>}
                       {w.wantNote && <span className="wish-want">{w.wantNote}</span>}
                     </span>
                   </div>
                   <div className="list-side">
-                    <span className="mono" style={{ fontSize: 13 }}>{m ? trieuLabel(m.value) : '—'}</span>
-                    {v ? <span className={v.tone}>{v.short}</span> : w.targetPrice != null ? <span className="muted">≤ {trieuLabel(w.targetPrice)}</span> : <span className="muted">chưa đặt giá</span>}
+                    <span className="mono" style={{ fontSize: 13 }}>{m ? valueLabel(m.value) : '—'}</span>
+                    {v ? <span className={v.tone}>{v.short}</span> : w.targetPrice != null ? <span className="muted">≤ {valueLabel(w.targetPrice)}</span> : <span className="muted">{tx("chưa đặt giá")}</span>}
                   </div>
                 </Link>
               );
@@ -123,8 +123,7 @@ export default function WishlistPage() {
       {got.length > 0 && (
         <section className="section px" style={{ gap: 8 }}>
           <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => setShowGot((x) => !x)}>
-            {showGot ? 'Ẩn' : 'Xem'} {got.length} máy đã săn được
-          </button>
+            {showGot ? tx("Ẩn") : tx("Xem")} {got.length} {' '}{tx("máy đã săn được")}</button>
           {showGot && (
             <div className="rows">
               {got.map((w) => (
@@ -159,7 +158,7 @@ export function WishDetail() {
   const img = useSampleImage(model);
 
   if (w === undefined) return <div className="page" />;
-  if (!w || w.deletedAt) return <SubPage title="Không tìm thấy" back="/wishlist" backLabel="Wishlist"><p className="px muted">Mục này đã bị xoá.</p></SubPage>;
+  if (!w || w.deletedAt) return <SubPage title={tx("Không tìm thấy")} back="/wishlist" backLabel="Wishlist"><p className="px muted">{tx("Mục này đã bị xoá.")}</p></SubPage>;
 
   const owned = cams.filter((c) => c.status === 'owned');
   const sameOwned = owned.filter((c) => modelKey(c) === modelKey(w));
@@ -169,69 +168,69 @@ export function WishDetail() {
 
   const lookup = async () => {
     const left = remainingQuota(s);
-    if (left <= 0) { toast(`Đã hết ${s.monthlyQuota} lượt tra giá tháng này`); return; }
-    if (!window.confirm(`Tra giá ${w.brand} ${w.model}? Dùng 1 lượt (còn ${left} lượt tháng này).`)) return;
+    if (left <= 0) { toast(tx("Đã hết {0} lượt tra giá tháng này", s.monthlyQuota)); return; }
+    if (!window.confirm(tx("Tra giá {0} {1}? Dùng 1 lượt (còn {2} lượt tháng này).", w.brand, w.model, left))) return;
     setLooking(true);
     try {
       const r = await refreshWishPrice(w);
-      toast(r == null ? 'Chưa tìm được đủ dữ liệu giá cho mẫu này' : `Giá thị trường ≈ ${trieuLabel(r)}`);
-    } catch (e) { toast(e instanceof Error ? e.message : 'Không tra được giá'); }
+      toast(r == null ? tx("Chưa tìm được đủ dữ liệu giá cho mẫu này") : tx("Giá thị trường ≈ {0}", valueLabel(r)));
+    } catch (e) { toast(e instanceof Error ? e.message : tx("Không tra được giá")); }
     finally { setLooking(false); }
   };
   const addLink = async () => {
     const url = link.trim();
-    if (!/^https?:\/\//i.test(url)) { toast('Link cần bắt đầu bằng http:// hoặc https://'); return; }
+    if (!/^https?:\/\//i.test(url)) { toast(tx("Link cần bắt đầu bằng http:// hoặc https://")); return; }
     await patchWish(w.id, { links: [...w.links, { url }] });
     setLink('');
   };
   const removeLink = (i: number) => patchWish(w.id, { links: w.links.filter((_, j) => j !== i) });
   const remove = async () => {
-    if (!window.confirm(`Xoá ${w.brand} ${w.model} khỏi wishlist?`)) return;
+    if (!window.confirm(tx("Xoá {0} {1} khỏi wishlist?", w.brand, w.model))) return;
     await patchWish(w.id, { deletedAt: Date.now() });
     nav('/wishlist');
   };
   const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
 
   return (
-    <SubPage title={w.model} back="/wishlist" backLabel="Wishlist" action={<Link to={`/wishlist/${w.id}/sua`} className="pill-btn">Sửa</Link>}>
+    <SubPage title={w.model} back="/wishlist" backLabel="Wishlist" action={<Link to={`/wishlist/${w.id}/sua`} className="pill-btn">{tx("Sửa")}</Link>}>
       <div className="wish-hero px">
         <div className="wish-hero-img">{img ? <SampleImg src={img.url} alt={`${w.brand} ${w.model}`} lazy={false} /> : <CameraArt type={w.type} width={140} />}</div>
         <div className="wish-hero-meta">
           <span className="sub">{w.brand}{w.type ? ` · ${TYPE_LABEL[w.type]}` : ''}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <span className={'prio p' + w.priority}>{PRIORITY_LABEL[w.priority]}</span>
-            {sameOwned.length > 0 && <Link to={`/may/${sameOwned[0].id}`} className="chip-mini">Đã có {sameOwned.length} máy trong kho</Link>}
+            {sameOwned.length > 0 && <Link to={`/may/${sameOwned[0].id}`} className="chip-mini">{tx("Đã có")}{' '}{sameOwned.length} {' '}{tx("máy trong kho")}</Link>}
           </div>
-          {img && <a className="muted" style={{ fontSize: 11 }} href={img.page} target="_blank" rel="noreferrer">Ảnh mẫu: {img.artist}{img.license ? `, ${img.license}` : ''}</a>}
+          {img && <a className="muted" style={{ fontSize: 11 }} href={img.page} target="_blank" rel="noreferrer">{tx("Ảnh mẫu:")}{' '}{img.artist}{img.license ? `, ${img.license}` : ''}</a>}
         </div>
       </div>
 
-      <section className="panel" aria-label="Giá" style={{ margin: '0 20px' }}>
+      <section className="panel" aria-label={tx("Giá")} style={{ margin: '0 20px' }}>
         <div className="section-head">
-          <h2 className="h2">Giá</h2>
-          <button type="button" className="pill-btn" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={looking} onClick={lookup}>{looking ? 'Đang tra…' : 'Tra giá'}</button>
+          <h2 className="h2">{tx("Giá")}</h2>
+          <button type="button" className="pill-btn" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled={looking} onClick={lookup}>{looking ? tx("Đang tra…") : tx("Tra giá")}</button>
         </div>
         <div className="form-grid">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Thị trường</span>
-            {m ? <span className="bigval" style={{ fontSize: 30 }}>{trieu(m.value)} <small>tr</small></span> : <span className="muted" style={{ fontSize: 14 }}>Chưa có</span>}
-            {m?.low != null && m.high != null && m.low !== m.high && <span className="mono muted" style={{ fontSize: 11 }}>khoảng {trieu(m.low)} – {trieu(m.high)} tr</span>}
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{tx("Thị trường")}</span>
+            {m ? <span className="bigval" style={{ fontSize: 30 }}><Money vnd={m.value} /></span> : <span className="muted" style={{ fontSize: 14 }}>{tx("Chưa có")}</span>}
+            {m?.low != null && m.high != null && m.low !== m.high && <span className="mono muted" style={{ fontSize: 11 }}>{tx("khoảng {0} – {1}", valueLabel(m.low), valueLabel(m.high))}</span>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Muốn mua ở</span>
-            {w.targetPrice != null ? <span className="bigval" style={{ fontSize: 30, color: 'var(--accent)' }}>{trieu(w.targetPrice)} <small>tr</small></span>
-              : <Link to={`/wishlist/${w.id}/sua`} className="link-btn" style={{ padding: 0, height: 'auto' }}>+ Đặt giá</Link>}
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{tx("Muốn mua ở")}</span>
+            {w.targetPrice != null ? <span className="bigval" style={{ fontSize: 30, color: 'var(--accent)' }}><Money vnd={w.targetPrice} /></span>
+              : <Link to={`/wishlist/${w.id}/sua`} className="link-btn" style={{ padding: 0, height: 'auto' }}>{tx("+ Đặt giá")}</Link>}
           </div>
         </div>
         {v && <p className={v.tone} style={{ fontSize: 13 }}>{v.long}</p>}
         <span className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
-          {m ? `${m.borrowed ? 'Lấy từ máy cùng mẫu trong kho. ' : ''}Cập nhật ${m.at ? fmtTs(m.at) : '—'} · giá eBay quy đổi, chưa gồm ship & thuế.`
-            : w.marketNote || 'Chưa có giá. App sẽ tự tra khi còn lượt, hoặc bấm “Tra giá”.'}
+          {m ? tx("{0}Cập nhật {1} · giá eBay quy đổi, chưa gồm ship & thuế.", m.borrowed ? tx("Lấy từ máy cùng mẫu trong kho. ") : '', m.at ? fmtTs(m.at) : '—')
+            : w.marketNote || tx("Chưa có giá. App sẽ tự tra khi còn lượt, hoặc bấm “Tra giá”.")}
         </span>
       </section>
 
-      <section className="section px" style={{ gap: 10 }} aria-label="Tin rao">
-        <h2 className="h-mono">TIN RAO ĐANG THEO DÕI</h2>
+      <section className="section px" style={{ gap: 10 }} aria-label={tx("Tin rao")}>
+        <h2 className="h-mono">{tx("TIN RAO ĐANG THEO DÕI")}</h2>
         {w.links.length > 0 && (
           <div className="rows">
             {w.links.map((l, i) => (
@@ -239,36 +238,36 @@ export function WishDetail() {
                 <a href={l.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
                   <IconExternal size={15} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.label || host(l.url)}</span>
                 </a>
-                <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={() => removeLink(i)}>Bỏ</button>
+                <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={() => removeLink(i)}>{tx("Bỏ")}</button>
               </div>
             ))}
           </div>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
-          <input className="input" style={{ flex: 1, minWidth: 0 }} type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="Dán link (Facebook, Chợ Tốt, eBay…)" aria-label="Link tin rao" />
-          <button type="button" className="btn small secondary" disabled={!link.trim()} onClick={addLink}>Thêm</button>
+          <input className="input" style={{ flex: 1, minWidth: 0 }} type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder={tx("Dán link (Facebook, Chợ Tốt, eBay…)")} aria-label={tx("Link tin rao")} />
+          <button type="button" className="btn small secondary" disabled={!link.trim()} onClick={addLink}>{tx("Thêm")}</button>
         </div>
       </section>
 
       {(w.wantNote || w.notes) && (
         <section className="section px" style={{ gap: 8 }}>
-          <h2 className="h-mono">GHI CHÚ</h2>
-          {w.wantNote && <p style={{ fontSize: 14 }}><span className="muted">Muốn: </span>{w.wantNote}</p>}
+          <h2 className="h-mono">{tx("GHI CHÚ")}</h2>
+          {w.wantNote && <p style={{ fontSize: 14 }}><span className="muted">{tx("Muốn:")}{' '}</span>{w.wantNote}</p>}
           {w.notes && <p style={{ fontSize: 14, lineHeight: 1.55, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>{w.notes}</p>}
         </section>
       )}
 
       {model && (
-        <section className="section px" aria-label="Thông số kỹ thuật">
-          <h2 className="h-mono">THÔNG SỐ</h2>
+        <section className="section px" aria-label={tx("Thông số kỹ thuật")}>
+          <h2 className="h-mono">{tx("THÔNG SỐ")}</h2>
           <SpecCard camera={pseudo} model={model} onContribute={() => setContrib(true)} />
         </section>
       )}
       {contrib && <ContributeSheet model={model} brand={w.brand} modelName={w.model} onClose={() => setContrib(false)} />}
 
       <section className="section px" style={{ gap: 10 }}>
-        <button type="button" className="btn" onClick={() => nav(`/them?wish=${w.id}`)}>Đã mua được · thêm vào kho</button>
-        <button type="button" className="btn danger" onClick={remove}>Xoá khỏi wishlist</button>
+        <button type="button" className="btn" onClick={() => nav(`/them?wish=${w.id}`)}>{tx("Đã mua được · thêm vào kho")}</button>
+        <button type="button" className="btn danger" onClick={remove}>{tx("Xoá khỏi wishlist")}</button>
       </section>
     </SubPage>
   );
@@ -288,7 +287,7 @@ export function WishEdit() {
   const [w, setW] = useState<WishItem>(() => blankWish());
   const [price, setPrice] = useState('');
   useEffect(() => {
-    if (existing) { setW(existing); setPrice(existing.targetPrice != null ? existing.targetPrice.toLocaleString('vi-VN') : ''); }
+    if (existing) { setW(existing); setPrice(formatDisplayInput(existing.targetPrice)); }
   }, [existing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof WishItem>(k: K, v: WishItem[K]) => setW((p) => ({ ...p, [k]: v }));
@@ -299,13 +298,13 @@ export function WishEdit() {
   const save = async () => {
     if (!canSave) return;
     const type = w.type || guessType(w.brand, w.model).type;
-    await saveWish({ ...w, brand: w.brand.trim(), model: w.model.trim(), type, targetPrice: parseVND(price) });
-    toast(id ? 'Đã lưu' : `Đã thêm ${w.brand} ${w.model} vào wishlist`);
+    await saveWish({ ...w, brand: w.brand.trim(), model: w.model.trim(), type, targetPrice: parseDisplayMoney(price) });
+    toast(id ? tx("Đã lưu") : tx("Đã thêm {0} {1} vào wishlist", w.brand, w.model));
     nav(id ? `/wishlist/${w.id}` : '/wishlist', { replace: true });
   };
 
   return (
-    <SubPage title={id ? 'Sửa' : 'Thêm máy'} back={id ? `/wishlist/${id}` : '/wishlist'} backLabel={id ? w.model || 'Wishlist' : 'Wishlist'}>
+    <SubPage title={id ? tx("Sửa") : tx("Thêm máy")} back={id ? `/wishlist/${id}` : '/wishlist'} backLabel={id ? w.model || 'Wishlist' : 'Wishlist'}>
       <section className="section px" style={{ gap: 14 }}>
         <ModelPicker brand={w.brand} model={w.model} ownBrands={brands ?? []}
           onChange={(brand, model) => setW((p) => ({ ...p, brand, model, type: guessType(brand, model).type }))} />
@@ -314,24 +313,20 @@ export function WishEdit() {
             <span>{[matched.release?.year, TYPE_LABEL[guessType(w.brand, w.model).type], lensLabel(guessLens(w.brand, w.model, guessType(w.brand, w.model).type))].filter(Boolean).join(' · ')}</span>
           </div>
         )}
-        {ownedSame.length > 0 && <p className="warn" style={{ fontSize: 13 }}>Bạn đã có {ownedSame.length} máy {w.brand} {w.model} trong kho.</p>}
+        {ownedSame.length > 0 && <p className="warn" style={{ fontSize: 13 }}>{tx("Bạn đã có {0} máy {1} {2} trong kho.", ownedSame.length, w.brand, w.model)}</p>}
 
-        <div className="field">Mức độ muốn
-          <Segmented<string> label="Mức độ muốn" value={String(w.priority)} onChange={(v) => set('priority', Number(v) as WishPriority)}
+        <div className="field">{tx("Mức độ muốn")}<Segmented<string> label={tx("Mức độ muốn")} value={String(w.priority)} onChange={(v) => set('priority', Number(v) as WishPriority)}
             options={([1, 2, 3] as WishPriority[]).map((p) => ({ value: String(p), label: PRIORITY_LABEL[p] }))} />
         </div>
-        <label className="field">Giá muốn mua (VNĐ)
-          <input className="input mono" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="vd: 2.500.000" />
+        <label className="field">{tx("Giá muốn mua ({0})", displayCurrency() === 'USD' ? '$' : tx("VNĐ"))}<input className="input mono" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tx("vd: 2.500.000")} />
         </label>
-        <label className="field">Tình trạng / phiên bản muốn
-          <input className="input" value={w.wantNote} onChange={(e) => set('wantNote', e.target.value)} placeholder="vd: bản đen, còn đo sáng, có hộp" />
+        <label className="field">{tx("Tình trạng / phiên bản muốn")}<input className="input" value={w.wantNote} onChange={(e) => set('wantNote', e.target.value)} placeholder={tx("vd: bản đen, còn đo sáng, có hộp")} />
         </label>
-        <label className="field">Ghi chú
-          <textarea className="input" style={{ height: 96, padding: 12, resize: 'vertical' }} value={w.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Shop quen, lưu ý khi mua…" />
+        <label className="field">{tx("Ghi chú")}<textarea className="input" style={{ height: 96, padding: 12, resize: 'vertical' }} value={w.notes} onChange={(e) => set('notes', e.target.value)} placeholder={tx("Shop quen, lưu ý khi mua…")} />
         </label>
       </section>
       <div className="px" style={{ display: 'flex' }}>
-        <button type="button" className="btn" style={{ flex: 1 }} disabled={!canSave} onClick={save}>{id ? 'Lưu' : 'Thêm vào wishlist'}</button>
+        <button type="button" className="btn" style={{ flex: 1 }} disabled={!canSave} onClick={save}>{id ? tx("Lưu") : tx("Thêm vào wishlist")}</button>
       </div>
     </SubPage>
   );

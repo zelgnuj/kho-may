@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: 'Camera Cabinet',
         short_name: 'Camera Cabinet',
-        description: 'Quản lý bộ sưu tập máy ảnh film',
+        description: 'A home for your film camera collection',
         lang: 'vi',
         theme_color: '#0E0D0C',
         background_color: '#0E0D0C',

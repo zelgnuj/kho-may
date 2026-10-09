@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, useCameras, useSettings, type Camera } from '../db';
 import { remainingQuota, runPriceQueue, uniqueModels, usePriceQueue } from '../lib/autoPrice';
-import { TYPE_LABEL, TYPE_ORDER, fullName, purchaseVND, trieu } from '../lib/format';
+import { TYPE_LABEL, TYPE_ORDER, fullName, purchaseVND, signedValue, valueLabel, valueParts } from '../lib/format';
+import { lang, locale, plural, tx } from '../lib/i18n';
 import { changePct, groupPrices, isStale, valueTimeline } from '../lib/stats';
 import { Segmented } from '../components/ui';
 
@@ -13,16 +14,16 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 const RANGES = [
-  { value: '30', label: '1 tháng' },
-  { value: '90', label: '3 tháng' },
-  { value: '365', label: '1 năm' },
-  { value: 'all', label: 'Tất cả' }
+  { value: '30', label: tx("1 tháng") },
+  { value: '90', label: tx("3 tháng") },
+  { value: '365', label: tx("1 năm") },
+  { value: 'all', label: tx("Tất cả") }
 ];
 
 function Chart({ points }: { points: { date: number; total: number }[] }) {
   const W = 350, H = 176, top = 20, bottom = 140;
   if (points.length < 2) {
-    return <p className="dashed" style={{ display: 'block' }}>Biểu đồ sẽ hiện sau ít nhất 2 lần cập nhật giá ở hai ngày khác nhau.</p>;
+    return <p className="dashed" style={{ display: 'block' }}>{tx("Biểu đồ sẽ hiện sau ít nhất 2 lần cập nhật giá ở hai ngày khác nhau.")}</p>;
   }
   const vals = points.map((p) => p.total);
   let min = Math.min(...vals), max = Math.max(...vals);
@@ -37,10 +38,10 @@ function Chart({ points }: { points: { date: number; total: number }[] }) {
   const dfmt = (t: number) => { const dt = new Date(t); return `${dt.getDate()}/${dt.getMonth() + 1}`; };
   const last = points[points.length - 1];
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Giá trị bộ sưu tập từ ${trieu(points[0].total)} đến ${trieu(last.total)} triệu`}>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tx("Giá trị bộ sưu tập từ {0} đến {1}", valueLabel(points[0].total), valueLabel(last.total))}>
       <g stroke="#26241F" strokeWidth={1}>{ticks.map((t, i) => <path key={i} d={`M0 ${y(t)} H${W}`} />)}</g>
       <g fontFamily="JetBrains Mono, monospace" fontSize={10} fill="#8E887E">
-        {ticks.map((t, i) => <text key={i} x={0} y={y(t) - 5}>{trieu(t, 0)} tr</text>)}
+        {ticks.map((t, i) => <text key={i} x={0} y={y(t) - 5}>{valueLabel(t, 0)}</text>)}
         <text x={8} y={170}>{dfmt(t0)}</text>
         <text x={W} y={170} textAnchor="end">{dfmt(t1)}</text>
       </g>
@@ -61,9 +62,9 @@ export default function Value() {
   const startQueue = (list: Camera[]) => {
     const n = uniqueModels(list).length;
     const left = remainingQuota(settings);
-    if (left <= 0) { window.alert(`Đã dùng hết ${settings.monthlyQuota} lượt tra giá tháng này.`); return; }
+    if (left <= 0) { window.alert(tx("Đã dùng hết {0} lượt tra giá tháng này.", settings.monthlyQuota)); return; }
     const use = Math.min(n, left);
-    if (!window.confirm(`Tra giá ${n} mẫu máy sẽ dùng ${use} lượt${use < n ? ` (chỉ đủ cho ${use} mẫu)` : ''}. Còn ${left} lượt tháng này. Tiếp tục?`)) return;
+    if (!window.confirm(tx("Tra giá {0} mẫu máy sẽ dùng {1} lượt{2}. Còn {3} lượt tháng này. Tiếp tục?", n, use, use < n ? tx(" (chỉ đủ cho {0} mẫu)", use) : '', left))) return;
     runPriceQueue(list, { kind: 'manual' });
   };
 
@@ -116,59 +117,59 @@ export default function Value() {
   return (
     <div className="page">
       <header className="px" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span className="eyebrow">Giá trị ước tính · {owned.length} máy</span>
-        <h1 style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 72, lineHeight: 0.95 }}>{trieu(total)}<span style={{ fontSize: 30, color: 'var(--muted)' }}> triệu</span></h1>
+        <span className="eyebrow">{tx("Giá trị ước tính ·")}{' '}{plural(owned.length, 'máy', 'camera', 'cameras')}</span>
+        <h1 style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 72, lineHeight: 0.95 }}><BigMoney vnd={total} /></h1>
         {delta != null && delta !== 0 && (
           <span className={'mono ' + (delta > 0 ? 'up' : 'down')} style={{ fontSize: 13 }}>
-            {delta > 0 ? '▲' : '▼'} {trieu(Math.abs(delta))} tr ({delta > 0 ? '+' : '−'}{first ? Math.abs(Math.round((delta / first) * 1000) / 10).toLocaleString('vi-VN') : 0}%) · {RANGES.find((r) => r.value === range)?.label.toLowerCase()}
+            {delta > 0 ? '▲' : '▼'} {valueLabel(Math.abs(delta))} ({delta > 0 ? '+' : '−'}{first ? Math.abs(Math.round((delta / first) * 1000) / 10).toLocaleString(locale) : 0}%) · {RANGES.find((r) => r.value === range)?.label.toLowerCase()}
           </span>
         )}
-        {hasDigital && <span className="muted" style={{ fontSize: 13 }}>Máy film {trieu(filmVal)} tr · Máy số {trieu(digVal)} tr</span>}
-        {priced < owned.length && <span className="muted" style={{ fontSize: 13 }}>Mới tính {priced}/{owned.length} máy đã có giá</span>}
+        {hasDigital && <span className="muted" style={{ fontSize: 13 }}>{tx("Máy film {0} · Máy số {1}", valueLabel(filmVal), valueLabel(digVal))}</span>}
+        {priced < owned.length && <span className="muted" style={{ fontSize: 13 }}>{tx("Mới tính")}{' '}{priced}/{owned.length} {' '}{tx("máy đã có giá")}</span>}
       </header>
 
-      <section className="section px" aria-label="Biểu đồ giá trị" style={{ gap: 12 }}>
-        <Segmented label="Khoảng thời gian" value={range} onChange={setRange} options={RANGES} />
+      <section className="section px" aria-label={tx("Biểu đồ giá trị")} style={{ gap: 12 }}>
+        <Segmented label={tx("Khoảng thời gian")} value={range} onChange={setRange} options={RANGES} />
         <Chart points={timeline} />
       </section>
 
       {noPrice > 0 && (
-        <section className="panel" style={{ margin: '0 20px' }} aria-label="Máy chưa có giá">
-          <div className="section-head"><h2 className="h2">Giá thị trường đã có</h2><span className="mono" style={{ fontSize: 13 }}>{priced} / {owned.length} máy</span></div>
+        <section className="panel" style={{ margin: '0 20px' }} aria-label={tx("Máy chưa có giá")}>
+          <div className="section-head"><h2 className="h2">{tx("Giá thị trường đã có")}</h2><span className="mono" style={{ fontSize: 13 }}>{priced} / {owned.length} {' '}{tx("máy")}</span></div>
           <div className="progress"><div style={{ width: `${(priced / Math.max(1, owned.length)) * 100}%` }} /></div>
           <button type="button" className="btn small" style={{ alignSelf: 'flex-start' }} disabled={q.running}
-            onClick={() => startQueue(owned.filter((c) => c.marketValue == null))}>Tự tra giá {noPrice} máy chưa có giá</button>
+            onClick={() => startQueue(owned.filter((c) => c.marketValue == null))}>{tx("Tra giá {0} chưa có giá", plural(noPrice, 'máy', 'camera', 'cameras'))}</button>
         </section>
       )}
 
-      <section className="panel" style={{ margin: '0 20px' }} aria-label="Giá mua">
-        <div className="section-head"><h2 className="h2">Giá mua đã nhập</h2><span className="mono" style={{ fontSize: 13 }}>{withBuy.length} / {owned.length} máy</span></div>
+      <section className="panel" style={{ margin: '0 20px' }} aria-label={tx("Giá mua")}>
+        <div className="section-head"><h2 className="h2">{tx("Giá mua đã nhập")}</h2><span className="mono" style={{ fontSize: 13 }}>{withBuy.length} / {owned.length} {' '}{tx("máy")}</span></div>
         <div className="progress"><div style={{ width: `${(withBuy.length / Math.max(1, owned.length)) * 100}%` }} /></div>
         {withBuy.length > 0 && (
           <div className="form-grid">
-            <div><span className="muted" style={{ fontSize: 12 }}>Tổng vốn đã ghi</span><div className="mono" style={{ fontSize: 16 }}>{unconverted === withBuy.length ? '—' : `${trieu(buyTotal)} tr`}</div></div>
-            <div><span className="muted" style={{ fontSize: 12 }}>Chênh lệch (máy có đủ 2 giá)</span>
+            <div><span className="muted" style={{ fontSize: 12 }}>{tx("Tổng vốn đã ghi")}</span><div className="mono" style={{ fontSize: 16 }}>{unconverted === withBuy.length ? '—' : valueLabel(buyTotal)}</div></div>
+            <div><span className="muted" style={{ fontSize: 12 }}>{tx("Chênh lệch (máy có đủ 2 giá)")}</span>
               <div className={'mono ' + (valueOfBought - costOfValued >= 0 ? 'up' : 'down')} style={{ fontSize: 16 }}>
-                {costOfValued ? `${valueOfBought - costOfValued >= 0 ? '+' : '−'}${trieu(Math.abs(valueOfBought - costOfValued))} tr` : '—'}
+                {costOfValued ? signedValue(valueOfBought - costOfValued) : '—'}
               </div>
             </div>
           </div>
         )}
-        {unconverted > 0 && <span className="muted" style={{ fontSize: 12 }}>{unconverted} máy mua bằng ngoại tệ chưa quy đổi được — vào Cài đặt để lấy tỷ giá.</span>}
-        {withBuy.length < owned.length && <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-2)' }}>Nhập giá mua để biết bạn đã bỏ ra bao nhiêu và đang lãi hay lỗ.</span>}
+        {unconverted > 0 && <span className="muted" style={{ fontSize: 12 }}>{unconverted} {' '}{tx("máy mua bằng ngoại tệ chưa quy đổi được — vào Cài đặt để lấy tỷ giá.")}</span>}
+        {withBuy.length < owned.length && <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-2)' }}>{tx("Nhập giá mua để biết bạn đã bỏ ra bao nhiêu và đang lãi hay lỗ.")}</span>}
       </section>
 
       {types.length > 0 && (
-        <section className="section px" aria-label="Theo loại máy" style={{ gap: 12 }}>
-          <h2 className="h2">Theo loại máy</h2>
+        <section className="section px" aria-label={tx("Theo loại máy")} style={{ gap: 12 }}>
+          <h2 className="h2">{tx("Theo loại máy")}</h2>
           {total > 0 && (
             <div className="bar">{types.filter((x) => x.v > 0).map((x) => <span key={x.t} style={{ width: `${(x.v / total) * 100}%`, background: TYPE_COLOR[x.t] }} />)}</div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {types.map((x) => (
               <Link key={x.t} to={`/?loc=${x.t || 'untyped'}`} className="legend-row" style={{ color: 'var(--text)' }}>
-                <span><span className="sw" style={{ background: TYPE_COLOR[x.t] }} />{TYPE_LABEL[x.t]} <span className="muted" style={{ fontSize: 12 }}>· {x.n} máy</span></span>
-                <span className="mono" style={{ fontSize: 13 }}>{trieu(x.v)} tr</span>
+                <span><span className="sw" style={{ background: TYPE_COLOR[x.t] }} />{TYPE_LABEL[x.t]} <span className="muted" style={{ fontSize: 12 }}>· {plural(x.n, 'máy', 'camera', 'cameras')}</span></span>
+                <span className="mono" style={{ fontSize: 13 }}>{valueLabel(x.v)}</span>
               </Link>
             ))}
           </div>
@@ -176,14 +177,14 @@ export default function Value() {
       )}
 
       {topBrands.length > 0 && (
-        <section className="section px" aria-label="Theo hãng" style={{ gap: 12 }}>
-          <h2 className="h2">Theo hãng</h2>
+        <section className="section px" aria-label={tx("Theo hãng")} style={{ gap: 12 }}>
+          <h2 className="h2">{tx("Theo hãng")}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {topBrands.map(([b, s]) => (
               <div key={b} className="brand-row">
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b}</span>
                 <span className="track"><span style={{ width: `${(s.n / maxN) * 100}%` }} /></span>
-                <span className="mono" style={{ fontSize: 12, textAlign: 'right' }}>{s.n} · {trieu(s.v)} tr</span>
+                <span className="mono" style={{ fontSize: 12, textAlign: 'right' }}>{s.n} · {valueLabel(s.v)}</span>
               </div>
             ))}
             {restBrands.length > 0 && <span className="muted" style={{ fontSize: 12 }}>+ {restBrands.map(([b]) => b).join(', ')}</span>}
@@ -192,8 +193,8 @@ export default function Value() {
       )}
 
       {movers.length > 0 && (
-        <section className="section px" aria-label="Biến động giá">
-          <h2 className="h2">Biến động 90 ngày</h2>
+        <section className="section px" aria-label={tx("Biến động giá")}>
+          <h2 className="h2">{tx("Biến động 90 ngày")}</h2>
           <div className="rows">
             {movers.map(({ c, pct }) => (
               <Link key={c.id} to={`/may/${c.id}`}>
@@ -206,33 +207,38 @@ export default function Value() {
       )}
 
       {stale > 0 && (
-        <section className="dashed" style={{ margin: '0 20px', justifyContent: 'space-between' }} aria-label="Giá cần cập nhật">
+        <section className="dashed" style={{ margin: '0 20px', justifyContent: 'space-between' }} aria-label={tx("Giá cần cập nhật")}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{stale} máy chưa cập nhật giá</span>
-            <span className="muted" style={{ fontSize: 12 }}>Lần cuối hơn 90 ngày trước</span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{tx("{0} chưa cập nhật giá", plural(stale, 'máy', 'camera', 'cameras'))}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{tx("Lần cuối hơn 90 ngày trước")}</span>
           </div>
-          <button type="button" className="btn small" disabled={q.running} onClick={() => startQueue(owned.filter((c) => c.marketValue != null && isStale(c)))}>Tra lại</button>
+          <button type="button" className="btn small" disabled={q.running} onClick={() => startQueue(owned.filter((c) => c.marketValue != null && isStale(c)))}>{tx("Tra lại")}</button>
         </section>
       )}
 
       {owned.length > 0 && (
         <div className="px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button type="button" className="btn secondary" disabled={q.running} onClick={() => startQueue(owned)}>
-            {q.running ? `Đang tra giá ${q.done}/${q.total}…` : `Tra lại giá cả ${uniqueModels(owned).length} mẫu máy`}
+            {q.running ? tx("Đang tra giá {0}/{1}…", q.done, q.total) : tx("Tra lại giá cả {0} mẫu máy", uniqueModels(owned).length)}
           </button>
           <span className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
             {settings.autoPrice
-              ? `Tự động: máy mới được tra ngay; máy có giá cũ hơn ${settings.autoPriceDays} ngày được tra lại rải rác vài máy mỗi ngày. Còn ${remainingQuota(settings)} lượt tháng này.`
-              : 'Tự tra giá đang tắt — bật lại trong Cài đặt.'}
+              ? tx("Tự động: máy mới được tra ngay; máy có giá cũ hơn {0} ngày được tra lại rải rác vài máy mỗi ngày. Còn {1} lượt tháng này.", settings.autoPriceDays, remainingQuota(settings))
+              : tx("Tự tra giá đang tắt — bật lại trong Cài đặt.")}
           </span>
         </div>
       )}
 
       {sold > 0 && (
         <Link to="/?loc=sold" className="px" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)' }}>
-          <span>Không tính {sold} máy đã bán</span><span style={{ color: 'var(--accent)' }}>Xem</span>
+          <span>{tx("Không tính {0} đã bán", plural(sold, 'máy', 'camera', 'cameras'))}</span><span style={{ color: 'var(--accent)' }}>{tx("Xem")}</span>
         </Link>
       )}
     </div>
   );
+}
+
+function BigMoney({ vnd }: { vnd: number }) {
+  const p = valueParts(vnd);
+  return <>{p.pre}{p.num}{p.unit && <span style={{ fontSize: 30, color: 'var(--muted)' }}>{lang === 'vi' ? ' triệu' : p.unit}</span>}</>;
 }

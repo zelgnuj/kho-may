@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { LensSpec } from '../db';
 import { lensLabel } from '../lib/format';
 import { Segmented } from './ui';
+import { tx } from '../lib/i18n';
 
 const toStr = (v: number | null | undefined) => (v == null ? '' : String(v));
 const toNum = (s: string): number | null => {
@@ -35,45 +36,41 @@ export function LensSpecFields({ value, onChange }: { value: LensSpec; onChange:
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Segmented
-        label="Kiểu ống kính"
+        label={tx("Kiểu ống kính")}
         value={value.kind}
         onChange={(kind) => onChange({ ...value, kind, auto: false })}
-        options={[{ value: 'fixed', label: 'Ống kính liền' }, { value: 'interchangeable', label: 'Thay ống kính' }]}
+        options={[{ value: 'fixed', label: tx("Ống kính liền") }, { value: 'interchangeable', label: tx("Thay ống kính") }]}
       />
       {value.kind === 'fixed' ? (
         <>
           <div className="toggles">
-            <button type="button" className={'toggle' + (!zoom ? ' on' : '')} aria-pressed={!zoom} onClick={() => { setZoom(false); emit({ zoom: false }); }}>Tiêu cự cố định</button>
+            <button type="button" className={'toggle' + (!zoom ? ' on' : '')} aria-pressed={!zoom} onClick={() => { setZoom(false); emit({ zoom: false }); }}>{tx("Tiêu cự cố định")}</button>
             <button type="button" className={'toggle' + (zoom ? ' on' : '')} aria-pressed={zoom} onClick={() => { setZoom(true); emit({ zoom: true }); }}>Zoom</button>
           </div>
           <div className="form-grid">
-            <label className="field">{zoom ? 'Tiêu cự từ (mm)' : 'Tiêu cự (mm)'}
+            <label className="field">{zoom ? tx("Tiêu cự từ (mm)") : tx("Tiêu cự (mm)")}
               <input className="input mono" inputMode="decimal" value={f} placeholder={zoom ? '38' : '35'} onChange={(e) => { setF(e.target.value); emit({ f: e.target.value }); }} />
             </label>
             {zoom ? (
-              <label className="field">đến (mm)
-                <input className="input mono" inputMode="decimal" value={fMax} placeholder="80" onChange={(e) => { setFMax(e.target.value); emit({ fMax: e.target.value }); }} />
+              <label className="field">{tx("đến (mm)")}<input className="input mono" inputMode="decimal" value={fMax} placeholder="80" onChange={(e) => { setFMax(e.target.value); emit({ fMax: e.target.value }); }} />
               </label>
             ) : (
-              <label className="field">Khẩu độ lớn nhất (f/)
-                <input className="input mono" inputMode="decimal" value={a} placeholder="2.8" onChange={(e) => { setA(e.target.value); emit({ a: e.target.value }); }} />
+              <label className="field">{tx("Khẩu độ lớn nhất (f/)")}<input className="input mono" inputMode="decimal" value={a} placeholder="2.8" onChange={(e) => { setA(e.target.value); emit({ a: e.target.value }); }} />
               </label>
             )}
           </div>
           {zoom && (
             <div className="form-grid">
-              <label className="field">Khẩu độ ở góc rộng (f/)
-                <input className="input mono" inputMode="decimal" value={a} placeholder="4.5" onChange={(e) => { setA(e.target.value); emit({ a: e.target.value }); }} />
+              <label className="field">{tx("Khẩu độ ở góc rộng (f/)")}<input className="input mono" inputMode="decimal" value={a} placeholder="4.5" onChange={(e) => { setA(e.target.value); emit({ a: e.target.value }); }} />
               </label>
-              <label className="field">ở tele (f/)
-                <input className="input mono" inputMode="decimal" value={aMax} placeholder="8" onChange={(e) => { setAMax(e.target.value); emit({ aMax: e.target.value }); }} />
+              <label className="field">{tx("ở tele (f/)")}<input className="input mono" inputMode="decimal" value={aMax} placeholder="8" onChange={(e) => { setAMax(e.target.value); emit({ aMax: e.target.value }); }} />
               </label>
             </div>
           )}
           {preview && <span className="mono" style={{ fontSize: 13, color: 'var(--text-2)' }}>= {preview}</span>}
         </>
       ) : (
-        <p className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>Máy thay ống kính: ghi ngàm ở phần thông tin máy, và thêm các ống kính bạn có ở màn chi tiết.</p>
+        <p className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>{tx("Máy thay ống kính: ghi ngàm ở phần thông tin máy, và thêm các ống kính bạn có ở màn chi tiết.")}</p>
       )}
     </div>
   );

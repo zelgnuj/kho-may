@@ -5,7 +5,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useObjectURL } from '../lib/images';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { CameraArt } from './CameraArt';
-import { findModel } from '../lib/catalog';
+import { findModel, useCatalogVersion } from '../lib/catalog';
+import { useSampleImage } from '../lib/sampleImage';
 import { IconCamera, IconClose, IconData, IconPlus, IconSettings, IconTrend } from './Icons';
 
 export function BottomNav() {
@@ -60,12 +61,15 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
 }
 
 /** Ảnh bìa của máy, hoặc hình vẽ theo loại máy nếu chưa có ảnh */
-export function CameraThumb({ camera, artWidth, strokeWidth, catalogImage }: { camera: Camera; artWidth: number; strokeWidth?: number; catalogImage?: string }) {
+export function CameraThumb({ camera, artWidth, strokeWidth, sampleUrl }: { camera: Camera; artWidth: number; strokeWidth?: number; sampleUrl?: string }) {
   const photo = useLiveQuery(() => (camera.coverPhotoId ? db.photos.get(camera.coverPhotoId) : undefined), [camera.coverPhotoId]);
   const url = useObjectURL(photo?.blob);
+  useCatalogVersion();
+  const model = camera.coverPhotoId || sampleUrl ? null : findModel(camera.brand, camera.model);
+  const auto = useSampleImage(model, !camera.coverPhotoId && !sampleUrl);
   if (url) return <img className="thumb-img" src={url} alt="" />;
-  const sample = catalogImage ?? findModel(camera.brand, camera.model)?.image?.url;
-  if (sample) return <img className="thumb-img" src={sample} alt="" loading="lazy" style={{ objectFit: 'contain', background: '#d9d6d0' }} />;
+  const sample = sampleUrl ?? auto?.url;
+  if (sample) return <img className="thumb-img sample" src={sample} alt="" loading="lazy" />;
   return <CameraArt type={camera.type} width={artWidth} strokeWidth={strokeWidth} />;
 }
 

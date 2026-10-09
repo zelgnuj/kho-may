@@ -175,6 +175,10 @@ export interface Settings {
   /** Số lượt dành cho tự động mỗi tháng; phần còn lại để bạn tự bấm */
   autoBudget: number;
   priceUsage: { month: string; total: number; auto: number; day: string; dayAuto: number; exhausted: boolean };
+  /** Mã đóng góp thư viện (CONTRIB_TOKEN trên Vercel) */
+  contribToken: string;
+  /** Tên hiển thị khi đóng góp */
+  contribName: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -187,7 +191,9 @@ export const DEFAULT_SETTINGS: Settings = {
   autoPriceDays: 60,
   monthlyQuota: 100,
   autoBudget: 60,
-  priceUsage: { month: '', total: 0, auto: 0, day: '', dayAuto: 0, exhausted: false }
+  priceUsage: { month: '', total: 0, auto: 0, day: '', dayAuto: 0, exhausted: false },
+  contribToken: '',
+  contribName: ''
 };
 
 export function useSettings(): Settings {
@@ -216,7 +222,7 @@ export function useCameras() {
 
 /** Một lần: điền thông số ống kính liền cho các máy đã có từ thư viện mẫu máy */
 export async function backfillLensSpecs(guess: (b: string, m: string, t: string) => LensSpec | null) {
-  const done = await db.settings.get('lensBackfill2');
+  const done = await db.settings.get('lensBackfill3');
   if (done) return;
   const cams = await db.cameras.toArray();
   for (const c of cams) {
@@ -227,5 +233,5 @@ export async function backfillLensSpecs(guess: (b: string, m: string, t: string)
     const kind = c.type === 'SLR' || c.type === 'MF' ? 'interchangeable' : 'fixed';
     await db.cameras.update(c.id, { lens: g ?? { kind, focal: null, focalMax: null, aperture: null, apertureMax: null } });
   }
-  await db.settings.put({ key: 'lensBackfill2', value: true });
+  await db.settings.put({ key: 'lensBackfill3', value: true });
 }

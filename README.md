@@ -51,7 +51,22 @@ Sau khi thêm biến, Redeploy một lần.
 
 ## Thư viện mẫu máy
 
-`src/data/catalog.ts` chứa thông số kỹ thuật từng mẫu (ống kính, lấy nét, màn trập, ISO, pin, kích thước…). Mỗi mẫu ghi nguồn (ưu tiên trang chính thức của hãng như Canon Camera Museum, Ricoh Imaging; sau đó Wikipedia và các trang tư liệu). Trường nào nguồn không ghi thì để trống. Ảnh mẫu (`image`) chỉ dùng ảnh có giấy phép tự do, kèm ghi công.
+- `data/catalog.json` — dữ liệu gốc (4.613 mẫu, 425 mẫu có thông số), nhập một lần bằng `scripts/import-dataset.mjs`.
+- `data/catalog-contrib.json` — các đóng góp sửa/thêm, mỗi dòng ghi người góp, ngày, nguồn.
+- `scripts/build-catalog.mjs` chạy trước `dev`/`build`, gộp hai file thành `src/generated/catalog.json` (không commit).
+- Nhãn chất lượng: Đã đối chiếu · Trích tự động từ trang hãng · Thông tin một phần · Mới có tên mẫu.
+- Ảnh mẫu lấy qua `/api/image` từ Wikimedia Commons (file đóng góp → Wikidata → tìm theo tên khớp chính xác), luôn kèm tác giả và giấy phép.
+
+### Đóng góp từ trong app
+
+Đóng góp được lưu ngay trên máy, rồi `/api/contribute` commit vào `data/catalog-contrib.json` trên GitHub → Vercel tự build lại.
+
+| Biến môi trường | Ý nghĩa |
+|---|---|
+| `GITHUB_TOKEN` | Fine-grained token, chỉ repo này, quyền Contents: Read and write |
+| `GITHUB_REPO` | `zelgnuj/kho-may` |
+| `CONTRIB_TOKEN` | Mã đóng góp tự đặt; nhập cùng mã trong Cài đặt → Thư viện mẫu máy |
+| `GITHUB_BRANCH` | Tùy chọn, mặc định `main` |
 
 ## Cấu trúc
 

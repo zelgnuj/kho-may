@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, blankCamera, db, deletePhoto, patchCamera, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
-import { defaultLensKind, findModel, guessLens, guessType, searchCatalog } from '../lib/catalog';
+import { defaultLensKind, findModel, guessLens, guessType, searchCatalog, useCatalogVersion } from '../lib/catalog';
+import { lensTitle } from '../lib/specs';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
@@ -79,6 +80,7 @@ export default function Edit() {
     setLensKey((k) => k + 1);
   }, [c.brand, c.model, c.type, lensTouched]);
 
+  useCatalogVersion();
   const matched = findModel(c.brand, c.model);
   const suggestions = useMemo(() => (c.model.trim().length >= 2 ? searchCatalog(`${c.brand} ${c.model}`).concat(searchCatalog(c.model)).filter((e, i, a) => a.findIndex((x) => x.id === e.id) === i).slice(0, 4) : []), [c.brand, c.model]);
 
@@ -152,7 +154,7 @@ export default function Edit() {
         </div>
         {matched ? (
           <div className="dashed" style={{ borderStyle: 'solid', borderColor: 'var(--line)', fontSize: 13 }}>
-            <span>Có trong thư viện: <b>{matched.brand} {matched.model}</b>{matched.released ? ` · ${matched.released.slice(0, 4)}` : ''} — loại máy, ống kính và bảng thông số được điền sẵn.</span>
+            <span>Có trong thư viện: <b>{matched.brand} {matched.model}</b>{matched.release?.year ? ` · ${matched.release.year}` : ''} — loại máy, ống kính và bảng thông số được điền sẵn.</span>
           </div>
         ) : suggestions.length > 0 && (
           <div className="rows" role="listbox" aria-label="Gợi ý từ thư viện">
@@ -160,7 +162,7 @@ export default function Edit() {
               <button key={e.id} type="button" role="option" aria-selected={false} style={{ background: 'transparent', border: 0, textAlign: 'left', width: '100%' }}
                 onClick={() => setC((prev) => ({ ...prev, brand: e.brand, model: e.model }))}>
                 <span>{e.brand} {e.model}</span>
-                <span className="mono muted" style={{ fontSize: 11 }}>{[e.released?.slice(0, 4), e.lens ? `${e.lens.focal}mm f/${e.lens.aperture}` : null].filter(Boolean).join(' · ')}</span>
+                <span className="mono muted" style={{ fontSize: 11 }}>{[e.release?.year, lensTitle(e)].filter(Boolean).join(' · ')}</span>
               </button>
             ))}
           </div>

@@ -4,6 +4,9 @@ import { fmtTs, parseAmount } from '../lib/format';
 import { refreshRates } from '../lib/rates';
 import { estimateMonthlyAuto, normalizeUsage, pingPriceApi, uniqueModels } from '../lib/autoPrice';
 import { toast } from '../lib/toast';
+import { catalogSize, useCatalogVersion } from '../lib/catalog';
+import { exportPendingJSON, pendingStats, pingContrib, syncPending } from '../lib/contrib';
+import { download } from '../lib/csv';
 import { Segmented } from '../components/ui';
 
 const ACCENTS = ['#F2A33A', '#FF6B4A', '#7FB8FF', '#C8E06A'];
@@ -20,6 +23,20 @@ export default function SettingsPage() {
   const [tokenOk, setTokenOk] = useState<boolean | null>(null);
   const [tokenErr, setTokenErr] = useState('');
   const [providerLabel, setProviderLabel] = useState('');
+  useCatalogVersion();
+  const [cName, setCName] = useState(s.contribName);
+  const [cToken, setCToken] = useState(s.contribToken);
+  const [cOk, setCOk] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof pendingStats>>>({ waiting: 0, synced: 0, items: [] });
+  useEffect(() => { setCName(s.contribName); setCToken(s.contribToken); }, [s.contribName, s.contribToken]);
+  useEffect(() => { pendingStats().then(setStats); }, []);
+  const checkContrib = async () => {
+    try {
+      const r = await pingContrib(cToken.trim());
+      await setSetting('contribToken', cToken.trim());
+      setCOk({ ok: true, msg: `Kết nối tốt · ghi vào ${r.repo}` });
+    } catch (e) { setCOk({ ok: false, msg: e instanceof Error ? e.message : 'Không kết nối được' }); }
+  };
   const cams = useCameras() ?? [];
   const usage = normalizeUsage(s.priceUsage);
   const models = uniqueModels(cams.filter((c) => c.status === 'owned')).length;
@@ -138,6 +155,36 @@ export default function SettingsPage() {
           </p>
           <span className="muted" style={{ fontSize: 11 }}>Đếm trên thiết bị này. Gói miễn phí CompSniper: {s.monthlyQuota} lượt/tháng, hết lượt app tự chuyển sang giá rao eBay (nếu có khóa).</span>
         </div>
+      </section>
+
+      <section className="section px" style={{ gap: 12 }} aria-label="Thư viện mẫu máy">
+        <h2 className="h-mono">THƯ VIỆN MẪU MÁY</h2>
+        <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-2)' }}>
+          {catalogSize().toLocaleString('vi-VN')} mẫu. Bạn sửa hoặc thêm thông số ở trang chi tiết máy; đóng góp được gửi lên GitHub và app tự cập nhật cho mọi thiết bị.
+        </p>
+        <label className="field">Tên hiển thị khi đóng góp
+          <input className="input" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={() => setSetting('contribName', cName.trim())} placeholder={s.ownerName || 'vd: Lâm'} />
+        </label>
+        <label className="field">Mã đóng góp (CONTRIB_TOKEN trên Vercel)
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input mono" type="password" autoComplete="off" style={{ flex: 1, minWidth: 0 }} value={cToken}
+              onChange={(e) => { setCToken(e.target.value); setCOk(null); }} onBlur={() => setSetting('contribToken', cToken.trim())} placeholder="Chưa nhập" />
+            <button type="button" className="btn small secondary" disabled={!cToken.trim()} onClick={checkContrib}>Kiểm tra</button>
+          </div>
+        </label>
+        {cOk && <span className={cOk.ok ? 'up' : 'down'} style={{ fontSize: 13 }}>{cOk.msg}</span>}
+        {(stats.waiting > 0 || stats.synced > 0) && (
+          <div className="rows" style={{ padding: 0 }}>
+            <div><span>Đóng góp chờ gửi</span><span className="mono">{stats.waiting}</span></div>
+            <div><span>Đã gửi gần đây</span><span className="mono">{stats.synced}</span></div>
+          </div>
+        )}
+        {stats.waiting > 0 && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn small" onClick={async () => { await syncPending(); setStats(await pendingStats()); toast('Đã thử gửi lại'); }}>Gửi lại</button>
+            <button type="button" className="btn small secondary" onClick={() => download('kho-may-dong-gop.json', new Blob([exportPendingJSON(stats.items.filter((p) => !p.syncedAt))], { type: 'application/json' }))}>Xuất file JSON</button>
+          </div>
+        )}
       </section>
 
       <section className="section px" style={{ gap: 12 }}>

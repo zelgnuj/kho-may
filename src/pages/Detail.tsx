@@ -7,7 +7,9 @@ import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
 import { refreshCameraPrice, remainingQuota } from '../lib/autoPrice';
-import { defaultLensKind, findModel } from '../lib/catalog';
+import { defaultLensKind, findModel, useCatalogVersion } from '../lib/catalog';
+import { useSampleImage } from '../lib/sampleImage';
+import { ContributeSheet } from '../components/ContributeSheet';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
@@ -34,6 +36,10 @@ export default function Detail() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [looking, setLooking] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [contrib, setContrib] = useState(false);
+  useCatalogVersion();
+  const entryEarly = cam ? findModel(cam.brand, cam.model) : null;
+  const sampleImg = useSampleImage(entryEarly, !!cam && !cam.coverPhotoId);
   const detailsRef = useRef<HTMLDivElement>(null);
 
   // Ghi lại lần xem (không đụng updatedAt để không ảnh hưởng đồng bộ sau này)
@@ -100,8 +106,8 @@ export default function Detail() {
   const lensKind = cam.lens?.kind ?? defaultLensKind(cam.type);
   const lensTag = lensLabel(cam.lens);
 
-  const sample = !orderedPhotos.length ? entry?.image?.url : undefined;
-  const subline = [TYPE_LABEL[cam.type], cam.type === 'DIG' ? null : cam.format, lensTag ?? (lensKind === 'interchangeable' && cam.mount ? `Ngàm ${cam.mount}` : null), cam.year ? String(cam.year) : entry?.released?.slice(0, 4)].filter(Boolean).join(' · ');
+  const sample = !orderedPhotos.length ? sampleImg?.url : undefined;
+  const subline = [TYPE_LABEL[cam.type], cam.type === 'DIG' ? null : cam.format, lensTag ?? (lensKind === 'interchangeable' && cam.mount ? `Ngàm ${cam.mount}` : null), cam.year ? String(cam.year) : (entry?.release?.year ? String(entry.release.year) : undefined)].filter(Boolean).join(' · ');
 
   return (
     <div style={{ paddingBottom: 'calc(var(--safe-bottom) + 40px)' }}>
@@ -111,7 +117,10 @@ export default function Detail() {
             {orderedPhotos.map((p) => <HeroPhoto key={p.id} photo={p} />)}
           </div>
         ) : sample ? (
-          <img className="showcase-sample" src={sample} alt="" />
+          <>
+            <img className="showcase-sample" src={sample} alt="" />
+            <a className="showcase-credit" href={sampleImg?.page} target="_blank" rel="noreferrer">Ảnh mẫu · {sampleImg?.artist}{sampleImg?.license ? ` · ${sampleImg.license}` : ''}</a>
+          </>
         ) : (
           <div className="showcase-empty">
             <CameraArt type={cam.type} width={260} strokeWidth={1.1} />
@@ -299,8 +308,13 @@ export default function Detail() {
       <section className="section px" aria-label="Thông số kỹ thuật">
         <h2 className="h2">Thông số kỹ thuật</h2>
         {entry
-          ? <SpecCard camera={cam} entry={entry} />
-          : <p className="dashed" style={{ display: 'block' }}>Mẫu này chưa có trong thư viện thông số của app.</p>}
+          ? <SpecCard camera={cam} model={entry} onContribute={() => setContrib(true)} />
+          : (
+            <div className="dashed" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span>Mẫu này chưa có trong thư viện.</span>
+              <button type="button" className="pill-btn" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={() => setContrib(true)}>+ Thêm {cam.brand} {cam.model} vào thư viện</button>
+            </div>
+          )}
       </section>
 
       <section className="section px" aria-label="Nhật ký">
@@ -351,6 +365,7 @@ export default function Detail() {
       {sheet === 'purchase' && <PurchaseSheet open onClose={() => setSheet(null)} cam={cam} />}
       {sheet === 'lensSpec' && <LensSpecSheet onClose={() => setSheet(null)} cam={cam} />}
       {sheet === 'profile' && <ProfileSheet onClose={() => setSheet(null)} cam={cam} />}
+      {contrib && <ContributeSheet model={entry} brand={cam.brand} modelName={cam.model} onClose={() => setContrib(false)} />}
     </div>
   );
 }

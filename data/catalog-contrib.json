@@ -1,0 +1,21 @@
+{
+  "schema": "kho-may-contrib/1",
+  "about": "Đóng góp chỉnh sửa / bổ sung cho data/catalog.json. Mỗi mục áp lên mẫu có cùng id (action=edit) hoặc thêm mẫu mới (action=add). Mỗi đóng góp nên ghi nguồn.",
+  "contributions": [
+    {
+      "id": "canon-ae-1",
+      "action": "edit",
+      "at": "2026-10-09",
+      "by": "Lâm",
+      "set": {
+        "power": {
+          "batteries": [
+            { "type": "4G-13 (thủy ngân, gốc) hoặc 4LR44", "count": 1, "voltage_each_v": 6 }
+          ]
+        }
+      },
+      "source": { "name": "Canon Camera Museum", "url": "https://global.canon/en/c-museum/product/film93.html" },
+      "note": "Sửa pin: dữ liệu trích tự động ghi nhầm thành SR44/LR44 + PX28."
+    }
+  ]
+}

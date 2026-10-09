@@ -1,6 +1,19 @@
 {
   "functions": {
-    "api/price.ts": { "maxDuration": 60 }
+    "api/price.ts": {
+      "maxDuration": 60
+    },
+    "api/image.ts": {
+      "maxDuration": 15
+    },
+    "api/contribute.ts": {
+      "maxDuration": 20
+    }
   },
-  "rewrites": [{ "source": "/((?!api/|assets/|.*\\..*).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

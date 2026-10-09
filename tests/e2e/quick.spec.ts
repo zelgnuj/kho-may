@@ -8,6 +8,14 @@ test('nút +: chụp ảnh rồi gắn vào máy có sẵn', async ({ page }) =>
   await expect(page.getByRole('button', { name: /Chụp ảnh máy/ })).toBeVisible();
   await page.locator('.bottom-nav input[type=file], input[capture]').first().setInputFiles(fixture('photo.jpg'));
   await expect(page.getByRole('dialog', { name: /Ảnh này của máy nào/ })).toBeVisible();
+  // ảnh nhỏ phải nằm gọn trong ô của từng máy (không tràn ra ngoài danh sách)
+  await page.locator('[aria-label="Chọn máy"] .pick-row').first().waitFor();
+  const boxes = await page.locator('.chooser-thumb').evaluateAll((els) => els.map((el) => {
+    const b = el.getBoundingClientRect(); const img = el.querySelector('img, svg, span');
+    const i = img ? img.getBoundingClientRect() : b;
+    return i.top >= b.top - 1 && i.bottom <= b.bottom + 1 && i.left >= b.left - 1 && i.right <= b.right + 1;
+  }));
+  expect(boxes.every(Boolean)).toBe(true);
   await page.getByLabel('Tìm máy trong kho').fill('xa');
   await page.locator('[aria-label="Chọn máy"] .pick-row').first().click();
   await page.waitForURL('**/may/**');

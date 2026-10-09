@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { idb, importSample, mockApis } from './helpers';
+import { fixture, idb, importSample, mockApis } from './helpers';
 
 test.beforeEach(async ({ page }) => { await mockApis(page); await importSample(page); });
 
@@ -54,4 +54,20 @@ test('nút +: cho mượn nhanh', async ({ page }) => {
   await page.getByRole('button', { name: 'Cho mượn', exact: true }).click();
   const om = (await idb<{ model: string; loan?: { to: string } }>(page, 'cameras')).find((c) => c.model === 'OM-2N')!;
   expect(om.loan?.to).toBe('Hà');
+});
+
+test('danh sách chọn máy: ảnh máy nằm gọn trong ô', async ({ page }) => {
+  const xa = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'XA')!;
+  await page.goto(`/may/${xa.id}`);
+  await page.locator('input[type=file]').first().setInputFiles(fixture('photo.jpg'));
+  await expect.poll(async () => (await idb(page, 'photos')).length).toBe(1);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Làm nhanh' }).click();
+  await page.locator('.quick-tile', { hasText: 'Cho mượn' }).click();
+  const thumb = page.locator('.pick-row', { hasText: 'XA' }).locator('.chooser-thumb');
+  await expect(thumb.locator('img')).toBeVisible();
+  const [box, img] = await Promise.all([thumb.boundingBox(), thumb.locator('img').boundingBox()]);
+  expect(img!.y).toBeGreaterThanOrEqual(box!.y - 1);
+  expect(img!.y + img!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
+  expect(img!.width).toBeLessThanOrEqual(box!.width + 1);
 });

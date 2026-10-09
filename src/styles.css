@@ -365,7 +365,7 @@ button.nav-add { border: 0; cursor: pointer; }
 .quick-tile b { font-size: 14px; font-weight: 600; line-height: 1.25; }
 .quick-tile .muted { font-size: 11px; line-height: 1.35; }
 .quick-tile-icon { color: var(--accent); }
-.chooser-thumb { width: 52px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; flex: none; }
+.chooser-thumb { position: relative; width: 52px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; flex: none; }
 .chooser-thumb .thumb-img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Cho mượn */

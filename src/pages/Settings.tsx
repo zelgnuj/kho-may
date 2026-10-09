@@ -323,6 +323,9 @@ function AppearancePage() {
         </div>
         <div className="field">{tx("Kiểu xem mặc định ở Kho máy")}<Segmented label={tx("Kiểu xem mặc định")} value={s.defaultView} onChange={(v) => setSetting('defaultView', v)} options={[{ value: 'grid', label: tx("Lưới") }, { value: 'list', label: tx("Danh sách") }, { value: 'shelf', label: tx("Kệ") }]} />
         </div>
+        <div className="field">{tx("Giá trên thẻ máy ở Kho máy")}<Segmented label={tx("Giá trên thẻ máy")} value={s.cardPrice ? 'on' : 'off'} onChange={(v) => setSetting('cardPrice', v === 'on')} options={[{ value: 'off', label: tx("Ẩn") }, { value: 'on', label: tx("Hiện") }]} />
+          <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{tx("Tổng giá trị vẫn ở đầu Kho máy và trang Giá trị; giá từng máy xem trong trang chi tiết.")}</span>
+        </div>
       </section>
     </SubPage>
   );

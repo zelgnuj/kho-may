@@ -20,7 +20,7 @@ import { tx } from './i18n';
 type Kind = 'camera' | 'price' | 'service' | 'photo' | 'wish' | 'roll' | 'setting';
 
 /** Cài đặt được đồng bộ giữa các thiết bị (mã bí mật & bộ đệm thì không) */
-const SYNCED_SETTINGS = ['ownerName', 'accent', 'defaultView', 'rates', 'autoPrice', 'autoPriceDays', 'autoBudget', 'monthlyQuota', 'contribName', 'backupEvery', 'displayCurrency'];
+const SYNCED_SETTINGS = ['ownerName', 'accent', 'defaultView', 'rates', 'autoPrice', 'autoPriceDays', 'autoBudget', 'monthlyQuota', 'contribName', 'backupEvery', 'displayCurrency', 'cardPrice'];
 
 interface RemoteRow { kind: Kind; id: string; data: unknown; updated_at: number; deleted: boolean; server_ts: string }
 

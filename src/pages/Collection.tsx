@@ -35,7 +35,7 @@ export default function Collection() {
   const filter = params.get('loc') ?? 'all';
   const [q, setQ] = useState('');
   const [view, setView] = useState<View>(() => (readLS('kho-view') as View) || settings.defaultView);
-  const [sortIdx, setSortIdx] = useState(() => Number(readLS('kho-sort') ?? 0) % SORTS.length);
+  const [sortIdx, setSortIdx] = useState(() => { const saved = readLS('kho-sort'); return saved != null ? Number(saved) % SORTS.length : Math.max(0, SORTS.findIndex((x) => x.k === 'viewed')); });
 
   const byCam = useMemo(() => groupPrices(prices), [prices]);
   const all = cams ?? [];
@@ -172,7 +172,7 @@ export default function Collection() {
           {view === 'grid' && (
             <div className="grid px">
               {items.map((c) => {
-                const pct = changePct(byCam.get(c.id));
+                const pct = settings.cardPrice ? changePct(byCam.get(c.id)) : null;
                 return (
                   <Link key={c.id} to={`/may/${c.id}`} className="card">
                     <div className="tile">
@@ -186,10 +186,12 @@ export default function Collection() {
                       <span className="sub">{c.brand} · {TYPE_LABEL[c.type]}</span>
                       <span className="name">{c.model}</span>
                       {lensLabel(c.lens) && <span className="lens-spec">{lensLabel(c.lens)}</span>}
-                      <div className="row">
-                        <span className="val">{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
-                        {pct != null && <span className={'chg ' + (pct > 0 ? 'up' : pct < 0 ? 'down' : '')}>{pct > 0 ? '▲' : pct < 0 ? '▼' : '–'} {Math.abs(pct)}%</span>}
-                      </div>
+                      {settings.cardPrice && (
+                        <div className="row">
+                          <span className="val">{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
+                          {pct != null && <span className={'chg ' + (pct > 0 ? 'up' : pct < 0 ? 'down' : '')}>{pct > 0 ? '▲' : pct < 0 ? '▼' : '–'} {Math.abs(pct)}%</span>}
+                        </div>
+                      )}
                     </div>
                   </Link>
                 );
@@ -210,7 +212,8 @@ export default function Collection() {
                     <span className="spec">{[TYPE_LABEL[c.type], lensLabel(c.lens) ?? (c.type === 'DIG' ? 'Digital' : c.format), c.lens?.kind === 'interchangeable' ? c.mount : ''].filter(Boolean).join(' · ')}</span>
                   </div>
                   <div className="list-side">
-                    <span className="mono" style={{ fontSize: 13 }}>{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
+                    {settings.cardPrice ? <span className="mono" style={{ fontSize: 13 }}>{c.status === 'sold' ? '—' : valueLabel(c.marketValue)}</span>
+                      : c.year ? <span className="mono muted" style={{ fontSize: 12 }}>{c.year}</span> : null}
                     <span style={{ color: c.status === 'sold' ? 'var(--muted)' : c.loan ? '#7FB8FF' : 'var(--up)' }}>{c.status === 'sold' ? tx("Đã bán") : c.loan ? tx("{0} mượn", c.loan.to) : tx("Trong kho")}</span>
                   </div>
                 </Link>

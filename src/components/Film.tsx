@@ -5,7 +5,7 @@ import { db, finishRoll, loadRoll, patchRoll, type Camera, type Roll } from '../
 import { daysSince, fmtDate, parseAmount, todayISO } from '../lib/format';
 import { useCatalogVersion } from '../lib/catalog';
 import {
-  FILM_STOCKS, KIND_DEV, KIND_LABEL, cameraFilmFormats, defaultShots, findStock, isoFromName, stockLabel, stops,
+  FILM_STOCKS, KIND_DEV, KIND_LABEL, searchStocks, squashFilm, cameraFilmFormats, defaultShots, findStock, isoFromName, stockLabel, stops,
   type FilmKind, type FilmStock
 } from '../lib/filmStocks';
 import { toast } from '../lib/toast';
@@ -52,8 +52,7 @@ export function LoadFilmSheet({ open, onClose, cam }: { open: boolean; onClose: 
   const fits = (s: FilmStock) => !formats || formats.length === 0 || s.formats.some((f) => formats.includes(f));
   const kinds = useMemo(() => [...new Set(FILM_STOCKS.filter(fits).map((s) => s.kind))], [cam.format, cam.type]); // eslint-disable-line react-hooks/exhaustive-deps
   const list = useMemo(() => {
-    const k = q.toLowerCase().replace(/\s+/g, ' ').trim();
-    return FILM_STOCKS.filter((s) => fits(s) && (kind === 'all' || s.kind === kind) && (!k || stockLabel(s).toLowerCase().includes(k) || String(s.iso) === k));
+    return searchStocks(q, FILM_STOCKS.filter((s) => fits(s) && (kind === 'all' || s.kind === kind)));
   }, [q, kind, cam.format, cam.type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = (label: string, stock: FilmStock | null) => {
@@ -99,7 +98,7 @@ export function LoadFilmSheet({ open, onClose, cam }: { open: boolean; onClose: 
               <div className="h-mono pick-head">TẤT CẢ FILM{formats?.length === 1 ? ` · KHỔ ${formats[0]}` : ''}</div>
             </>
           )}
-          {q.trim() && !list.some((s) => stockLabel(s).toLowerCase() === q.trim().toLowerCase()) && (
+          {q.trim() && !list.some((s) => squashFilm(stockLabel(s)) === squashFilm(q)) && (
             <button type="button" className="pick-free" onClick={() => choose(q.trim(), findStock(q.trim()))}>Dùng “{q.trim()}”</button>
           )}
           <div className="rows pick-list" role="listbox" aria-label="Danh sách film">

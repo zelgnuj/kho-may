@@ -59,8 +59,26 @@ export const FILM_STOCKS: FilmStock[] = [
   ...B('Harman', [['Phoenix 200', 200, 'color', ['135', '120']]]),
   ...B('CineStill', [
     ['800T', 800, 'cine', ['135', '120'], 'Tungsten, quầng đỏ quanh đèn'],
-    ['400D', 400, 'cine', ['135', '120']],
-    ['50D', 50, 'cine', ['135', '120']]
+    ['400D', 400, 'cine', ['135', '120'], '400Dynamic, chụp được ISO 200–800'],
+    ['50D', 50, 'cine', ['135', '120']],
+    ['BwXX', 250, 'bw', ['135', '120'], 'Double-X 5222'],
+    ['REDRUM', 200, 'color', ['120'], 'Red scale']
+  ]),
+  ...B('Cyberpunk', [
+    ['100D', 100, 'cine', ['135'], 'Vision3 50D, đã bỏ remjet, tráng C-41'],
+    ['320T', 320, 'cine', ['135'], 'Vision3 500T, tungsten, tráng C-41'],
+    ['400D', 400, 'cine', ['135'], 'Vision3 250D, đã bỏ remjet, tráng C-41'],
+    ['640T', 640, 'cine', ['135'], 'Vision3 500T, tungsten, tráng C-41'],
+    ['800T', 800, 'cine', ['135'], 'Vision3 500T, tungsten, tráng C-41']
+  ]),
+  ...B('Yes!Star', [
+    ['Supreme 200', 200, 'color', ['135']],
+    ['Supreme 400', 400, 'color', ['135']]
+  ]),
+  ...B('Lucky', [
+    ['SHD 100', 100, 'bw', ['135']],
+    ['SHD 400', 400, 'bw', ['135']],
+    ['Color 200', 200, 'color', ['135']]
   ]),
   ...B('Lomography', [
     ['Color Negative 100', 100, 'color', ['135', '120']],
@@ -78,9 +96,22 @@ export const FILM_STOCKS: FilmStock[] = [
 
 export const stockLabel = (s: Pick<FilmStock, 'brand' | 'name'>) => `${s.brand} ${s.name}`;
 
+/** Bỏ dấu cách, gạch, chấm than… để "yes star", "yesstar", "Yes!Star" đều khớp */
+export const squashFilm = (t: string) => t.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '');
+
+export function searchStocks(q: string, list = FILM_STOCKS) {
+  const k = squashFilm(q);
+  if (!k) return list;
+  const words = q.split(/\s+/).map(squashFilm).filter(Boolean);
+  return list.filter((s) => {
+    const label = squashFilm(stockLabel(s));
+    return label.includes(k) || words.every((w) => label.includes(w)) || String(s.iso) === q.trim();
+  });
+}
+
 export function findStock(label: string): FilmStock | null {
-  const k = label.toLowerCase().replace(/\s+/g, ' ').trim();
-  return FILM_STOCKS.find((s) => stockLabel(s).toLowerCase() === k || s.name.toLowerCase() === k) ?? null;
+  const k = squashFilm(label);
+  return FILM_STOCKS.find((s) => squashFilm(stockLabel(s)) === k) ?? FILM_STOCKS.find((s) => squashFilm(s.name) === k) ?? null;
 }
 
 /** Đoán ISO từ tên film tự nhập: "Portra 400" → 400 */

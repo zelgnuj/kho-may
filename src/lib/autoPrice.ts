@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { addPrice, db, getSettings, patchCamera, setSetting, type Camera, type PriceSource, type Settings } from '../db';
+import { addPrice, db, getSettings, patchCamera, patchWish, setSetting, type Camera, type PriceSource, type Settings, type WishItem } from '../db';
 
 export interface LookupResult {
   usd: { low: number | null; median: number | null; high: number | null };
@@ -82,7 +82,7 @@ export async function pingPriceApi(token: string): Promise<{ providers: string[]
   return callApi(token, { ping: true });
 }
 
-const modelKey = (c: Pick<Camera, 'brand' | 'model'>) => `${c.brand}|${c.model}`.toLowerCase().replace(/\s+/g, ' ').trim();
+export const modelKey = (c: Pick<Camera, 'brand' | 'model'>) => `${c.brand}|${c.model}`.toLowerCase().replace(/\s+/g, ' ').trim();
 
 /**
  * Tra giá một mẫu máy (1 lượt) và áp kết quả cho MỌI máy đang có cùng mẫu.
@@ -105,12 +105,52 @@ export async function refreshCameraPrice(cam: Camera, kind: 'auto' | 'manual' = 
   if (r.vnd.median == null) {
     const note = r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.';
     await Promise.all(targets.map((c) => patchCamera(c.id, { marketCheckedAt: Date.now(), marketNote: c.marketValue == null ? note : c.marketNote })));
+    await applyToWishlist(key, r);
     return null;
   }
   for (const c of targets) {
     await addPrice(c.id, r.vnd.median, r.vnd.low, r.vnd.high, {
       source: 'auto', note: r.note, basis: r.basis, confidence: r.confidence, sources: r.sources, usdMedian: r.usd.median
     });
+  }
+  await applyToWishlist(key, r);
+  return r.vnd.median;
+}
+
+/** Áp kết quả tra giá cho mọi mục wishlist cùng mẫu */
+async function applyToWishlist(key: string, r: LookupResult, extra?: WishItem) {
+  const items = (await db.wishlist.toArray()).filter((w) => !w.deletedAt && !w.acquiredAt && modelKey(w) === key);
+  if (extra && !items.some((w) => w.id === extra.id)) items.push(extra);
+  const now = Date.now();
+  for (const w of items) {
+    if (r.vnd.median == null) {
+      await patchWish(w.id, { marketCheckedAt: now, marketNote: w.marketValue == null ? r.note || 'Chưa tìm được dữ liệu giá đủ tin cậy.' : w.marketNote });
+    } else {
+      await patchWish(w.id, {
+        marketValue: r.vnd.median, marketLow: r.vnd.low, marketHigh: r.vnd.high, marketUpdatedAt: now, marketCheckedAt: now,
+        marketNote: r.note ?? '', marketSources: r.sources ?? []
+      });
+    }
+  }
+}
+
+/**
+ * Tra giá cho một mục wishlist (1 lượt). Máy cùng mẫu đang có trong kho cũng được cập nhật theo.
+ */
+export async function refreshWishPrice(w: WishItem, kind: 'auto' | 'manual' = 'manual'): Promise<number | null> {
+  const s = await getSettings();
+  if (remainingQuota(s) <= 0) throw new PriceError(`Đã dùng hết ${s.monthlyQuota} lượt tra giá của tháng này`, true);
+  const r: LookupResult = await callApi(s.priceToken, { brand: w.brand, model: w.model, type: w.type, format: '', condition: '', lenses: [] });
+  if (r.compsniperUsed) await recordUsage(kind, !!r.compsniperExhausted);
+  const key = modelKey(w);
+  await applyToWishlist(key, r, w);
+  if (r.vnd.median != null) {
+    const owned = (await db.cameras.toArray()).filter((c) => !c.deletedAt && c.status === 'owned' && modelKey(c) === key);
+    for (const c of owned) {
+      await addPrice(c.id, r.vnd.median, r.vnd.low, r.vnd.high, {
+        source: 'auto', note: r.note, basis: r.basis, confidence: r.confidence, sources: r.sources, usdMedian: r.usd.median
+      });
+    }
   }
   return r.vnd.median;
 }
@@ -187,6 +227,27 @@ export async function autoRefreshStale() {
   const staleToday = stale.slice(0, Math.max(0, dailyCap - u.dayAuto));
   const list = [...fresh, ...staleToday].slice(0, autoLeft);
   if (list.length) await runPriceQueue(list, { silent: true, kind: 'auto' });
+
+  // Wishlist: mẫu chưa có trong kho (mẫu đã có thì giá được cập nhật cùng máy trong kho)
+  const s2 = await getSettings();
+  const u2 = normalizeUsage(s2.priceUsage);
+  let left = Math.min(Math.max(0, s2.autoBudget - u2.auto), remainingQuota(s2));
+  let todayLeft = Math.max(0, dailyCap - u2.dayAuto);
+  if (left <= 0) return;
+  const ownedKeys = new Set(owned.map(modelKey));
+  const seen = new Set<string>();
+  const wish = (await db.wishlist.toArray())
+    .filter((w) => !w.deletedAt && !w.acquiredAt && w.model && !ownedKeys.has(modelKey(w)))
+    .filter((w) => { const k = modelKey(w); if (seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a, b) => a.priority - b.priority);
+  for (const w of wish) {
+    if (left <= 0) break;
+    const isFresh = !w.marketCheckedAt;
+    const isStale = !isFresh && (w.marketValue == null ? now - w.marketCheckedAt! > 90 * DAY : now - (w.marketUpdatedAt ?? w.marketCheckedAt!) > s2.autoPriceDays * DAY);
+    if (!isFresh && !(isStale && todayLeft > 0)) continue;
+    try { await refreshWishPrice(w, 'auto'); } catch (e) { if (e instanceof PriceError && e.fatal) break; await patchWish(w.id, { marketCheckedAt: Date.now() }); }
+    left--; if (!isFresh) todayLeft--;
+  }
 }
 
 /** Ước lượng số lượt tự động mỗi tháng với bộ sưu tập hiện tại */

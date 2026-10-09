@@ -68,9 +68,13 @@ Sau khi thêm biến, Redeploy một lần.
 | `CONTRIB_TOKEN` | Mã đóng góp tự đặt; nhập cùng mã trong Cài đặt → Thư viện mẫu máy |
 | `GITHUB_BRANCH` | Tùy chọn, mặc định `main` |
 
+## Wishlist
+
+Trang `/wishlist`: máy đang săn, mức độ muốn, giá muốn mua, link tin rao. Giá thị trường tra như máy trong kho (chung lượt; mẫu đã có trong kho thì dùng luôn giá đó, không tốn thêm lượt) và so với giá muốn mua. "Đã mua được" mở form Thêm máy điền sẵn, lưu xong mục wishlist chuyển sang "đã săn được".
+
 ## Sao lưu
 
-Trang Nhập / Xuất → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mục `photos/` (ảnh gốc). Trên iPhone, file được lưu thẳng vào Tệp / iCloud Drive qua bảng chia sẻ. Khôi phục gộp theo `updatedAt`: thêm cái chưa có, giữ bản sửa mới hơn, không xoá gì. Vẫn đọc được file JSON cũ. App nhắc sao lưu khi có thay đổi mà đã quá 7/14/30 ngày (chỉnh được).
+Cài đặt → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mục `photos/` (ảnh gốc). Trên iPhone, file được lưu thẳng vào Tệp / iCloud Drive qua bảng chia sẻ. Khôi phục gộp theo `updatedAt`: thêm cái chưa có, giữ bản sửa mới hơn, không xoá gì. Vẫn đọc được file JSON cũ. App nhắc sao lưu khi có thay đổi mà đã quá 7/14/30 ngày (chỉnh được).
 
 ## Kiểm thử
 

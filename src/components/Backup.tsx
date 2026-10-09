@@ -47,7 +47,7 @@ export function BackupSheet({ open, onClose }: { open: boolean; onClose: () => v
         <>
           <div className="backup-file">
             <span className="mono" style={{ fontSize: 13 }}>{res.file.name}</span>
-            <span className="muted" style={{ fontSize: 12 }}>{res.info.cameras} máy · {res.info.photos} ảnh · {formatBytes(res.info.bytes)}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{res.info.cameras} máy · {res.info.photos} ảnh{res.info.wishlist ? ` · ${res.info.wishlist} wishlist` : ""} · {formatBytes(res.info.bytes)}</span>
           </div>
           {shareable ? (
             <>

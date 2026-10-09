@@ -293,3 +293,33 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .backup-nudge-card { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 .pill-btn.on { background: var(--accent); border-color: var(--accent); color: #1a1208; font-weight: 600; }
 .warn { color: var(--accent); }
+
+/* Trang con & Cài đặt */
+.sub-head { display: flex; flex-direction: column; gap: 10px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; height: 36px; font-size: 14px; color: var(--accent); align-self: flex-start; margin-left: -6px; }
+.sub-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.sub-title-row .title-xl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.profile-card { display: flex; align-items: center; gap: 14px; margin: 0 20px; padding: 14px 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); color: var(--text); }
+.avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 22px; color: #1a1208; flex: none; }
+.menu-group { display: flex; flex-direction: column; gap: 8px; }
+.menu { display: flex; flex-direction: column; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.menu-row { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 0 14px; color: var(--text); border-bottom: 1px solid var(--line); }
+.menu-row:last-child { border-bottom: 0; }
+.menu-row:active { background: var(--surface-2); }
+.menu-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); flex: none; }
+.menu-label { flex: 1; font-size: 15px; min-width: 0; }
+.menu-value { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.menu-chev { color: var(--muted); flex: none; }
+
+/* Wishlist */
+.prio { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line-strong); color: var(--text-2); white-space: nowrap; }
+.prio.p1 { background: var(--accent); border-color: var(--accent); color: #1a1208; }
+.prio.p2 { border-color: var(--accent); color: var(--accent); }
+.wish-row .spec { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.wish-want { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.wish-hero { display: flex; flex-direction: column; gap: 12px; }
+.wish-hero-img { aspect-ratio: 16 / 10; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; display: grid; place-items: center; color: var(--muted); }
+.wish-hero-img img { width: 100%; height: 100%; object-fit: cover; }
+.wish-hero-meta { display: flex; flex-direction: column; gap: 8px; }
+.wish-hero-meta .sub { font-size: 13px; color: var(--muted); }
+a.pill-btn { display: inline-flex; align-items: center; }

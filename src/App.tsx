@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useSettings } from './db';
 import { BottomNav, PriceProgress } from './components/ui';
 import { autoRefreshStale } from './lib/autoPrice';
@@ -7,7 +7,7 @@ import Collection from './pages/Collection';
 import Detail from './pages/Detail';
 import Edit from './pages/Edit';
 import Value from './pages/Value';
-import Data from './pages/Data';
+import WishlistPage, { WishDetail, WishEdit } from './pages/Wishlist';
 import SettingsPage from './pages/Settings';
 
 export default function App() {
@@ -38,7 +38,7 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [settings.priceToken, settings.autoPrice]);
 
-  const hideNav =loc.pathname.startsWith('/may/') || loc.pathname === '/them';
+  const hideNav = loc.pathname.startsWith('/may/') || loc.pathname === '/them' || /^\/wishlist\/.+/.test(loc.pathname);
 
   return (
     <div className="app">
@@ -48,8 +48,13 @@ export default function App() {
         <Route path="/may/:id/sua" element={<Edit />} />
         <Route path="/them" element={<Edit />} />
         <Route path="/gia-tri" element={<Value />} />
-        <Route path="/du-lieu" element={<Data />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/wishlist/them" element={<WishEdit />} />
+        <Route path="/wishlist/:id" element={<WishDetail />} />
+        <Route path="/wishlist/:id/sua" element={<WishEdit />} />
+        <Route path="/du-lieu" element={<Navigate to="/cai-dat/nhap-xuat" replace />} />
         <Route path="/cai-dat" element={<SettingsPage />} />
+        <Route path="/cai-dat/:section" element={<SettingsPage />} />
         <Route path="*" element={<Collection />} />
       </Routes>
       <PriceProgress raised={!hideNav} />

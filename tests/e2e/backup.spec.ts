@@ -11,7 +11,7 @@ test('sao lưu kèm ảnh rồi khôi phục trên máy trống', async ({ page 
   await page.locator('input[type=file]').setInputFiles(fixture('photo.jpg'));
   await expect.poll(async () => (await idb(page, 'photos')).length).toBe(1);
 
-  await page.goto('/du-lieu');
+  await page.goto('/cai-dat/sao-luu');
   await page.getByRole('button', { name: /Sao lưu ngay/ }).click();
   await expect(page.locator('.backup-file')).toContainText('4 máy · 1 ảnh');
   const dl = page.waitForEvent('download');
@@ -20,7 +20,7 @@ test('sao lưu kèm ảnh rồi khôi phục trên máy trống', async ({ page 
   await expect(page.locator('section[aria-label="Sao lưu"]')).toContainText('hôm nay');
 
   await wipe(page);
-  await page.goto('/du-lieu');
+  await page.goto('/cai-dat/sao-luu');
   await page.locator('section[aria-label="Sao lưu"] input[type=file]').setInputFiles({ name: 'kho-may-saoluu.zip', mimeType: 'application/zip', buffer: readFileSync(file) });
   await expect(page.getByRole('dialog', { name: 'Khôi phục' })).toContainText('4 máy · 1 ảnh');
   await page.getByRole('button', { name: 'Khôi phục', exact: true }).click();
@@ -34,7 +34,7 @@ test('sao lưu kèm ảnh rồi khôi phục trên máy trống', async ({ page 
 
 test('khôi phục không ghi đè bản sửa mới hơn', async ({ page }) => {
   await importSample(page);
-  await page.goto('/du-lieu');
+  await page.goto('/cai-dat/sao-luu');
   await page.getByRole('button', { name: /Sao lưu ngay/ }).click();
   const dl = page.waitForEvent('download');
   await page.getByRole('button', { name: /Tải file/ }).first().click();

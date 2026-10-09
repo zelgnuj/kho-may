@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { addPhotos, blankCamera, db, deletePhoto, patchCamera, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
+import { addPhotos, addPrice, blankCamera, db, deletePhoto, patchCamera, patchWish, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
 import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
 import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { lensTitle } from '../lib/specs';
@@ -61,6 +61,14 @@ export default function Edit() {
 
   const set = <K extends keyof Camera>(k: K, v: Camera[K]) => setC((prev) => ({ ...prev, [k]: v }));
 
+  // Mở từ wishlist ("Đã mua được"): điền sẵn hãng/mẫu
+  const [params] = useSearchParams();
+  const wishId = isNew ? params.get('wish') : null;
+  const wish = useLiveQuery(() => (wishId ? db.wishlist.get(wishId) : undefined), [wishId]);
+  useEffect(() => {
+    if (wish) setC((prev) => ({ ...prev, brand: wish.brand, model: wish.model, notes: wish.wantNote ? `Muốn: ${wish.wantNote}` : prev.notes }));
+  }, [wish?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Gợi ý loại máy khi gõ hãng + mẫu (chỉ khi người dùng chưa tự chọn)
   const guess = useMemo(() => guessType(c.brand, c.model), [c.brand, c.model]);
   useEffect(() => {
@@ -106,7 +114,11 @@ export default function Edit() {
     };
     await saveCamera(cam);
     if (pending.length) await addPhotos(cam.id, pending);
-    toast(isNew ? `Đã thêm ${cam.brand} ${cam.model}` : 'Đã lưu');
+    if (wish && !wish.acquiredAt) {
+      await patchWish(wish.id, { acquiredAt: Date.now(), acquiredCameraId: cam.id });
+      if (wish.marketValue != null) await addPrice(cam.id, wish.marketValue, wish.marketLow, wish.marketHigh, { source: 'auto', note: wish.marketNote, sources: wish.marketSources });
+    }
+    toast(wish ? `Đã chuyển ${cam.brand} ${cam.model} từ wishlist vào kho` : isNew ? `Đã thêm ${cam.brand} ${cam.model}` : 'Đã lưu');
     if (again) {
       setC({ ...blankCamera(), brand: cam.brand, format: cam.format });
       setTypeTouched(false);
@@ -124,8 +136,8 @@ export default function Edit() {
     <div className="page with-bar" style={{ paddingTop: 'calc(var(--safe-top) + 12px)', paddingBottom: 'calc(var(--safe-bottom) + 110px)' }}>
       <header className="topbar px">
         <button type="button" onClick={() => nav(-1)} style={{ height: 44, border: 0, background: 'transparent', fontSize: 15, color: 'var(--text-2)', padding: 0 }}>Hủy</button>
-        <h1>{isNew ? 'Thêm máy' : 'Sửa máy'}</h1>
-        {isNew ? <Link to="/du-lieu" style={{ fontSize: 13, height: 44, display: 'flex', alignItems: 'center' }}>Nhập CSV</Link> : <span style={{ width: 44 }} />}
+        <h1>{wish ? 'Đã mua được' : isNew ? 'Thêm máy' : 'Sửa máy'}</h1>
+        {isNew ? <Link to="/cai-dat/nhap-xuat" style={{ fontSize: 13, height: 44, display: 'flex', alignItems: 'center' }}>Nhập CSV</Link> : <span style={{ width: 44 }} />}
       </header>
 
       <section className="photo-row px" aria-label="Ảnh">

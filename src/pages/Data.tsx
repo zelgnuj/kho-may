@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCameras } from '../db';
 import { commitImport, exportCSV, parseCSVFile, type ImportPreview } from '../lib/csv';
 import { applyRestore, readBackup } from '../lib/backup';
-import { BackupPanel } from '../components/Backup';
+import { SubPage } from '../components/SubPage';
 import { TYPE_LABEL, fullName, money } from '../lib/format';
 import { toast } from '../lib/toast';
 import { Segmented } from '../components/ui';
@@ -83,14 +83,7 @@ export default function Data() {
   const importN = rows.length - (skipDup ? dupN : 0);
 
   return (
-    <div className="page">
-      <header className="px" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span className="eyebrow">Sao lưu & chuyển dữ liệu</span>
-        <h1 className="title-xl" style={{ fontSize: 44 }}>Nhập / Xuất</h1>
-      </header>
-
-      <BackupPanel />
-
+    <SubPage title="Nhập / Xuất">
       <section className="section px" aria-label="Nhập dữ liệu">
         <h2 className="h-mono">NHẬP VÀO</h2>
         {!preview ? (
@@ -177,8 +170,8 @@ export default function Data() {
       </section>
 
       <p className="px muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
-        Dữ liệu đang lưu ngay trên thiết bị này, chưa đồng bộ lên mạng. Bản sao lưu (.zip) chứa đủ máy, ảnh, lịch sử giá và nhật ký — giữ nó ở iCloud Drive hoặc Google Drive.
+        Muốn chuyển toàn bộ dữ liệu kèm ảnh sang máy khác, dùng Cài đặt → Sao lưu thay vì CSV.
       </p>
-    </div>
+    </SubPage>
   );
 }

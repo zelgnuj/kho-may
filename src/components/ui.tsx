@@ -7,7 +7,7 @@ import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/auto
 import { CameraArt } from './CameraArt';
 import { findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
-import { IconCamera, IconClose, IconData, IconPlus, IconSettings, IconTrend } from './Icons';
+import { IconCamera, IconClose, IconHeart, IconPlus, IconSettings, IconTrend } from './Icons';
 
 export function BottomNav() {
   const cls = ({ isActive }: { isActive: boolean }) => 'nav-item' + (isActive ? ' active' : '');
@@ -16,7 +16,7 @@ export function BottomNav() {
       <NavLink to="/" end className={cls}><IconCamera size={22} />Kho máy</NavLink>
       <NavLink to="/gia-tri" className={cls}><IconTrend size={22} />Giá trị</NavLink>
       <NavLink to="/them" className="nav-add" aria-label="Thêm máy"><IconPlus size={26} /></NavLink>
-      <NavLink to="/du-lieu" className={cls}><IconData size={22} />Dữ liệu</NavLink>
+      <NavLink to="/wishlist" className={cls}><IconHeart size={22} />Wishlist</NavLink>
       <NavLink to="/cai-dat" className={cls}><IconSettings size={22} />Cài đặt</NavLink>
     </nav>
   );

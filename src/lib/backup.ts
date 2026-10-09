@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Camera, type Photo, type PricePoint, type ServiceEntry, type Setting } from '../db';
+import { db, type Camera, type Photo, type PricePoint, type ServiceEntry, type Setting, type WishItem } from '../db';
 import { dataURLToBlob } from './images';
 
 /* ======================================================================
@@ -11,7 +11,7 @@ import { dataURLToBlob } from './images';
 /** Không đưa vào bản sao lưu: mã bí mật và bộ nhớ đệm */
 const SKIP_SETTING = (k: string) => k === 'priceToken' || k === 'contribToken' || k.startsWith('img:') || k === 'lastBackup' || k === 'backupSnooze';
 
-export interface BackupInfo { at: number; fp: string; cameras: number; photos: number; bytes: number }
+export interface BackupInfo { at: number; fp: string; cameras: number; photos: number; bytes: number; wishlist?: number }
 
 interface Payload {
   app: 'kho-may';
@@ -21,14 +21,16 @@ interface Payload {
   prices: PricePoint[];
   service: ServiceEntry[];
   settings: Setting[];
+  wishlist?: WishItem[];
   photos: { id: string; cameraId: string; createdAt: number; file?: string; type?: string; data?: string }[];
 }
 
 /** Dấu vân tay dữ liệu: đổi khi có máy/ảnh/giá/nhật ký mới hoặc sửa */
 export async function fingerprint() {
-  const [cams, photos, prices, service] = await Promise.all([db.cameras.toArray(), db.photos.count(), db.prices.count(), db.service.count()]);
+  const [cams, photos, prices, service, wish] = await Promise.all([db.cameras.toArray(), db.photos.count(), db.prices.count(), db.service.count(), db.wishlist.toArray()]);
   const last = cams.reduce((m, c) => Math.max(m, c.updatedAt ?? 0), 0);
-  return `${cams.length}:${last}:${photos}:${prices}:${service}`;
+  const lastW = wish.reduce((m, w) => Math.max(m, w.updatedAt ?? 0), 0);
+  return `${cams.length}:${last}:${photos}:${prices}:${service}:${wish.length}:${lastW}`;
 }
 
 const ext = (t: string) => (t.includes('png') ? 'png' : t.includes('webp') ? 'webp' : t.includes('heic') ? 'heic' : 'jpg');
@@ -36,9 +38,9 @@ const day = () => new Date().toISOString().slice(0, 10);
 
 /** Tạo file sao lưu (chưa lưu đi đâu) */
 export async function buildBackup(): Promise<{ file: File; info: BackupInfo }> {
-  const [cameras, prices, service, settings, photos] = await Promise.all([
+  const [cameras, prices, service, settings, photos, wishlist] = await Promise.all([
     db.cameras.toArray(), db.prices.toArray(), db.service.toArray(),
-    db.settings.filter((s) => !SKIP_SETTING(s.key)).toArray(), db.photos.toArray()
+    db.settings.filter((s) => !SKIP_SETTING(s.key)).toArray(), db.photos.toArray(), db.wishlist.toArray()
   ]);
   const files: Zippable = {};
   const photoMeta: Payload['photos'] = [];
@@ -47,12 +49,12 @@ export async function buildBackup(): Promise<{ file: File; info: BackupInfo }> {
     files[name] = [new Uint8Array(await p.blob.arrayBuffer()), { level: 0 }];
     photoMeta.push({ id: p.id, cameraId: p.cameraId, createdAt: p.createdAt, file: name, type: p.blob.type || 'image/jpeg' });
   }
-  const payload: Payload = { app: 'kho-may', version: 2, exportedAt: new Date().toISOString(), cameras, prices, service, settings, photos: photoMeta };
+  const payload: Payload = { app: 'kho-may', version: 2, exportedAt: new Date().toISOString(), cameras, prices, service, settings, wishlist, photos: photoMeta };
   files['backup.json'] = [strToU8(JSON.stringify(payload)), { level: 6 }];
   const zip = zipSync(files);
   const file = new File([zip], `kho-may-saoluu-${day()}.zip`, { type: 'application/zip' });
   const live = cameras.filter((c) => !c.deletedAt).length;
-  return { file, info: { at: Date.now(), fp: await fingerprint(), cameras: live, photos: photos.length, bytes: file.size } };
+  return { file, info: { at: Date.now(), fp: await fingerprint(), cameras: live, photos: photos.length, bytes: file.size, wishlist: wishlist.filter((w) => !w.deletedAt).length } };
 }
 
 export function canShareFile(file: File) {
@@ -120,12 +122,16 @@ export interface RestoreResult { added: number; updated: number; keptNewer: numb
 export async function applyRestore(plan: RestorePlan): Promise<RestoreResult> {
   const p = plan.payload;
   const r: RestoreResult = { added: 0, updated: 0, keptNewer: 0, photos: 0 };
-  await db.transaction('rw', [db.cameras, db.prices, db.service, db.settings, db.photos], async () => {
+  await db.transaction('rw', [db.cameras, db.prices, db.service, db.settings, db.photos, db.wishlist], async () => {
     for (const c of p.cameras ?? []) {
       const cur = await db.cameras.get(c.id);
       if (!cur) { await db.cameras.put(c); if (!c.deletedAt) r.added++; }
       else if ((c.updatedAt ?? 0) > (cur.updatedAt ?? 0)) { await db.cameras.put(c); r.updated++; }
       else if ((c.updatedAt ?? 0) < (cur.updatedAt ?? 0)) r.keptNewer++;
+    }
+    for (const w of p.wishlist ?? []) {
+      const cur = await db.wishlist.get(w.id);
+      if (!cur || (w.updatedAt ?? 0) > (cur.updatedAt ?? 0)) await db.wishlist.put(w);
     }
     const addMissing = async <T extends { id: string }>(table: typeof db.prices | typeof db.service, rows: T[]) => {
       if (!rows.length) return;

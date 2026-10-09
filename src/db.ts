@@ -79,12 +79,42 @@ export interface PricePoint { id: string; cameraId: string; date: number; value:
 export interface ServiceEntry { id: string; cameraId: string; date: string; text: string; cost?: string; createdAt: number }
 export interface Setting { key: string; value: unknown }
 
+/** 1 = rất muốn, 2 = muốn, 3 = để ngắm */
+export type WishPriority = 1 | 2 | 3;
+export interface WishItem {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  brand: string;
+  model: string;
+  type: CamType;
+  priority: WishPriority;
+  /** Giá muốn mua, VNĐ */
+  targetPrice?: number | null;
+  /** Tình trạng / phiên bản muốn (màu đen, còn hộp…) */
+  wantNote: string;
+  notes: string;
+  links: { url: string; label?: string }[];
+  marketValue?: number | null;
+  marketLow?: number | null;
+  marketHigh?: number | null;
+  marketUpdatedAt?: number | null;
+  marketCheckedAt?: number | null;
+  marketNote?: string;
+  marketSources?: PriceSource[];
+  /** Đã mua được → máy trong kho */
+  acquiredAt?: number | null;
+  acquiredCameraId?: string | null;
+}
+
 class KhoMayDB extends Dexie {
   cameras!: Table<Camera, string>;
   photos!: Table<Photo, string>;
   prices!: Table<PricePoint, string>;
   service!: Table<ServiceEntry, string>;
   settings!: Table<Setting, string>;
+  wishlist!: Table<WishItem, string>;
 
   constructor() {
     super('kho-may');
@@ -94,6 +124,9 @@ class KhoMayDB extends Dexie {
       prices: 'id, cameraId, date',
       service: 'id, cameraId, date',
       settings: 'key'
+    });
+    this.version(2).stores({
+      wishlist: 'id, createdAt, updatedAt, priority'
     });
   }
 }
@@ -155,6 +188,25 @@ export async function deletePhoto(photo: Photo) {
     const next = await db.photos.where('cameraId').equals(photo.cameraId).first();
     await patchCamera(photo.cameraId, { coverPhotoId: next?.id ?? null });
   }
+}
+
+/* ---------- Wishlist ---------- */
+
+export function blankWish(): WishItem {
+  const now = Date.now();
+  return { id: uid(), createdAt: now, updatedAt: now, brand: '', model: '', type: '', priority: 2, targetPrice: null, wantNote: '', notes: '', links: [] };
+}
+
+export async function saveWish(w: WishItem) {
+  await db.wishlist.put({ ...w, updatedAt: Date.now() });
+}
+
+export async function patchWish(id: string, patch: Partial<WishItem>) {
+  await db.wishlist.update(id, { ...patch, updatedAt: Date.now() });
+}
+
+export function useWishlist() {
+  return useLiveQuery(() => db.wishlist.filter((w) => !w.deletedAt).toArray(), []);
 }
 
 /* ---------- Cài đặt ---------- */

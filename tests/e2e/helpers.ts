@@ -11,7 +11,7 @@ export async function mockApis(page: Page) {
 }
 
 export async function importSample(page: Page) {
-  await page.goto('/du-lieu');
+  await page.goto('/cai-dat/nhap-xuat');
   await page.locator('section[aria-label="Nhập dữ liệu"] input[type=file]').setInputFiles(fixture('sample.csv'));
   await page.getByRole('button', { name: /^Nhập \d+ máy/ }).click();
   await page.waitForURL('**/');

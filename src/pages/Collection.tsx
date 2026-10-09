@@ -6,7 +6,7 @@ import { db, useCameras, useSettings, type Camera } from '../db';
 import { TYPE_LABEL, TYPE_ORDER, isZoom, lensLabel, trieu, trieuLabel } from '../lib/format';
 import { changePct, groupPrices } from '../lib/stats';
 import { CameraThumb } from '../components/ui';
-import { IconData, IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort } from '../components/Icons';
+import { IconFilm, IconGrid, IconList, IconSearch, IconShelf, IconSort } from '../components/Icons';
 
 type View = 'grid' | 'list' | 'shelf';
 const SORTS = [
@@ -104,7 +104,6 @@ export default function Collection() {
           <span className="eyebrow">{ownerLine}</span>
           <h1 className="title-xl">Kho máy</h1>
         </div>
-        <Link to="/du-lieu" className="icon-btn" aria-label="Nhập / xuất dữ liệu"><IconData /></Link>
       </header>
 
       {all.length > 0 && <BackupReminder />}
@@ -115,7 +114,7 @@ export default function Collection() {
             Kho đang trống. Nhập danh sách có sẵn (CSV từ CamDex hoặc file sao lưu), hoặc thêm từng máy.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link to="/du-lieu" className="btn">Nhập CSV</Link>
+            <Link to="/cai-dat/nhap-xuat" className="btn">Nhập CSV</Link>
             <Link to="/them" className="btn secondary">Thêm máy đầu tiên</Link>
           </div>
         </div>

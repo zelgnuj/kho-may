@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { blankCamera, db, type Camera, type Currency, uid } from '../db';
-import { guessLens, guessType } from './catalog';
+import { guessLens, guessType, loadCatalog } from './catalog';
 
 export type ImportSource = 'camdex' | 'khomay' | 'unknown';
 
@@ -105,6 +105,7 @@ function fromKhoMay(r: Record<string, string>): ImportRow {
 }
 
 export async function parseCSVFile(file: File): Promise<ImportPreview> {
+  await loadCatalog().catch(() => {}); // cần thư viện để nhận dạng loại máy & ống kính
   const text = await file.text();
   const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: 'greedy' });
   const fields = parsed.meta.fields ?? [];

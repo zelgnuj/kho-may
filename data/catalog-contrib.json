@@ -141,6 +141,19 @@
         "name": "Manual",
         "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
       }
+    },
+    {
+      "id": "olympus-35-dc",
+      "action": "edit",
+      "at": "2026-10-12",
+      "by": "ndllxxi",
+      "set": {
+        "commons_file": "My Olympus 35DC (4797809987).jpg"
+      },
+      "source": {
+        "name": "Manual",
+        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
+      }
     }
   ]
 }

@@ -85,6 +85,7 @@ export const en: Record<string, string> = {
   "Ảnh {0}/{1}": "Photo {0}/{1}",
   "Ảnh được tạo ngay trên máy, không kèm giá, số serial hay vị trí GPS của ảnh gốc.": "The image is made on your device, without prices, serial numbers or the original photo's GPS location.",
   "Ảnh mẫu ·": "Sample photo ·",
+  "Ảnh mẫu chỉ nhận ảnh trên Wikimedia Commons (để đúng bản quyền). Ảnh máy của bạn thì thêm bằng nút ảnh ở trang máy.": "Sample photos must come from Wikimedia Commons (so the licence is right). Add photos of your own camera with the photo button on its page.",
   "Ảnh mẫu trên Wikimedia Commons (tên file hoặc link)": "Sample photo on Wikimedia Commons (file name or link)",
   "Ảnh mẫu:": "Sample photo:",
   "Ảnh này của máy nào?{0}": "Which camera is this photo for?{0}",

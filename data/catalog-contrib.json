@@ -81,19 +81,6 @@
       }
     },
     {
-      "id": "olympus-pen-d3",
-      "action": "edit",
-      "at": "2026-10-12",
-      "by": "ndllxxi",
-      "set": {
-        "commons_file": "WFy2THVRxdAobVWhNjOmUsJGObnu5xlo3RFjKgzXzwTyz 48ld24J8ZKBUuMhmhDCEzHoTQx1YVhW47-yQ73dkzyPvobfgb5kjO2NBcmSpHV4kZFEqwxh3O1sZISLMT4RlJzxZdC-356zfzIEwsw7xaqeGBuxPpkPQRahs 9Sc5Z9hgMWD2CmZF43rGzSDR9?purpose=fullsize"
-      },
-      "source": {
-        "name": "Manual",
-        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_pen_d3.pdf"
-      }
-    },
-    {
       "id": "olympus-35-dc",
       "action": "add",
       "at": "2026-10-12",
@@ -148,21 +135,7 @@
           "focus": "Rangefinder",
           "exposure": "Cds",
           "battery": "PX625/MR625 1.35V"
-        },
-        "commons_file": "cQcbjloYbH7ZJmzEyYLrCpl-W7iLjpBJiQzZyFCZ1yDseRsugbO0VymJ2UAGx1e9wAWqzkELtQd3koONfFoLQfn9lVlLYje0OD9lCPBxb 8cyysAWVO0tVpy hZ19Ax2tJ2Ep1vhFEyp1UorXJoDBthROfepRZ91w6uGmT09LBa9xxja95CysA6-b30Ey7EX?purpose=fullsize"
-      },
-      "source": {
-        "name": "Manual",
-        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
-      }
-    },
-    {
-      "id": "olympus-35-dc",
-      "action": "edit",
-      "at": "2026-10-12",
-      "by": "ndllxxi",
-      "set": {
-        "commons_file": "s-DSC00608 dc652379-10f8-4217-819a-07e92e120566 1024x1024@2x.jpg?v=1682329065"
+        }
       },
       "source": {
         "name": "Manual",

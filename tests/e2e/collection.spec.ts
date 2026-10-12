@@ -189,3 +189,21 @@ test('sửa thông số: tự điền lại nguồn lần trước, không bắt
     return rows.find((r) => r.key === 'catalogContrib')?.value?.find((x) => x.c.id === 'canon-ae-1')?.c.source?.name ?? null;
   }).toBe(prev);
 });
+
+test('ảnh mẫu: chỉ nhận ảnh Wikimedia Commons, link nơi khác bị báo', async ({ page }) => {
+  await importSample(page);
+  const ae1 = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'AE-1')!;
+  await page.goto(`/may/${ae1.id}`);
+  await page.getByRole('button', { name: 'Sửa thông số' }).click();
+  const img = page.getByLabel(/Ảnh mẫu trên Wikimedia Commons/);
+  await img.fill('https://lh3.googleusercontent.com/abc123?purpose=fullsize');
+  await page.getByRole('button', { name: 'Lưu đóng góp' }).click();
+  await expect(page.getByText(/chỉ nhận ảnh trên Wikimedia Commons/)).toBeVisible();
+
+  await img.fill('https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Canon_AE-1_Program.jpg/800px-Canon_AE-1_Program.jpg');
+  await page.getByRole('button', { name: 'Lưu đóng góp' }).click();
+  await expect.poll(async () => {
+    const rows = await idb<{ key: string; value: { c: { id: string; set: { commons_file?: string } } }[] }>(page, 'settings');
+    return rows.find((r) => r.key === 'catalogContrib')?.value?.find((x) => x.c.id === 'canon-ae-1')?.c.set.commons_file ?? null;
+  }).toBe('Canon AE-1 Program.jpg');
+});

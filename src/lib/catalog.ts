@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { CamType, LensSpec } from '../db';
 import { db } from '../db';
 import { applyContributions } from '../../scripts/catalog-merge.mjs';
+import { commonsFileFrom } from './commons';
 import type { CatalogModel, Contribution, LensConfig } from './catalogTypes';
 
 /* ======================================================================
@@ -39,7 +40,14 @@ export async function pendingContributions(): Promise<{ c: Contribution; syncedA
 }
 
 export async function refreshCatalog() {
-  const pending = (await pendingContributions()).map((p) => p.c);
+  // Bỏ ảnh mẫu không phải file Commons (bản cũ của form từng nhận link ảnh bất kỳ)
+  const pending = (await pendingContributions()).map((p) => {
+    const f = p.c.set?.commons_file;
+    if (f == null || commonsFileFrom(String(f)) === f) return p.c;
+    const { commons_file: _drop, ...set } = p.c.set;
+    void _drop;
+    return { ...p.c, set };
+  });
   rebuild(pending);
 }
 

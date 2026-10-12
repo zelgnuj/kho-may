@@ -8,6 +8,7 @@ import { todayISO } from '../lib/format';
 import { toast } from '../lib/toast';
 import { Segmented, Sheet } from './ui';
 import { tx } from '../lib/i18n';
+import { commonsFileFrom } from '../lib/commons';
 
 /** Loại máy trong form = loại film/số + camera_type (+ half-frame) của thư viện */
 const KINDS: { value: string; media: 'film' | 'digital'; type: string; half?: boolean; label: () => string }[] = [
@@ -131,11 +132,15 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     if (changed('battery') && f.battery.trim()) tv.battery = f.battery.trim();
     if (changed('note') && f.note.trim()) tv.note = f.note.trim();
     if (Object.keys(tv).length) s.text_vi = tv;
-    if (changed('image') && f.image.trim()) s.commons_file = decodeURIComponent(f.image.trim().split('/').pop()!.replace(/^File:/i, '')).replace(/_/g, ' ');
+    if (changed('image') && f.image.trim()) { const file = commonsFileFrom(f.image); if (file) s.commons_file = file; }
     return JSON.parse(JSON.stringify(s));
   };
 
   const save = async () => {
+    if (changed('image') && f.image.trim() && !commonsFileFrom(f.image)) {
+      toast(tx("Ảnh mẫu chỉ nhận ảnh trên Wikimedia Commons (để đúng bản quyền). Ảnh máy của bạn thì thêm bằng nút ảnh ở trang máy."));
+      return;
+    }
     const s = buildSet();
     if (!Object.keys(s).length) { toast(tx("Bạn chưa thay đổi gì")); return; }
     if (isAdd && (!f.brand.trim() || !f.model.trim())) { toast(tx("Cần có hãng và tên mẫu")); return; }

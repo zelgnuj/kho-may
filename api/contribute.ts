@@ -25,6 +25,7 @@ function valid(c: any): string | null {
   if (!c.set || typeof c.set !== 'object') return 'Không có gì để lưu';
   if (JSON.stringify(c).length > 20000) return 'Đóng góp quá lớn';
   if (c.source?.url && !/^https?:\/\//.test(c.source.url)) return 'Link nguồn không hợp lệ';
+  if (c.set.commons_file != null && !/^[^/?#\\|<>[\]{}]{1,220}\.(jpe?g|png|tiff?|webp|gif|svg)$/i.test(String(c.set.commons_file))) return 'Ảnh mẫu phải là tên file trên Wikimedia Commons';
   return null;
 }
 

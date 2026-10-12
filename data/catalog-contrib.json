@@ -41,7 +41,14 @@
         "film": {
           "format": "135",
           "iso_min": 10,
-          "iso_max": 400
+          "iso_max": 400,
+          "frame_sizes_mm": [
+            {
+              "mode": "half_frame",
+              "width_mm": 18,
+              "height_mm": 24
+            }
+          ]
         },
         "lens": {
           "kind": "built_in",

@@ -154,6 +154,19 @@
         "name": "Manual",
         "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
       }
+    },
+    {
+      "id": "olympus-pen-d3",
+      "action": "edit",
+      "at": "2026-10-12",
+      "by": "ndllxxi",
+      "set": {
+        "commons_file": "Pen D3.jpg"
+      },
+      "source": {
+        "name": "Manual",
+        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_pen_d3.pdf"
+      }
     }
   ]
 }

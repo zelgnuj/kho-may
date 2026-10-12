@@ -155,6 +155,19 @@
         "name": "Manual",
         "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
       }
+    },
+    {
+      "id": "olympus-35-dc",
+      "action": "edit",
+      "at": "2026-10-12",
+      "by": "ndllxxi",
+      "set": {
+        "commons_file": "s-DSC00608 dc652379-10f8-4217-819a-07e92e120566 1024x1024@2x.jpg?v=1682329065"
+      },
+      "source": {
+        "name": "Manual",
+        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
+      }
     }
   ]
 }

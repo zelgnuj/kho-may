@@ -92,6 +92,69 @@
         "name": "Manual",
         "url": "https://www.cameramanuals.org/olympus_pdf/olympus_pen_d3.pdf"
       }
+    },
+    {
+      "id": "olympus-35-dc",
+      "action": "add",
+      "at": "2026-10-12",
+      "by": "ndllxxi",
+      "set": {
+        "brand": "Olympus",
+        "model": "35 DC",
+        "release": {
+          "year": 1971,
+          "month": 4
+        },
+        "camera_type": "rangefinder",
+        "media": "film",
+        "film": {
+          "format": "135",
+          "iso_min": 25,
+          "iso_max": 800
+        },
+        "lens": {
+          "kind": "built_in",
+          "configurations": [
+            {
+              "role": "taking_lens",
+              "focal_length_min_mm": 40,
+              "focal_length_max_mm": 40,
+              "max_aperture_wide_f": 1.7,
+              "max_aperture_tele_f": 1.7,
+              "elements": 6,
+              "groups": 4
+            }
+          ]
+        },
+        "shutter": {
+          "slowest_s": 0.06666666666666667,
+          "fastest_s": 0.002
+        },
+        "body": {
+          "measurements": [
+            {
+              "width_mm": 114,
+              "height_mm": 71,
+              "depth_mm": 57
+            }
+          ],
+          "weights": [
+            {
+              "g": 490
+            }
+          ]
+        },
+        "text_vi": {
+          "focus": "Rangefinder",
+          "exposure": "Cds",
+          "battery": "PX625/MR625 1.35V"
+        },
+        "commons_file": "cQcbjloYbH7ZJmzEyYLrCpl-W7iLjpBJiQzZyFCZ1yDseRsugbO0VymJ2UAGx1e9wAWqzkELtQd3koONfFoLQfn9lVlLYje0OD9lCPBxb 8cyysAWVO0tVpy hZ19Ax2tJ2Ep1vhFEyp1UorXJoDBthROfepRZ91w6uGmT09LBa9xxja95CysA6-b30Ey7EX?purpose=fullsize"
+      },
+      "source": {
+        "name": "Manual",
+        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_35dc.pdf"
+      }
     }
   ]
 }

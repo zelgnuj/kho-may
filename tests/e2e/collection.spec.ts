@@ -147,3 +147,28 @@ test('thẻ máy mặc định không hiện giá, chọn giá thị trường h
   await expect(page.locator('.grid .card', { hasText: 'giá mua' }).first()).toBeVisible();
   await expect(page.locator('.grid .card .val', { hasText: '1,5 tr' })).toHaveCount(1);
 });
+
+test('thêm mẫu vào thư viện: chọn được Half-frame và máy số', async ({ page }) => {
+  await page.goto('/them');
+  await page.getByRole('button', { name: /Chọn hãng/ }).click();
+  await page.getByLabel('Tìm hãng').fill('olympus');
+  await page.locator('[aria-label="Danh sách hãng"] .pick-row').first().click();
+  await page.getByLabel('Tìm mẫu').fill('Pen Thử Nghiệm');
+  await page.locator('.pick-free').click();
+  await page.getByRole('button', { name: 'Lưu máy' }).click();
+  await page.waitForURL(/\/may\//);
+
+  await page.getByRole('button', { name: /vào thư viện/ }).click();
+  const kind = page.getByLabel('Loại máy');
+  const options = await kind.locator('option').allTextContents();
+  expect(options).toEqual(expect.arrayContaining(['Half-frame', 'DSLR', 'Mirrorless', 'Compact số']));
+  await kind.selectOption('half');
+  await page.getByLabel('Tên nguồn').fill('Sách hướng dẫn');
+  await page.getByRole('button', { name: 'Lưu đóng góp' }).click();
+
+  await expect.poll(async () => {
+    const rows = await idb<{ key: string; value: { c: { set: { camera_type?: string; media?: string; film?: { frame_sizes_mm?: { mode?: string }[] } } } }[] }>(page, 'settings');
+    const s = rows.find((r) => r.key === 'catalogContrib')?.value?.[0]?.c?.set;
+    return s ? [s.media, s.camera_type, s.film?.frame_sizes_mm?.[0]?.mode] : null;
+  }).toEqual(['film', 'compact', 'half_frame']);
+});

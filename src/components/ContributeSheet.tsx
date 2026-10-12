@@ -9,10 +9,28 @@ import { toast } from '../lib/toast';
 import { Segmented, Sheet } from './ui';
 import { tx } from '../lib/i18n';
 
-const TYPES = [
-  { value: 'compact', label: 'Compact / PNS' }, { value: 'rangefinder', label: 'Rangefinder' }, { value: 'slr', label: 'SLR' },
-  { value: 'tlr', label: 'TLR' }, { value: 'instant', label: 'Instant' }, { value: 'mirrorless', label: 'Mirrorless' }
+/** Loại máy trong form = loại film/số + camera_type (+ half-frame) của thư viện */
+const KINDS: { value: string; media: 'film' | 'digital'; type: string; half?: boolean; label: () => string }[] = [
+  { value: 'compact', media: 'film', type: 'compact', label: () => 'Compact / PNS' },
+  { value: 'rangefinder', media: 'film', type: 'rangefinder', label: () => 'Rangefinder' },
+  { value: 'slr', media: 'film', type: 'slr', label: () => 'SLR' },
+  { value: 'half', media: 'film', type: 'compact', half: true, label: () => 'Half-frame' },
+  { value: 'tlr', media: 'film', type: 'tlr', label: () => 'TLR' },
+  { value: 'instant', media: 'film', type: 'instant', label: () => 'Instant' },
+  { value: 'dig-compact', media: 'digital', type: 'compact', label: () => tx("Compact số") },
+  { value: 'dig-mirrorless', media: 'digital', type: 'mirrorless', label: () => 'Mirrorless' },
+  { value: 'dig-slr', media: 'digital', type: 'slr', label: () => 'DSLR' },
+  { value: 'dig-rangefinder', media: 'digital', type: 'rangefinder', label: () => tx("Rangefinder số") }
 ];
+const HALF_TYPES = ['compact', 'rangefinder', 'slr'];
+const isHalf = (m: CatalogModel | null) => !!m?.film?.frame_sizes_mm?.some((x) => x.mode === 'half_frame' || (x.width_mm === 18 && x.height_mm === 24) || (x.width_mm === 24 && x.height_mm === 18));
+function kindOf(m: CatalogModel | null): string {
+  if (!m) return 'compact';
+  if (m.media === 'digital') return KINDS.find((k) => k.media === 'digital' && k.type === m.camera_type)?.value ?? 'dig-compact';
+  if (m.camera_type === 'mirrorless') return 'dig-mirrorless';
+  if (isHalf(m)) return 'half';
+  return KINDS.find((k) => k.media === 'film' && !k.half && k.type === m.camera_type)?.value ?? 'compact';
+}
 
 const num = (s: string): number | undefined => {
   const v = parseFloat(s.replace(',', '.'));
@@ -42,8 +60,7 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     model: model?.model ?? modelName,
     year: str(model?.release?.year),
     month: str(model?.release?.month),
-    type: model?.camera_type ?? 'compact',
-    media: model?.media ?? 'film',
+    kind: kindOf(model),
     format: model?.film?.format ?? '135',
     lensKind: model?.lens?.kind === 'interchangeable' ? 'interchangeable' : 'built_in',
     mount: model?.lens?.mount ?? '',
@@ -64,6 +81,7 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
   };
   const [f, setF] = useState(init);
   const [busy, setBusy] = useState(false);
+  const kind = KINDS.find((k) => k.value === f.kind) ?? KINDS[0];
   const set = (k: keyof typeof init) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const changed = (...keys: (keyof typeof init)[]) => keys.some((k) => f[k] !== init[k]);
 
@@ -71,10 +89,19 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     const s: Partial<CatalogModel> = {};
     if (isAdd) { s.brand = f.brand.trim(); s.model = f.model.trim(); }
     if (isAdd || changed('year', 'month')) s.release = { year: num(f.year), month: num(f.month) };
-    if (isAdd || changed('type', 'media')) { s.camera_type = f.type; s.media = f.media as 'film' | 'digital'; }
-    if (isAdd || changed('format', 'isoMin', 'isoMax')) {
-      if (f.media === 'film') s.film = { format: f.format || undefined, iso_min: num(f.isoMin), iso_max: num(f.isoMax) };
-      else s.digital = { iso_min: num(f.isoMin), iso_max: num(f.isoMax) };
+    if (isAdd || changed('kind')) {
+      // Half-frame: giữ kiểu thân máy cũ nếu hợp (Pen F là SLR), không thì coi là compact
+      s.camera_type = kind.half && model?.camera_type && HALF_TYPES.includes(model.camera_type) && model.media !== 'digital' ? model.camera_type : kind.type;
+      s.media = kind.media;
+    }
+    if (isAdd || changed('kind', 'format', 'isoMin', 'isoMax')) {
+      if (kind.media === 'film') {
+        const frames = (model?.film?.frame_sizes_mm ?? []).filter((x) => x.mode !== 'half_frame');
+        s.film = {
+          ...(model?.film ?? {}), format: f.format || undefined, iso_min: num(f.isoMin), iso_max: num(f.isoMax),
+          frame_sizes_mm: kind.half ? [{ mode: 'half_frame', width_mm: 18, height_mm: 24 }] : isHalf(model) ? undefined : frames.length ? frames : undefined
+        };
+      } else s.digital = { ...(model?.digital ?? {}), iso_min: num(f.isoMin), iso_max: num(f.isoMax) };
     }
     if (isAdd || changed('lensKind', 'mount', 'fMin', 'fMax', 'aWide', 'aTele', 'elements', 'groups')) {
       const fMin = num(f.fMin), aWide = num(f.aWide);
@@ -134,10 +161,12 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
       <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>{tx("Chỉ những ô bạn sửa mới được ghi lại. Nhớ ghi nguồn để người khác kiểm tra được.")}</p>
       {isAdd && <div className="form-grid">{input(tx("Hãng"), 'brand', 'Olympus')}{input(tx("Tên mẫu"), 'model', 'Trip 35')}</div>}
       <div className="form-grid">{input(tx("Năm ra mắt"), 'year', '1994', true, 'decimal')}{input(tx("Tháng"), 'month', '9', true, 'decimal')}</div>
-      <Segmented label={tx("Film hay máy số")} value={f.media} onChange={(v) => setF((p) => ({ ...p, media: v }))} options={[{ value: 'film', label: tx("Máy film") }, { value: 'digital', label: tx("Máy số") }]} />
-      <label className="field">{tx("Loại máy")}<select className="input" value={f.type} onChange={set('type')}>{TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
+      <label className="field">{tx("Loại máy")}<select className="input" value={f.kind} onChange={set('kind')}>
+        <optgroup label={tx("Máy film")}>{KINDS.filter((k) => k.media === 'film').map((k) => <option key={k.value} value={k.value}>{k.label()}</option>)}</optgroup>
+        <optgroup label={tx("Máy số")}>{KINDS.filter((k) => k.media === 'digital').map((k) => <option key={k.value} value={k.value}>{k.label()}</option>)}</optgroup>
+      </select>
       </label>
-      {f.media === 'film' && input(tx("Khổ film"), 'format', '135, 120, 110…', true)}
+      {kind.media === 'film' && input(tx("Khổ film"), 'format', '135, 120, 110…', true)}
 
       <h3 className="h-mono" style={{ marginTop: 6 }}>{tx("ỐNG KÍNH")}</h3>
       <Segmented label={tx("Kiểu ống kính")} value={f.lensKind} onChange={(v) => setF((p) => ({ ...p, lensKind: v }))} options={[{ value: 'built_in', label: tx("Ống kính liền") }, { value: 'interchangeable', label: tx("Thay ống kính") }]} />

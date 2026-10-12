@@ -491,6 +491,11 @@ function silhouette(src: Src, color: string, r: number): HTMLCanvasElement {
   x.drawImage(src, r, r);
   x.globalCompositeOperation = 'source-in';
   x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+  // viền đặc: bỏ phần mờ (bóng tay nhoè, mép loang) để viền không bị lốm đốm
+  x.globalCompositeOperation = 'source-over';
+  const d = x.getImageData(0, 0, c.width, c.height);
+  for (let i = 3; i < d.data.length; i += 4) d.data[i] = d.data[i] > 100 ? 255 : 0;
+  x.putImageData(d, 0, 0);
   return c;
 }
 

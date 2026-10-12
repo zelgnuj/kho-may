@@ -109,3 +109,11 @@ test('trình diễn: tự chạy, chạm để chuyển, dừng, đóng', async 
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('cài đặt tách nền: thấy dung lượng mô hình chất lượng cao, chưa tải thì dùng mô hình cơ bản', async ({ page }) => {
+  await page.goto('/cai-dat');
+  await expect(page.getByRole('link', { name: /Tách nền ảnh máy/ })).toContainText('Cơ bản');
+  await page.getByRole('link', { name: /Tách nền ảnh máy/ }).click();
+  await expect(page.getByText('U²-Net (nhỏ)')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Tải mô hình chất lượng cao · 179 MB/ })).toBeVisible();
+});

@@ -434,3 +434,6 @@ button.nav-add { border: 0; cursor: pointer; }
 .stage-chip.on { background: #fff; color: #000; border-color: #fff; }
 @media (prefers-reduced-motion: reduce) { .stage-slide.on .stage-img { animation: none; } .stage-slide { transition-duration: .3s; } }
 .share-busy { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); font-size: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.7); color: #fff; white-space: nowrap; }
+.dl-progress { display: flex; flex-direction: column; gap: 8px; }
+.dl-progress .bar { height: 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.dl-progress .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }

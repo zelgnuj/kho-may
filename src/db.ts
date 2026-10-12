@@ -131,7 +131,9 @@ class KhoMayDB extends Dexie {
   syncMeta!: Table<SyncMeta, [string, string]>;
   thumbs!: Table<{ id: string; blob: Blob }, string>;
   /** Ảnh đã tách nền (PNG trong suốt), tạo trên máy, không đồng bộ */
-  cutouts!: Table<{ id: string; blob: Blob; v: number }, string>;
+  cutouts!: Table<{ id: string; blob: Blob; v: number | string }, string>;
+  /** Model AI tải về máy (vd. ISNet tách nền), không đồng bộ */
+  models!: Table<{ id: string; blob: Blob; version: number; size: number; at: number }, string>;
 
   constructor() {
     super('kho-may');
@@ -158,6 +160,9 @@ class KhoMayDB extends Dexie {
     // ảnh tách nền cho ảnh chia sẻ: cũng là bộ nhớ đệm, tạo lại được
     this.version(6).stores({
       cutouts: 'id'
+    });
+    this.version(7).stores({
+      models: 'id'
     });
   }
 }

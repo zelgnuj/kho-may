@@ -30,6 +30,11 @@ Bấm vào một máy → xem các roll đã chụp bằng máy đó → xem ả
 - Không làm được trên bản web/PWA: trình duyệt không được đọc album ảnh.
 - Làm cùng đợt với bản App Store (phụ thuộc mục trên).
 
+### Tách nền nhanh hơn
+
+- Chạy ISNet bằng GPU (WebGPU) thay vì CPU: nhanh hơn nhiều lần. Bản WebGPU của onnxruntime-web hiện lỗi khi chạy trong Web Worker; thử lại khi thư viện ổn định, hoặc chạy trên luồng chính khi app không bận.
+- Bản app native (App Store) có thể dùng thẳng công cụ tách nền của iOS.
+
 ### Trang trưng bày công khai
 
 Link riêng (vd `/u/ten`) cho người khác xem bộ sưu tập không cần cài app; bật/tắt từng máy, không bao giờ lộ giá, serial, nơi mua. Cần ảnh công khai riêng, giữ tên người dùng không trùng.

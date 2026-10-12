@@ -30,6 +30,12 @@ export default function App() {
     document.documentElement.style.setProperty('--accent', settings.accent);
   }, [settings.accent]);
 
+  // Đã tải mô hình tách nền chất lượng cao: tách sẵn các ảnh bìa khi app rảnh
+  useEffect(() => {
+    const t = window.setTimeout(() => { import('./lib/cutout').then((m) => m.precutAll()).catch(() => {}); }, 15000);
+    return () => window.clearTimeout(t);
+  }, []);
+
   // Cuộn: trang mới lên đầu; bấm lùi thì về đúng chỗ cũ. Sau khi chuyển trang, nhích cuộn 1px để
   // Safari trên iPhone vẽ lại toàn bộ màn hình (tránh lỗi màn hình đen chỉ còn vài mảng).
   const navType = useNavigationType();

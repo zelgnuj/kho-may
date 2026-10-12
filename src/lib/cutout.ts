@@ -1,56 +1,113 @@
-import type { InferenceSession } from 'onnxruntime-web';
+import { useEffect, useState } from 'react';
 import { db } from '../db';
+import { HQ_ID, hqModel } from './modelStore';
+import type { InMsg, ModelSpec, OutMsg } from '../workers/cutout.worker';
 
 /* ======================================================================
- * Tách nền ảnh máy ngay trên điện thoại bằng mô hình U²-Net (bản nhỏ u2netp, ~4,6 MB,
- * giấy phép Apache-2.0). Chạy bằng onnxruntime-web (WebAssembly), không gửi ảnh đi đâu.
- * Lần đầu tải mô hình + thư viện (vài MB), sau đó nằm trong bộ nhớ đệm.
- * Kết quả (PNG nền trong suốt, đã cắt sát chủ thể) lưu trong bảng cutouts theo id ảnh.
+ * Tách nền ảnh máy ngay trên điện thoại (ảnh không gửi đi đâu).
+ *  - ISNet (~179 MB, Apache-2.0): chất lượng cao, người dùng tải một lần ở Cài đặt.
+ *  - U²-Net bản nhỏ (u2netp, ~4,6 MB, Apache-2.0): dùng tạm khi chưa tải ISNet.
+ * Mô hình chạy trong Web Worker (CPU, WebAssembly) nên giao diện không bị đơ.
+ * Kết quả (PNG nền trong suốt, cắt sát chủ thể) lưu trong bảng cutouts theo id ảnh,
+ * kèm nhãn mô hình; khi có ISNet, ảnh tách bằng mô hình nhỏ sẽ được tách lại.
  * ====================================================================== */
 
-const VERSION = 2;
-const SIZE = 320;
-const MEAN = [0.485, 0.456, 0.406];
-const STD = [0.229, 0.224, 0.225];
+interface Engine { tag: string; spec: ModelSpec; curve: [number, number]; worker: Worker; backend: string; next: number; waiting: Map<number, { ok: (m: Float32Array) => void; fail: (e: Error) => void }> }
 
-type Ort = typeof import('onnxruntime-web/wasm');
-let loading: Promise<{ ort: Ort; s: InferenceSession }> | null = null;
+const SMALL: { tag: string; spec: ModelSpec; curve: [number, number] } = { tag: 'u2netp-2', spec: { size: 320, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225] }, curve: [0.35, 0.4] };
+const hqTag = (version: number) => `isnet-${version}d`;
+const HQ = (version: number) => ({ tag: hqTag(version), spec: { size: 1024, mean: [0.5, 0.5, 0.5], std: [1, 1, 1] }, curve: [0.4, 0.3] as [number, number] });
 
-function session() {
-  if (!loading) {
-    loading = (async () => {
-      const ort = await import('onnxruntime-web/wasm');
-      const wasm = (await import('onnxruntime-web/ort-wasm-simd-threaded.wasm?url')).default;
-      ort.env.wasm.wasmPaths = { wasm };
-      ort.env.wasm.numThreads = 1;
-      const s = await ort.InferenceSession.create('/models/u2netp.onnx', { executionProviders: ['wasm'] });
-      return { ort, s };
-    })();
-    loading.catch(() => { loading = null; });
-  }
-  return loading;
+let engineP: Promise<Engine> | null = null;
+
+function startWorker(model: ArrayBuffer | string, spec: ModelSpec): Promise<{ worker: Worker; backend: string }> {
+  const worker = new Worker(new URL('../workers/cutout.worker.ts', import.meta.url), { type: 'module' });
+  return new Promise((resolve, reject) => {
+    worker.onmessage = (e: MessageEvent<OutMsg>) => {
+      if (e.data.type === 'loaded') resolve({ worker, backend: e.data.backend });
+      else if (e.data.type === 'error') { worker.terminate(); reject(new Error(e.data.message)); }
+    };
+    worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'worker')); };
+    const msg: InMsg = { type: 'load', model, spec };
+    worker.postMessage(msg, typeof model === 'string' ? [] : [model]);
+  });
 }
 
-/** Bắt đầu tải sẵn mô hình (khi mở bảng chia sẻ) */
-export function warmCutout() { session().catch(() => {}); }
+function engine(): Promise<Engine> {
+  if (!engineP) {
+    engineP = (async () => {
+      const hq = await hqModel();
+      let base = SMALL;
+      let started: { worker: Worker; backend: string } | null = null;
+      if (hq) {
+        try {
+          base = HQ(hq.version);
+          started = await startWorker(await hq.blob.arrayBuffer(), base.spec);
+        } catch {
+          base = SMALL; started = null; // máy không đủ bộ nhớ / không chạy được → dùng mô hình nhỏ
+        }
+      }
+      if (!started) started = await startWorker(new URL('/models/u2netp.onnx', location.origin).href, SMALL.spec);
+      const eng: Engine = { ...base, ...started, next: 1, waiting: new Map() };
+      eng.worker.onmessage = (e: MessageEvent<OutMsg>) => {
+        const m = e.data;
+        if (m.type === 'result') { eng.waiting.get(m.id)?.ok(m.mask); eng.waiting.delete(m.id); }
+        else if (m.type === 'error' && m.id != null) { eng.waiting.get(m.id)?.fail(new Error(m.message)); eng.waiting.delete(m.id); }
+      };
+      return eng;
+    })();
+    engineP.catch(() => { engineP = null; });
+  }
+  return engineP;
+}
+
+/** Đổi mô hình (sau khi tải / xoá ISNet): dừng worker cũ, lần sau tạo lại */
+export async function resetCutoutEngine() {
+  const old = engineP;
+  engineP = null;
+  memory.clear();
+  try { (await old)?.worker.terminate(); } catch { /* */ }
+}
+
+/** Bắt đầu nạp sẵn mô hình (khi mở bảng chia sẻ) */
+export function warmCutout() { engine().catch(() => {}); }
+
+/** Mô hình đang dùng + chạy bằng GPU hay CPU */
+export async function cutoutEngineInfo() {
+  const e = await engine();
+  return { hq: e.tag.startsWith('isnet'), backend: e.backend };
+}
+
+function runMask(e: Engine, rgba: Uint8ClampedArray): Promise<Float32Array> {
+  return new Promise((ok, fail) => {
+    const id = e.next++;
+    e.waiting.set(id, { ok, fail });
+    const msg: InMsg = { type: 'run', id, rgba };
+    e.worker.postMessage(msg, [rgba.buffer]);
+  });
+}
 
 const memory = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 /**
  * Ảnh tách nền của một ảnh. key = id ảnh (để lưu lại); null nếu không tách được
- * (mô hình không tải được, hoặc kết quả trông không giống một vật thể).
+ * (mô hình không chạy được, hoặc kết quả trông không giống một vật thể).
  */
 export function cutout(img: HTMLImageElement, key?: string): Promise<HTMLCanvasElement | null> {
   if (key && memory.has(key)) return memory.get(key)!;
   const job = (async () => {
+    const hq = await hqModel();
     if (key) {
       const row = await db.cutouts.get(key).catch(() => undefined);
-      if (row && row.v === VERSION) return blobToCanvas(row.blob);
+      // ảnh đã tách: dùng lại, trừ khi đã có mô hình tốt hơn / bản tách mới hơn
+      if (row && (hq ? row.v === hqTag(hq.version) : row.v === SMALL.tag)) return blobToCanvas(row.blob);
     }
-    const out = await run(img).catch(() => null);
+    const e = await engine().catch(() => null);
+    if (!e) return null;
+    const out = await run(e, img).catch(() => null);
     if (out && key) {
       const blob = await new Promise<Blob | null>((r) => out.toBlob(r, 'image/png'));
-      if (blob) await db.cutouts.put({ id: key, blob, v: VERSION }).catch(() => {});
+      if (blob) await db.cutouts.put({ id: key, blob, v: e.tag }).catch(() => {});
     }
     return out;
   })();
@@ -67,39 +124,34 @@ async function blobToCanvas(blob: Blob) {
   return c;
 }
 
-async function run(img: HTMLImageElement): Promise<HTMLCanvasElement | null> {
-  const { ort, s } = await session();
-
-  // 1. Đầu vào 320×320, chuẩn hoá theo ImageNet
+async function run(e: Engine, img: HTMLImageElement): Promise<HTMLCanvasElement | null> {
+  const S = e.spec.size;
+  // 1. Ảnh vào: kéo về S×S
   const inp = document.createElement('canvas');
-  inp.width = SIZE; inp.height = SIZE;
+  inp.width = S; inp.height = S;
   const ic = inp.getContext('2d', { willReadFrequently: true })!;
-  ic.drawImage(img, 0, 0, SIZE, SIZE);
-  const px = ic.getImageData(0, 0, SIZE, SIZE).data;
-  const data = new Float32Array(3 * SIZE * SIZE);
-  for (let i = 0; i < SIZE * SIZE; i++) {
-    for (let ch = 0; ch < 3; ch++) data[ch * SIZE * SIZE + i] = (px[i * 4 + ch] / 255 - MEAN[ch]) / STD[ch];
-  }
-  const res = await s.run({ [s.inputNames[0]]: new ort.Tensor('float32', data, [1, 3, SIZE, SIZE]) });
-  const pred = res[s.outputNames[0]].data as Float32Array;
+  ic.drawImage(img, 0, 0, S, S);
+  const pred = await runMask(e, ic.getImageData(0, 0, S, S).data);
 
-  // 2. Mặt nạ: chuẩn hoá về 0..1, làm gắt mép một chút
+  // 2. Mặt nạ: chuẩn hoá 0..1, làm gắt mép (bỏ vùng mờ như bàn tay nhoè)
   let lo = Infinity, hi = -Infinity;
   for (const v of pred) { if (v < lo) lo = v; if (v > hi) hi = v; }
   const span = hi - lo || 1;
+  const [c0, cw] = e.curve;
   const mask = document.createElement('canvas');
-  mask.width = SIZE; mask.height = SIZE;
+  mask.width = S; mask.height = S;
   const mc = mask.getContext('2d')!;
-  const md = mc.createImageData(SIZE, SIZE);
+  const md = mc.createImageData(S, S);
   let covered = 0;
-  for (let i = 0; i < SIZE * SIZE; i++) {
+  for (let i = 0; i < S * S; i++) {
     const v = (pred[i] - lo) / span;
-    const a = Math.max(0, Math.min(1, (v - 0.35) / 0.4));
+    const a = Math.max(0, Math.min(1, (v - c0) / cw));
     if (a > 0.5) covered++;
     md.data[i * 4 + 3] = Math.round(a * 255);
   }
+  covered -= keepMainBlobs(md.data, S);
   mc.putImageData(md, 0, 0);
-  const ratio = covered / (SIZE * SIZE);
+  const ratio = covered / (S * S);
   if (ratio < 0.02 || ratio > 0.92) return null; // không thấy vật thể rõ ràng
 
   // 3. Áp mặt nạ lên ảnh (tối đa 1400px cạnh dài)
@@ -128,3 +180,99 @@ async function run(img: HTMLImageElement): Promise<HTMLCanvasElement | null> {
   crop.getContext('2d')!.drawImage(out, x0, y0, crop.width, crop.height, 0, 0, crop.width, crop.height);
   return crop;
 }
+
+/**
+ * Bỏ các mảng rời nhỏ (đồ vật lặt vặt phía sau), chỉ giữ mảng lớn nhất và các mảng
+ * đáng kể khác (vd. đèn flash đặt cạnh máy). Trả về số điểm ảnh đã bỏ.
+ */
+function keepMainBlobs(px: Uint8ClampedArray, S: number) {
+  const n = S * S;
+  const label = new Int32Array(n);
+  const sizes: number[] = [0];
+  const queue = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    if (label[i] || px[i * 4 + 3] < 128) continue;
+    const id = sizes.length;
+    let head = 0, tail = 0, count = 0;
+    queue[tail++] = i; label[i] = id;
+    while (head < tail) {
+      const j = queue[head++]; count++;
+      const x = j % S, y = (j / S) | 0;
+      const nb = [x > 0 ? j - 1 : -1, x < S - 1 ? j + 1 : -1, y > 0 ? j - S : -1, y < S - 1 ? j + S : -1];
+      for (const k of nb) if (k >= 0 && !label[k] && px[k * 4 + 3] >= 128) { label[k] = id; queue[tail++] = k; }
+    }
+    sizes.push(count);
+  }
+  const big = Math.max(0, ...sizes);
+  // vùng giữ lại = các mảng đủ lớn, nới rộng vài điểm để giữ mép mờ cho mượt
+  let keep = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (label[i] && sizes[label[i]] >= big * 0.3) keep[i] = 1;
+  for (let pass = 0; pass < Math.max(2, Math.round(S / 160)); pass++) {
+    const next = keep.slice();
+    for (let i = 0; i < n; i++) {
+      if (keep[i]) continue;
+      const x = i % S;
+      if ((x > 0 && keep[i - 1]) || (x < S - 1 && keep[i + 1]) || (i >= S && keep[i - S]) || (i < n - S && keep[i + S])) next[i] = 1;
+    }
+    keep = next;
+  }
+  let removed = 0;
+  for (let i = 0; i < n; i++) {
+    if (!keep[i] && px[i * 4 + 3] > 0) { if (px[i * 4 + 3] >= 128) removed++; px[i * 4 + 3] = 0; }
+  }
+  return removed;
+}
+
+/* ---------- Tách nền sẵn cho mọi ảnh bìa (chạy nền, từng ảnh một) ---------- */
+
+export interface PrecutState { running: boolean; done: number; total: number }
+let pre: PrecutState = { running: false, done: 0, total: 0 };
+let stopFlag = false;
+const preListeners = new Set<() => void>();
+const setPre = (p: PrecutState) => { pre = p; preListeners.forEach((l) => l()); };
+
+/** Đếm ảnh bìa đã tách bằng ISNet / tổng số */
+export async function precutCounts() {
+  const cams = await db.cameras.filter((c) => !c.deletedAt && c.status === 'owned' && !!c.coverPhotoId).toArray();
+  const ids = cams.map((c) => c.coverPhotoId!);
+  const rows = await db.cutouts.bulkGet(ids);
+  const hq = await hqModel();
+  const done = hq ? rows.filter((r) => r?.v === hqTag(hq.version)).length : 0;
+  return { done, total: ids.length, ids };
+}
+
+export async function precutAll() {
+  const hq = await hqModel();
+  if (pre.running || !hq) return;
+  stopFlag = false;
+  const { ids, done, total } = await precutCounts();
+  setPre({ running: true, done, total });
+  let n = done;
+  for (const id of ids) {
+    if (stopFlag) break;
+    const row = await db.cutouts.get(id);
+    if (row?.v === hqTag(hq.version)) continue;
+    while (document.hidden && !stopFlag) await new Promise((r) => setTimeout(r, 2000));
+    const p = await db.photos.get(id);
+    if (p?.blob) {
+      const url = URL.createObjectURL(p.blob);
+      try {
+        const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+        await cutout(img, id);
+      } catch { /* bỏ qua ảnh lỗi */ } finally { URL.revokeObjectURL(url); }
+    }
+    n++;
+    setPre({ running: true, done: n, total });
+  }
+  setPre({ running: false, done: n, total });
+}
+
+export function stopPrecut() { stopFlag = true; }
+
+export function usePrecut() {
+  const [s, setS] = useState(pre);
+  useEffect(() => { const l = () => setS(pre); preListeners.add(l); return () => { preListeners.delete(l); }; }, []);
+  return s;
+}
+
+export { HQ_ID };

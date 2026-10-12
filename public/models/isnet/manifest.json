@@ -1,0 +1,24 @@
+{
+ "name": "isnet-general-use",
+ "version": 1,
+ "size": 178648008,
+ "sha256": "60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a",
+ "parts": [
+  "part-0.bin",
+  "part-1.bin",
+  "part-2.bin",
+  "part-3.bin"
+ ],
+ "input": 1024,
+ "mean": [
+  0.5,
+  0.5,
+  0.5
+ ],
+ "std": [
+  1,
+  1,
+  1
+ ],
+ "license": "Apache-2.0 (xuebinqin/DIS)"
+}

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  worker: { format: 'es' },
   plugins: [
     react(),
     VitePWA({
@@ -32,8 +33,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
-            // mô hình tách nền + WebAssembly: chỉ tải khi dùng ảnh chia sẻ, giữ lâu dài
-            urlPattern: ({ url }) => url.pathname.startsWith('/models/') || url.pathname.endsWith('.wasm'),
+            // mô hình tách nền nhỏ + WebAssembly: chỉ tải khi dùng ảnh chia sẻ, giữ lâu dài (ISNet lưu riêng trong IndexedDB)
+            urlPattern: ({ url }) => url.pathname === '/models/u2netp.onnx' || url.pathname.endsWith('.wasm'),
             handler: 'CacheFirst',
             options: { cacheName: 'cutout-model', expiration: { maxEntries: 6, maxAgeSeconds: 60 * 60 * 24 * 365 }, cacheableResponse: { statuses: [0, 200] } }
           },

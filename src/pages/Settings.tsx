@@ -15,7 +15,8 @@ import { SubPage } from '../components/SubPage';
 import { AccountPage, accountLabel } from '../components/Account';
 import { syncState as syncStateNow, useSync, wipeLocalKeepCloud } from '../lib/sync';
 import { Segmented } from '../components/ui';
-import { IconBook, IconChevron, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
+import { IconBook, IconChevron, IconImage, IconPalette, IconShield, IconSwap, IconTable, IconTag } from '../components/Icons';
+import { CutoutPage, useCutoutLabel } from '../components/CutoutSettings';
 import ImportExport from './Data';
 import { lang, locale, setLang, tx, type Lang } from '../lib/i18n';
 
@@ -32,6 +33,7 @@ export default function SettingsPage() {
     case 'thu-vien': return <LibraryPage />;
     case 'giao-dien': return <AppearancePage />;
     case 'tai-khoan': return <AccountPage />;
+    case 'tach-nen': return <CutoutPage />;
     default: return <SettingsHome />;
   }
 }
@@ -51,6 +53,7 @@ function MenuRow({ to, icon, label, value, warn }: { to: string; icon: ReactNode
 
 function SettingsHome() {
   const s = useSettings();
+  const cutoutLabel = useCutoutLabel();
   const cams = useCameras() ?? [];
   const wishN = useLiveQuery(() => db.wishlist.filter((w) => !w.deletedAt && !w.acquiredAt).count(), []) ?? 0;
   const backup = useBackupStatus();
@@ -104,6 +107,7 @@ function SettingsHome() {
         <h2 className="h-mono">{tx("HIỂN THỊ")}</h2>
         <div className="menu">
           <MenuRow to="/cai-dat/giao-dien" icon={<IconPalette size={18} />} label={tx("Giao diện")} value={{ grid: tx("Lưới"), list: tx("Danh sách"), shelf: tx("Kệ") }[s.defaultView]} />
+          <MenuRow to="/cai-dat/tach-nen" icon={<IconImage size={18} />} label={tx("Tách nền ảnh máy")} value={cutoutLabel} />
         </div>
       </section>
 

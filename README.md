@@ -99,7 +99,10 @@ Cài đặt → Sao lưu tạo một file `.zip` gồm `backup.json` + thư mụ
 ## Ảnh chia sẻ (collage · pop art · sticker · phim)
 
 - Vẽ trên máy bằng canvas (`src/lib/shareCard.ts`), xuất JPEG mới nên không kèm EXIF/GPS.
-- Tách nền ảnh máy ngay trên điện thoại: mô hình U²-Net bản nhỏ `public/models/u2netp.onnx` (~4,6 MB, giấy phép Apache-2.0, nguồn: xuebinqin/U-2-Net qua danielgatis/rembg) chạy bằng `onnxruntime-web` (WebAssembly). Chỉ tải khi mở ảnh chia sẻ, sau đó nằm trong bộ nhớ đệm; ảnh đã tách lưu ở bảng `cutouts` (không đồng bộ).
+- Tách nền ảnh máy ngay trên điện thoại, chạy trong Web Worker bằng `onnxruntime-web` (WebAssembly), ảnh không gửi đi đâu:
+  - Mặc định: U²-Net bản nhỏ `public/models/u2netp.onnx` (~4,6 MB, Apache-2.0, nguồn xuebinqin/U-2-Net qua danielgatis/rembg).
+  - Chất lượng cao: ISNet general-use (~179 MB, Apache-2.0, nguồn xuebinqin/DIS qua danielgatis/rembg), chia 4 phần trong `public/models/isnet/` (mỗi phần < 50 MB, có `manifest.json`). Người dùng tải ở Cài đặt → Tách nền ảnh máy; lưu trong IndexedDB (bảng `models`), sau đó app tách sẵn các ảnh bìa khi rảnh.
+  - Ảnh đã tách lưu ở bảng `cutouts` kèm nhãn mô hình (không đồng bộ).
 
 ## Kiểm thử
 

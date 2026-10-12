@@ -3,6 +3,7 @@ import { ART } from '../components/CameraArt';
 import { cameraImage, loadImage } from './cameraImage';
 import { TYPE_LABEL, lensLabel } from './format';
 import { lang, tx } from './i18n';
+import { cutout } from './cutout';
 
 /* ======================================================================
  * Ảnh chia sẻ lên mạng xã hội, vẽ hoàn toàn trên máy bằng canvas.
@@ -15,7 +16,7 @@ import { lang, tx } from './i18n';
  * Mọi dòng chữ được xếp theo kích thước đo thật (kể cả dấu tiếng Việt) nên không chồng lên nhau.
  * ====================================================================== */
 
-export type CardStyle = 'poster' | 'instant' | 'film';
+export type CardStyle = 'collage' | 'pop' | 'sticker' | 'film';
 export type CardFormat = 'post' | 'story';
 
 const SIZE: Record<CardFormat, [number, number]> = { post: [1080, 1350], story: [1080, 1920] };
@@ -25,7 +26,6 @@ const SOFT = '#CFC7BA';
 const MUTED = '#8C857B';
 const ART_STROKE = '#77716A';
 const EDGE = '#F08A3C';
-const WOOD = '#2A1D15';
 const PRINT = '#F5F2EA';
 const INK = '#2B2723';
 
@@ -95,19 +95,6 @@ function art(ctx: Ctx, type: string, x: number, y: number, w: number, h: number,
   ctx.scale(scale, scale);
   ctx.strokeStyle = stroke; ctx.lineWidth = Math.min(2, 3 / scale); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.stroke(new Path2D(ART[type] ?? ART.RF));
-  ctx.restore();
-}
-
-/** Nền mờ từ chính ảnh (thu nhỏ rồi phóng to: chạy được cả trên Safari) */
-function blurBackdrop(ctx: Ctx, img: HTMLImageElement, w: number, h: number) {
-  const t = document.createElement('canvas');
-  t.width = 40; t.height = Math.round(40 * h / w);
-  const tc = t.getContext('2d')!;
-  cover(tc, img, 0, 0, t.width, t.height);
-  ctx.save();
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(t, -w * 0.05, -h * 0.05, w * 1.1, h * 1.1);
-  ctx.fillStyle = 'rgba(8,7,6,.5)'; ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 
@@ -219,21 +206,6 @@ const seedOf = (t: string) => [...t].reduce((a, ch) => (a * 31 + ch.charCodeAt(0
 
 /* ---------- Mặt bàn gỗ + ảnh lấy liền ---------- */
 
-function table(ctx: Ctx, w: number, h: number, seed: number) {
-  ctx.fillStyle = WOOD; ctx.fillRect(0, 0, w, h);
-  // thớ gỗ: các vệt ngang mờ, lệch nhau
-  const r = rng(seed);
-  for (let i = 0; i < 70; i++) {
-    const y = r() * h, th = 1 + r() * 5;
-    ctx.fillStyle = r() > 0.5 ? `rgba(255,220,180,${0.015 + r() * 0.03})` : `rgba(0,0,0,${0.04 + r() * 0.06})`;
-    ctx.fillRect(0, y, w, th);
-  }
-  const g = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.45, h * 0.8);
-  g.addColorStop(0, 'rgba(255,214,170,.12)');
-  g.addColorStop(1, 'rgba(0,0,0,.5)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-}
-
 interface PrintOpts { cx: number; cy: number; width: number; angle: number; img: HTMLImageElement | null; type: string; caption: string; sub?: string; corner?: string }
 
 /** Một tấm ảnh lấy liền: viền trắng, cằm dày, chú thích viết tay */
@@ -328,78 +300,11 @@ export async function renderCameraCard(cam: Camera, o: CameraCardOpts): Promise<
   const img = src ? await loadImage(src.src) : null;
   const credit = src && !src.own && src.credit ? `${tx("Ảnh mẫu:")} ${src.credit} / Wikimedia Commons` : null;
   src?.revoke?.();
-  const blob = o.style === 'instant' ? cameraInstant(cam, o, img, credit) : o.style === 'film' ? cameraFilm(cam, o, img, credit) : cameraPoster(cam, o, img, credit);
-  return blob;
-}
-
-/** Áp phích: ảnh tràn khung, tên máy thật to ở đáy */
-function cameraPoster(cam: Camera, o: CameraCardOpts, img: HTMLImageElement | null, credit: string | null) {
-  const { c, ctx, w, h } = canvas(o.format);
-  const sa = safe(o.format, h);
-  const M = 72;
-  if (img) {
-    const ar = img.naturalWidth / img.naturalHeight;
-    if (ar / (w / h) > 1.3) {
-      // ảnh ngang trong khung dọc: giữ trọn ảnh, nền là chính ảnh làm mờ
-      blurBackdrop(ctx, img, w, h);
-      const ph = w / ar;
-      const py = Math.max(sa.top + 80, h * 0.42 - ph / 2);
-      cover(ctx, img, 0, py, w, ph);
-    } else cover(ctx, img, 0, 0, w, h);
-  } else art(ctx, cam.type, 0, 0, w, h * 0.72, '#16140F');
-  // bóng tối để chữ nổi
-  const g = ctx.createLinearGradient(0, h * 0.4, 0, h);
-  g.addColorStop(0, 'rgba(8,7,6,0)'); g.addColorStop(0.55, 'rgba(8,7,6,.66)'); g.addColorStop(1, 'rgba(8,7,6,.94)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  const gt = ctx.createLinearGradient(0, 0, 0, sa.top + 160);
-  gt.addColorStop(0, 'rgba(8,7,6,.55)'); gt.addColorStop(1, 'rgba(8,7,6,0)');
-  ctx.fillStyle = gt; ctx.fillRect(0, 0, w, sa.top + 160);
-
-  // đầu: chữ ký trái, số thứ tự phải
-  const head = measure(ctx, 'Camera Cabinet', display(38, 700), 1.5);
-  wordmark(ctx, M, sa.top + head.asc, PAPER, 38, 'left');
-  if (o.index != null) draw(ctx, { text: numberTag(o.index), font: display(38, 700), color: o.accent, align: 'right' }, w - M, sa.top + head.asc);
-
-  // đáy: hãng → tên máy → thông số → film → chủ nhân
-  const maxW = w - M * 2;
-  const t = titleLines(ctx, cam.model.toUpperCase(), maxW, 300, 120, (s) => display(s));
-  const lines: Line[] = [{ text: cam.brand, font: sans(42, 600), color: SOFT, gap: 14, shadow: true }];
-  t.lines.forEach((l, i) => lines.push({ text: l, font: display(t.size), color: PAPER, gap: i < t.lines.length - 1 ? t.size * 0.06 : 34, shadow: true }));
-  let bottom = sa.bottom;
-  if (o.owner) {
-    draw(ctx, { text: clip(ctx, ownerLine(o.owner), maxW, sans(26)), font: sans(26), color: MUTED }, M, bottom - measure(ctx, 'g', sans(26)).desc);
-    bottom -= 26 + 30;
-  }
-  if (cam.film) {
-    const f = tx("Đang lắp {0}", cam.film.stock);
-    draw(ctx, { text: clip(ctx, f, maxW, sans(30, 600)), font: sans(30, 600), color: o.accent }, M, bottom - measure(ctx, f, sans(30, 600)).desc);
-    bottom -= 30 + 26;
-  }
-  const specs = specItems(cam);
-  if (specs.length) {
-    specRow(ctx, specs, M, bottom, maxW, 32, PAPER, o.accent);
-    bottom -= measure(ctx, 'H', sans(32)).asc + 34;
-  }
-  stackUp(ctx, lines.map((l, i) => (i === lines.length - 1 ? { ...l, gap: 0 } : l)), M, bottom);
-  if (credit) draw(ctx, { text: clip(ctx, credit, maxW, mono(16, 400)), font: mono(16, 400), color: 'rgba(243,239,231,.45)', align: 'right' }, w - M, sa.top + head.asc + 34);
-  return toBlob(c);
-}
-
-/** Ảnh lấy liền trên mặt bàn */
-function cameraInstant(cam: Camera, o: CameraCardOpts, img: HTMLImageElement | null, credit: string | null) {
-  const { c, ctx, w, h } = canvas(o.format, WOOD);
-  const sa = safe(o.format, h);
-  table(ctx, w, h, seedOf(cam.id));
-  const pw = o.format === 'story' ? 860 : 780;
-  const cy = o.format === 'story' ? (sa.top + sa.bottom) / 2 - 20 : (sa.top + sa.bottom - 70) / 2;
-  const sub = [cam.year ? String(cam.year) : null, lensLabel(cam.lens)].filter(Boolean).join(', ');
-  instantPrint(ctx, { cx: w / 2, cy, width: pw, angle: -0.035, img, type: cam.type, caption: `${cam.brand} ${cam.model}`, sub: sub || undefined, corner: o.index != null ? numberTag(o.index) : undefined });
-  // chân: chủ nhân trái, chữ ký phải
-  const base = sa.bottom;
-  if (o.owner) draw(ctx, { text: clip(ctx, ownerLine(o.owner), w - 72 * 2 - 320, sans(26)), font: sans(26), color: 'rgba(240,226,208,.7)' }, 72, base);
-  wordmark(ctx, w - 72, base, 'rgba(240,226,208,.85)', 34);
-  if (credit) draw(ctx, { text: clip(ctx, credit, w - 144, mono(16, 400)), font: mono(16, 400), color: 'rgba(240,226,208,.4)' }, 72, sa.top);
-  return toBlob(c);
+  if (o.style === 'film') return cameraFilm(cam, o, img, credit);
+  const key = src?.own ? (o.photoId ?? cam.coverPhotoId ?? undefined) : src ? `sample:${src.src}` : undefined;
+  const cut = img ? await cutout(img, key) : null;
+  const subject: Subject = { cam, img, cut };
+  return o.style === 'pop' ? cameraPop(subject, o, credit) : o.style === 'sticker' ? cameraSticker(subject, o, credit) : cameraCollage(subject, o, credit);
 }
 
 /** Dải phim 35mm */
@@ -494,96 +399,629 @@ export async function renderCollectionCard(cams: Camera[], o: CollectionCardOpts
   const total = pickForCollage(cams, 99).length;
   await fontsReady(ownerLine(o.owner).toUpperCase() + ownerLine(o.owner) + pickForCollage(cams, 12).map((c) => c.brand + c.model).join(''));
 
-  if (o.style === 'instant') {
-    const n = Math.min(total, story ? 6 : 4);
-    const pick = pickForCollage(cams, n);
-    const imgs = await Promise.all(pick.map(async (c) => { const s = await cameraImage(c, 'thumb'); return s ? loadImage(s.src) : null; }));
-    const { c, ctx, w } = canvas(o.format, WOOD);
-    table(ctx, w, H, seedOf(pick.map((x) => x.id).join('')));
-    const headBottom = collectionHeader(ctx, cams, o, sa.top, w, '#F0E2D0', o.accent);
-    const areaTop = headBottom + 30, areaBottom = sa.bottom - 70;
-    const cols = n <= 1 ? 1 : 2;
-    const rows = Math.max(1, Math.ceil(n / cols));
-    const cellW = (w - 72 * 2) / cols, cellH = (areaBottom - areaTop) / rows;
-    // bề rộng tấm ảnh: vừa ô (ảnh cao = 1.19 × rộng)
-    const pw = Math.min(cellW * 0.92, (cellH * 0.94) / 1.19, 620);
-    const r = rng(seedOf(pick.map((x) => x.model).join('')));
-    pick.forEach((cam, i) => {
-      const col = i % cols, row = Math.floor(i / cols);
-      const lastRowSingle = row === rows - 1 && n % cols === 1 && cols > 1;
-      const cx = 72 + (lastRowSingle ? (w - 144) / 2 : cellW * (col + 0.5)) + (r() - 0.5) * cellW * 0.08;
-      const cy = areaTop + cellH * (row + 0.5) + (r() - 0.5) * cellH * 0.06;
-      instantPrint(ctx, { cx, cy, width: pw, angle: (r() - 0.5) * 0.22, img: imgs[i], type: cam.type, caption: cam.model, sub: cam.brand });
-    });
-    collectionFooter(ctx, w, sa.bottom, 'rgba(240,226,208,.85)', 'rgba(240,226,208,.6)');
-    return toBlob(c);
+  if (o.style !== 'film') {
+    const pick = pickForCollage(cams, o.style === 'pop' ? (story ? 6 : 4) : story ? 8 : 6);
+    const subjects = await Promise.all(pick.map(async (cam) => {
+      const src = await cameraImage(cam, 'full');
+      const img = src ? await loadImage(src.src) : null;
+      const key = src?.own ? cam.coverPhotoId ?? undefined : src ? `sample:${src.src}` : undefined;
+      const cut = img ? await cutout(img, key) : null;
+      src?.revoke?.();
+      return { cam, img, cut } as Subject;
+    }));
+    return o.style === 'pop' ? collectionPop(subjects, cams, o) : o.style === 'sticker' ? collectionSticker(subjects, cams, o) : collectionCollage(subjects, cams, o);
   }
-
-  const film = o.style === 'film';
+  // Contact sheet: mỗi hàng là một dải phim, khung 3:2
   const { c, ctx, w } = canvas(o.format);
-  const gridTop = collectionHeader(ctx, cams, o, sa.top, w) + (film ? 34 : 40);
+  const gridTop = collectionHeader(ctx, cams, o, sa.top, w) + 34;
   const footerBase = sa.bottom;
   const avail = footerBase - 64 - gridTop;
   const M = 72;
-
-  let cols: number, cellW: number, cellH: number, gap: number, rows: number;
-  const band = 46;
-  if (film) {
-    cols = total >= 5 ? 3 : total >= 2 ? 2 : 1; gap = 22;
-    cellW = (W - M * 2 - gap * (cols - 1)) / cols;
-    cellH = cellW * 2 / 3 + band * 2;
-    rows = Math.min(Math.max(1, Math.floor((avail + gap) / (cellH + gap))), Math.max(1, Math.ceil(total / cols)));
-  } else {
-    gap = 12;
-    cols = total <= 1 ? 1 : total <= 4 ? 2 : 3;
-    const maxRows = cols === 3 ? (story ? 4 : 3) : 2;
-    rows = Math.min(maxRows, Math.max(1, Math.ceil(total / cols)));
-    cellW = Math.min((W - M * 2 - gap * (cols - 1)) / cols, (avail - gap * (rows - 1)) / rows);
-    cellH = cellW;
-  }
-  const n = Math.min(total, cols * rows);
-  const pick = pickForCollage(cams, n);
+  const band = 46, gap = 22;
+  const cols = total >= 5 ? 3 : total >= 2 ? 2 : 1;
+  const cellW = (W - M * 2 - gap * (cols - 1)) / cols;
+  const cellH = cellW * 2 / 3 + band * 2;
+  const rows = Math.min(Math.max(1, Math.floor((avail + gap) / (cellH + gap))), Math.max(1, Math.ceil(total / cols)));
+  const pick = pickForCollage(cams, Math.min(total, cols * rows));
   const imgs = await Promise.all(pick.map(async (cam) => { const s = await cameraImage(cam, 'thumb'); return s ? loadImage(s.src) : null; }));
   const gridH = rows * cellH + (rows - 1) * gap;
   const y0 = gridTop + Math.max(0, (avail - gridH) * 0.3);
-  const gridW = cols * cellW + (cols - 1) * gap;
-  const x0 = (w - gridW) / 2;
-
-  if (film) {
-    const fh = cellH - band * 2;
-    for (let r = 0; r < rows; r++) {
-      const y = y0 + r * (cellH + gap);
-      ctx.fillStyle = '#050505'; ctx.fillRect(0, y, w, cellH);
-      sprockets(ctx, 0, y, w, band, 'top');
-      sprockets(ctx, 0, y + cellH - band, w, band, 'bottom');
-      for (let k = 0; k < cols; k++) {
-        const i = r * cols + k;
-        const x = x0 + k * (cellW + gap);
-        const cam = pick[i];
-        if (!cam) { ctx.fillStyle = '#121110'; ctx.fillRect(x, y + band, cellW, fh); continue; }
-        if (imgs[i]) cover(ctx, imgs[i]!, x, y + band, cellW, fh); else art(ctx, cam.type, x, y + band, cellW, fh);
-        edgeText(ctx, clip(ctx, `▸ ${i + 1}  ${cam.model.toUpperCase()}`, cellW - 4, mono(16), 2.6), x + 2, y + cellH - band + 19, 16);
-      }
-    }
-  } else {
-    const lastRowCount = n - Math.floor((n - 1) / cols) * cols;
-    for (let i = 0; i < n; i++) {
-      const row = Math.floor(i / cols);
-      const shift = row === rows - 1 && lastRowCount < cols ? ((cols - lastRowCount) * (cellW + gap)) / 2 : 0;
-      const x = x0 + shift + (i % cols) * (cellW + gap);
-      const y = y0 + row * (cellH + gap);
-      ctx.save(); rounded(ctx, x, y, cellW, cellH, cols === 1 ? 24 : 14); ctx.clip();
-      if (imgs[i]) cover(ctx, imgs[i]!, x, y, cellW, cellH); else art(ctx, pick[i].type, x, y, cellW, cellH);
-      // tên máy nhỏ ở góc ô
-      const g = ctx.createLinearGradient(0, y + cellH * 0.6, 0, y + cellH);
-      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)');
-      ctx.fillStyle = g; ctx.fillRect(x, y + cellH * 0.6, cellW, cellH * 0.4);
-      const fs = Math.max(20, Math.round(cellW * 0.085));
-      draw(ctx, { text: clip(ctx, pick[i].model.toUpperCase(), cellW - 32, display(fs)), font: display(fs), color: PAPER }, x + 16, y + cellH - 16);
-      ctx.restore();
+  const x0 = (w - (cols * cellW + (cols - 1) * gap)) / 2;
+  const fh = cellH - band * 2;
+  for (let r = 0; r < rows; r++) {
+    const y = y0 + r * (cellH + gap);
+    ctx.fillStyle = '#050505'; ctx.fillRect(0, y, w, cellH);
+    sprockets(ctx, 0, y, w, band, 'top');
+    sprockets(ctx, 0, y + cellH - band, w, band, 'bottom');
+    for (let k = 0; k < cols; k++) {
+      const i = r * cols + k;
+      const x = x0 + k * (cellW + gap);
+      const cam = pick[i];
+      if (!cam) { ctx.fillStyle = '#121110'; ctx.fillRect(x, y + band, cellW, fh); continue; }
+      if (imgs[i]) cover(ctx, imgs[i]!, x, y + band, cellW, fh); else art(ctx, cam.type, x, y + band, cellW, fh);
+      edgeText(ctx, clip(ctx, `▸ ${i + 1}  ${cam.model.toUpperCase()}`, cellW - 4, mono(16), 2.6), x + 2, y + cellH - band + 19, 16);
     }
   }
   collectionFooter(ctx, w, footerBase, o.accent);
+  return toBlob(c);
+}
+
+/* ====================================================================== */
+/* Collage · Pop art · Sticker — dựng từ ảnh máy đã tách nền               */
+/* ====================================================================== */
+
+interface Subject { cam: Camera; img: HTMLImageElement | null; cut: HTMLCanvasElement | null }
+
+type Src = HTMLCanvasElement | HTMLImageElement;
+const srcW = (s: Src) => (s instanceof HTMLImageElement ? s.naturalWidth : s.width);
+const srcH = (s: Src) => (s instanceof HTMLImageElement ? s.naturalHeight : s.height);
+
+/** Ảnh dùng để dựng: ảnh tách nền; không có thì cắt ảnh gốc thành khung vuông bo góc; không có ảnh thì hình vẽ */
+function subjectCanvas(s: Subject, max = 1000): HTMLCanvasElement {
+  if (s.cut) return s.cut;
+  const c = document.createElement('canvas');
+  if (s.img) {
+    const side = Math.min(max, Math.min(s.img.naturalWidth, s.img.naturalHeight));
+    c.width = side; c.height = Math.round(side * 0.8);
+    const x = c.getContext('2d')!;
+    rounded(x, 0, 0, c.width, c.height, side * 0.05); x.clip();
+    cover(x, s.img, 0, 0, c.width, c.height);
+    return c;
+  }
+  c.width = 900; c.height = 600;
+  const x = c.getContext('2d')!;
+  x.translate(0, 0); x.scale(900 / 120, 600 / 80);
+  x.strokeStyle = '#2B2723'; x.lineWidth = 3.2; x.lineJoin = 'round'; x.lineCap = 'round';
+  x.fillStyle = '#F5F2EA';
+  const p = new Path2D(ART[s.cam.type] ?? ART.RF);
+  x.fill(p); x.stroke(p);
+  return c;
+}
+
+/** Hình bóng đặc của chủ thể, nở rộng thêm r px (để làm viền sticker / viền đen) */
+function silhouette(src: Src, color: string, r: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = srcW(src) + r * 2; c.height = srcH(src) + r * 2;
+  const x = c.getContext('2d')!;
+  const steps = Math.max(16, Math.min(48, Math.round(r * 1.5)));
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    x.drawImage(src, r + Math.cos(a) * r, r + Math.sin(a) * r);
+  }
+  x.drawImage(src, r, r);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
+/** Sticker cắt khuôn: viền trắng dày quanh chủ thể */
+function sticker(src: Src, border: number, edge = '#FFFFFF'): HTMLCanvasElement {
+  const sil = silhouette(src, edge, border);
+  const x = sil.getContext('2d')!;
+  x.globalCompositeOperation = 'source-over';
+  x.drawImage(src, border, border);
+  return sil;
+}
+
+/** Tách tông kiểu in lụa: tối → màu 1, giữa → màu 2, sáng → màu 3 */
+function posterize(src: Src, tones: [string, string, string]): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = srcW(src); c.height = srcH(src);
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  x.drawImage(src, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height);
+  const rgb = tones.map((t) => [parseInt(t.slice(1, 3), 16), parseInt(t.slice(3, 5), 16), parseInt(t.slice(5, 7), 16)]);
+  for (let i = 0; i < d.data.length; i += 4) {
+    if (d.data[i + 3] < 8) continue;
+    const l = 0.299 * d.data[i] + 0.587 * d.data[i + 1] + 0.114 * d.data[i + 2];
+    const t = l < 58 ? 0 : l < 150 ? 1 : 2;
+    d.data[i] = rgb[t][0]; d.data[i + 1] = rgb[t][1]; d.data[i + 2] = rgb[t][2];
+    d.data[i + 3] = d.data[i + 3] > 110 ? 255 : 0; // mép gắt như in lụa
+  }
+  x.putImageData(d, 0, 0);
+  return c;
+}
+
+/** Vẽ src vừa khung (contain), xoay quanh tâm, có bóng; trả về khung đã vẽ */
+function place(ctx: Ctx, src: Src, cx: number, cy: number, maxW: number, maxH: number, angle = 0, shadow?: { color: string; blur: number; dx: number; dy: number }) {
+  const sc = Math.min(maxW / srcW(src), maxH / srcH(src));
+  const w = srcW(src) * sc, h = srcH(src) * sc;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(angle);
+  if (shadow) { ctx.shadowColor = shadow.color; ctx.shadowBlur = shadow.blur; ctx.shadowOffsetX = shadow.dx; ctx.shadowOffsetY = shadow.dy; }
+  ctx.drawImage(src, -w / 2, -h / 2, w, h);
+  ctx.restore();
+  return { w, h };
+}
+
+/** Chấm Ben-Day: lưới chấm tròn, chấm to dần về một góc */
+function halftone(ctx: Ctx, x: number, y: number, w: number, h: number, color: string, step: number, from: 'tl' | 'br' | 'c' = 'br') {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = color;
+  for (let row = 0, py = y; py < y + h + step; row++, py += step * 0.866) {
+    for (let px = x + (row % 2 ? step / 2 : 0); px < x + w + step; px += step) {
+      const u = from === 'c' ? 1 - Math.hypot((px - x) / w - 0.5, (py - y) / h - 0.5) * 1.6
+        : from === 'tl' ? 1 - ((px - x) / w + (py - y) / h) / 2 : ((px - x) / w + (py - y) / h) / 2;
+      const r = step * 0.46 * Math.max(0.08, Math.min(1, u));
+      ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** Hình nổ kiểu truyện tranh */
+function burst(ctx: Ctx, cx: number, cy: number, r: number, spikes: number, fill: string, stroke: string, lw: number, seed: number) {
+  const rand = rng(seed);
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? r * (0.62 + rand() * 0.1) : r * (0.92 + rand() * 0.12);
+    const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+    if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineJoin = 'round'; ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke();
+  ctx.restore();
+}
+
+/** Chữ viền dày (kiểu sticker / truyện tranh), có bóng đặc lệch */
+function outlined(ctx: Ctx, text: string, x: number, base: number, font: string, fill: string, stroke: string, lw: number, angle = 0, drop?: { color: string; dx: number; dy: number }, align: CanvasTextAlign = 'left') {
+  ctx.save();
+  ctx.translate(x, base); ctx.rotate(angle);
+  ctx.font = font; spacing(ctx, 0); ctx.textAlign = align; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  if (drop) {
+    ctx.fillStyle = drop.color; ctx.strokeStyle = drop.color; ctx.lineWidth = lw;
+    ctx.strokeText(text, drop.dx, drop.dy); ctx.fillText(text, drop.dx, drop.dy);
+  }
+  ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.strokeText(text, 0, 0);
+  ctx.fillStyle = fill; ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+/** Ô chú thích kiểu truyện tranh: nền màu, viền đen */
+function captionBox(ctx: Ctx, text: string, x: number, y: number, font: string, bg: string, fg: string, angle = 0, maxW = 900) {
+  const t = clip(ctx, text, maxW - 40, font);
+  const m = measure(ctx, t, font);
+  const pad = Math.round(m.asc * 0.55);
+  const bw = m.w + pad * 2, bh = m.asc + m.desc + pad * 1.6;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  ctx.fillStyle = '#111'; ctx.fillRect(6, 6, bw, bh);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, bw, bh);
+  ctx.lineWidth = 4; ctx.strokeStyle = '#111'; ctx.strokeRect(0, 0, bw, bh);
+  ctx.font = font; ctx.fillStyle = fg; ctx.textAlign = 'left';
+  ctx.fillText(t, pad, pad * 0.8 + m.asc);
+  ctx.restore();
+  return { w: bw, h: bh };
+}
+
+/* ---------- Giấy, giấy xé, băng dính, chữ cắt báo ---------- */
+
+/** Nền giấy báo: màu giấy + các cột chữ mờ in sẵn */
+function newsprint(ctx: Ctx, w: number, h: number, seed: number) {
+  ctx.fillStyle = '#E4DED2'; ctx.fillRect(0, 0, w, h);
+  const r = rng(seed);
+  const cols = 4, gw = 26, cw = (w - gw * (cols + 1)) / cols;
+  ctx.fillStyle = 'rgba(40,36,32,.10)';
+  for (let c = 0; c < cols; c++) {
+    let y = 30 + r() * 40;
+    while (y < h - 20) {
+      if (r() < 0.06) { y += 34; continue; }
+      const lw = cw * (r() < 0.12 ? 0.4 + r() * 0.4 : 0.92 + r() * 0.08);
+      ctx.fillRect(gw + c * (cw + gw), y, lw, 7);
+      y += 17;
+    }
+  }
+  // vệt ố giấy
+  const g = ctx.createRadialGradient(w * 0.7, h * 0.2, 0, w * 0.5, h * 0.5, h * 0.9);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(120,96,60,.18)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+
+/** Mảnh giấy xé: hình chữ nhật xoay, mép răng cưa ngẫu nhiên */
+function tornPaper(ctx: Ctx, cx: number, cy: number, w: number, h: number, angle: number, color: string, seed: number, shadow = true) {
+  const r = rng(seed);
+  const pts: [number, number][] = [];
+  const edge = (x0: number, y0: number, x1: number, y1: number, nx: number, ny: number) => {
+    const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(len / 12));
+    for (let i = 0; i < n; i++) { const t = i / n; const j = r() * 9; pts.push([x0 + (x1 - x0) * t + nx * j, y0 + (y1 - y0) * t + ny * j]); }
+  };
+  edge(-w / 2, -h / 2, w / 2, -h / 2, 0, 1);
+  edge(w / 2, -h / 2, w / 2, h / 2, -1, 0);
+  edge(w / 2, h / 2, -w / 2, h / 2, 0, -1);
+  edge(-w / 2, h / 2, -w / 2, -h / 2, 1, 0);
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(angle);
+  if (shadow) { ctx.shadowColor = 'rgba(40,30,20,.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6; }
+  ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.restore();
+}
+
+/** Băng dính giấy */
+function tape(ctx: Ctx, cx: number, cy: number, w: number, angle: number) {
+  const h = w * 0.3;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(angle);
+  ctx.beginPath();
+  const z = 6;
+  ctx.moveTo(-w / 2, -h / 2);
+  for (let i = 0; i <= 4; i++) ctx.lineTo(-w / 2 + (i % 2 ? z : 0), -h / 2 + (h / 4) * i);
+  ctx.lineTo(w / 2, h / 2);
+  for (let i = 4; i >= 0; i--) ctx.lineTo(w / 2 - (i % 2 ? z : 0), -h / 2 + (h / 4) * i);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(236,226,196,.82)'; ctx.fill();
+  ctx.restore();
+}
+
+/** Chữ cắt từ báo: mỗi ký tự một ô, một kiểu chữ, một màu, nghiêng lệch */
+function ransom(ctx: Ctx, text: string, x: number, base: number, maxW: number, size: number, seed: number, accent: string) {
+  const styles = [
+    { bg: '#151413', fg: '#F5F2EA', font: (s: number) => display(s) },
+    { bg: '#F5F2EA', fg: '#151413', font: (s: number) => sans(s * 0.78, 700) },
+    { bg: accent, fg: '#151413', font: (s: number) => display(s, 700) },
+    { bg: '#D7263D', fg: '#FFFFFF', font: (s: number) => sans(s * 0.74, 600) },
+    { bg: '#FFFFFF', fg: '#1D4ED8', font: (s: number) => mono(s * 0.72, 500) },
+    { bg: '#F2C14E', fg: '#151413', font: (s: number) => hand(s * 0.9) }
+  ];
+  const chars = [...text];
+  const layout = (s: number) => {
+    const r = rng(seed);
+    let cx = 0;
+    const items = chars.map((ch) => {
+      if (ch === ' ') { cx += s * 0.32; return null; }
+      const st = styles[Math.floor(r() * styles.length)];
+      const f = st.font(s);
+      const m = measure(ctx, ch, f);
+      const pad = s * 0.1;
+      const bw = Math.max(m.w + pad * 2, s * 0.42), bh = s * 1.02;
+      const it = { ch, st, f, m, x: cx, bw, bh, rot: (r() - 0.5) * 0.16, dy: (r() - 0.5) * s * 0.12 };
+      cx += bw + s * 0.05;
+      return it;
+    });
+    return { items, width: cx };
+  };
+  let s = size;
+  let L = layout(s);
+  while (L.width > maxW && s > size * 0.4) { s -= 4; L = layout(s); }
+  for (const it of L.items) {
+    if (!it) continue;
+    ctx.save();
+    ctx.translate(x + it.x + it.bw / 2, base - it.bh / 2 + it.dy);
+    ctx.rotate(it.rot);
+    ctx.shadowColor = 'rgba(40,30,20,.3)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
+    ctx.fillStyle = it.st.bg; ctx.fillRect(-it.bw / 2, -it.bh / 2, it.bw, it.bh);
+    ctx.shadowColor = 'transparent';
+    ctx.font = it.f; spacing(ctx, 0); ctx.fillStyle = it.st.fg; ctx.textAlign = 'center';
+    ctx.fillText(it.ch, 0, (it.m.asc - it.m.desc) / 2);
+    ctx.restore();
+  }
+  return { width: L.width, height: s * 1.02 };
+}
+
+/** Mũi tên vẽ tay */
+function handArrow(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, color: string, lw = 5) {
+  const mx = (x0 + x1) / 2 + (y1 - y0) * 0.25, my = (y0 + y1) / 2 - (x1 - x0) * 0.25;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my, x1, y1); ctx.stroke();
+  const a = Math.atan2(y1 - my, x1 - mx);
+  for (const d of [-0.5, 0.5]) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - Math.cos(a + d) * 26, y1 - Math.sin(a + d) * 26); ctx.stroke(); }
+  ctx.restore();
+}
+
+/** Con dấu mực */
+function stamp(ctx: Ctx, text: string, cx: number, cy: number, angle: number, color: string, size = 30) {
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(angle);
+  const f = display(size, 800);
+  const m = measure(ctx, text, f, size * 0.12);
+  const w = m.w + size * 1.2, h = size * 1.7;
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = color; ctx.lineWidth = 4; rounded(ctx, -w / 2, -h / 2, w, h, 10); ctx.stroke();
+  ctx.lineWidth = 1.5; rounded(ctx, -w / 2 + 7, -h / 2 + 7, w - 14, h - 14, 6); ctx.stroke();
+  ctx.font = f; spacing(ctx, size * 0.12); ctx.fillStyle = color; ctx.textAlign = 'center';
+  ctx.fillText(text, 0, (m.asc - m.desc) / 2);
+  ctx.restore();
+  spacing(ctx, 0);
+}
+
+/* ---------- Bảng màu ---------- */
+
+const POP_SETS: [string, string, string, string][] = [
+  // nền, chấm, nổ, tông giữa
+  ['#FFD60A', '#FF2E88', '#00B4D8', '#FF2E88'],
+  ['#00B4D8', '#FFD60A', '#FF2E88', '#FFD60A'],
+  ['#FF2E88', '#FFD60A', '#7CFC5A', '#00B4D8'],
+  ['#7CFC5A', '#1D4ED8', '#FFD60A', '#FF5A1F'],
+  ['#FF5A1F', '#FFD60A', '#00B4D8', '#FFD60A'],
+  ['#9B5DE5', '#00F5D4', '#FFD60A', '#F15BB5']
+];
+const STICKER_BG = ['#FF6B4A', '#3A86FF', '#FFBE0B', '#8338EC', '#06D6A0', '#FB5607'];
+
+const yearOrNo = (s: Subject, index?: number) => (s.cam.year ? String(s.cam.year) : index != null ? numberTag(index) : '');
+
+/* ---------- Pop art ---------- */
+
+function cameraPop(s: Subject, o: CameraCardOpts, credit: string | null) {
+  const { c, ctx, w, h } = canvas(o.format);
+  const sa = safe(o.format, h);
+  const seed = seedOf(s.cam.id);
+  const [bg, dots, boom, mid] = POP_SETS[seed % POP_SETS.length];
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  halftone(ctx, 0, 0, w, h, dots, 30, 'br');
+  // vạch tốc độ sau lưng máy
+  const cy = sa.top + (sa.bottom - sa.top) * 0.42;
+  burst(ctx, w * 0.52, cy, Math.min(w, h) * 0.46, 16, boom, '#111', 10, seed);
+  // máy: tách tông 3 màu + viền đen dày + bóng đặc lệch
+  const src = subjectCanvas(s);
+  const pz = s.cut ? posterize(src, ['#111111', mid, '#FFFFFF']) : src;
+  const ring = s.cut ? silhouette(pz, '#111', 12) : sticker(src, 12, '#111');
+  const shadowC = silhouette(ring, '#111', 0);
+  const maxW = w * 0.9, maxH = (sa.bottom - sa.top) * 0.5;
+  const ang = -0.07;
+  place(ctx, shadowC, w * 0.5 + 22, cy + 22, maxW, maxH, ang);
+  place(ctx, ring, w * 0.5, cy, maxW, maxH, ang);
+  const inner = Math.min(maxW / ring.width, maxH / ring.height);
+  ctx.save(); ctx.translate(w * 0.5, cy); ctx.rotate(ang);
+  ctx.drawImage(pz, -(ring.width * inner) / 2 + 12 * inner, -(ring.height * inner) / 2 + 12 * inner, pz.width * inner, pz.height * inner);
+  ctx.restore();
+
+  // tên máy: chữ trắng viền đen, bóng màu
+  const title = s.cam.model.toUpperCase();
+  const size = fitSize(ctx, title, w - 150, 300, 90, (z) => display(z));
+  const base = sa.bottom - 70;
+  outlined(ctx, title, 70, base, display(size), '#FFFFFF', '#111', 16, -0.04, { color: boom, dx: 12, dy: 12 });
+  captionBox(ctx, s.cam.brand.toUpperCase(), 76, base - size * 0.95 - 70, display(46, 800), '#FFFFFF', '#111', -0.04);
+  // con số nổ góc trên
+  const tag = yearOrNo(s, o.index);
+  if (tag) {
+    const bx = w - 190, by = sa.top + 120;
+    burst(ctx, bx, by, 130, 12, '#FFFFFF', '#111', 8, seed + 3);
+    outlined(ctx, tag, bx, by + 22, display(tag.length > 4 ? 52 : 70), '#111', '#FFFFFF', 2, 0.12, undefined, 'center');
+  }
+  if (o.owner) captionBox(ctx, ownerLine(o.owner), 70, sa.top, sans(26, 700), '#FFFFFF', '#111', 0.02, w * 0.6);
+  popFooter(ctx, w, h, sa.bottom, credit);
+  return toBlob(c);
+}
+
+function popFooter(ctx: Ctx, w: number, _h: number, bottom: number, credit: string | null) {
+  const f = display(30, 800);
+  const m = measure(ctx, 'CAMERA CABINET', f, 3);
+  ctx.fillStyle = '#111'; ctx.fillRect(w - 70 - m.w - 28, bottom - m.asc - 22, m.w + 28, m.asc + 30);
+  draw(ctx, { text: 'CAMERA CABINET', font: f, color: '#FFFFFF', ls: 3, align: 'right' }, w - 70 - 14, bottom - 7);
+  if (credit) draw(ctx, { text: clip(ctx, credit, w * 0.5, mono(14, 400)), font: mono(14, 400), color: 'rgba(17,17,17,.6)' }, 70, bottom + 30);
+}
+
+function collectionPop(subs: Subject[], cams: Camera[], o: CollectionCardOpts) {
+  const { c, ctx, w, h } = canvas(o.format, '#111');
+  const sa = safe(o.format, h);
+  // tiêu đề trên dải đen
+  const title = ownerLine(o.owner).toUpperCase();
+  const tSize = fitSize(ctx, title, w - 140, 120, 60, (z) => display(z));
+  const tm = measure(ctx, title, display(tSize));
+  const top = o.format === 'story' ? sa.top : 60;
+  outlined(ctx, title, 70, top + tm.asc, display(tSize), '#FFD60A', '#111', 2);
+  const statsBase = top + tm.asc + tm.desc + 52;
+  draw(ctx, { text: collectionStats(cams).join('  /  '), font: sans(30, 600), color: '#FFFFFF' }, 70, statsBase);
+  // lưới Warhol: mỗi ô một bảng màu
+  const n = Math.max(1, subs.length);
+  const cols = n <= 1 ? 1 : 2;
+  const rows = Math.ceil(n / cols);
+  const gx = 70, gy = statsBase + 40, gw = w - 140, gh = sa.bottom - 80 - gy;
+  const gap = 14;
+  const cw = (gw - gap * (cols - 1)) / cols, ch = (gh - gap * (rows - 1)) / rows;
+  subs.forEach((s, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const lastSingle = row === rows - 1 && n % cols === 1 && cols > 1;
+    const x = gx + (lastSingle ? (gw - cw) / 2 : col * (cw + gap)), y = gy + row * (ch + gap);
+    const [bg, dots, boom, mid] = POP_SETS[(i + seedOf(o.owner)) % POP_SETS.length];
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, ch); ctx.clip();
+    ctx.fillStyle = bg; ctx.fillRect(x, y, cw, ch);
+    halftone(ctx, x, y, cw, ch, dots, 18, i % 2 ? 'tl' : 'br');
+    const src = subjectCanvas(s, 700);
+    const pz = s.cut ? posterize(src, ['#111111', mid, '#FFFFFF']) : src;
+    const ring = s.cut ? silhouette(pz, '#111', 8) : sticker(src, 8, '#111');
+    const ang = (i % 2 ? 0.05 : -0.05);
+    place(ctx, silhouette(ring, boom, 0), x + cw / 2 + 12, y + ch * 0.45 + 12, cw * 0.84, ch * 0.62, ang);
+    const d = place(ctx, ring, x + cw / 2, y + ch * 0.45, cw * 0.84, ch * 0.62, ang);
+    const sc = d.w / ring.width;
+    ctx.save(); ctx.translate(x + cw / 2, y + ch * 0.45); ctx.rotate(ang);
+    ctx.drawImage(pz, -d.w / 2 + 8 * sc, -d.h / 2 + 8 * sc, pz.width * sc, pz.height * sc);
+    ctx.restore();
+    const fs = fitSize(ctx, s.cam.model.toUpperCase(), cw - 40, Math.round(ch * 0.16), 26, (z) => display(z));
+    outlined(ctx, s.cam.model.toUpperCase(), x + 20, y + ch - 24, display(fs), '#FFFFFF', '#111', 9);
+    ctx.restore();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#111'; ctx.strokeRect(x, y, cw, ch);
+  });
+  const f = display(30, 800);
+  draw(ctx, { text: 'CAMERA CABINET', font: f, color: '#FFD60A', ls: 3, align: 'right' }, w - 70, sa.bottom - 10);
+  return toBlob(c);
+}
+
+/* ---------- Sticker ---------- */
+
+function cameraSticker(s: Subject, o: CameraCardOpts, credit: string | null) {
+  const seed = seedOf(s.cam.id);
+  const bg = STICKER_BG[seed % STICKER_BG.length];
+  const { c, ctx, w, h } = canvas(o.format, bg);
+  const sa = safe(o.format, h);
+  // nền: hoạ tiết sao nhỏ lặp lại
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  const r = rng(seed);
+  for (let y = 40; y < h; y += 110) for (let x = (y / 110) % 2 ? 60 : 5; x < w; x += 110) { star(ctx, x + r() * 10, y + r() * 10, 14, 5); }
+  const src = subjectCanvas(s);
+  const st = sticker(src, Math.round(Math.max(srcW(src), srcH(src)) * 0.035) + 8);
+  const cy = sa.top + (sa.bottom - sa.top) * 0.44;
+  const d = place(ctx, st, w / 2, cy, w * 0.86, (sa.bottom - sa.top) * 0.56, -0.06, { color: 'rgba(0,0,0,.35)', blur: 30, dx: 0, dy: 16 });
+  // tên máy dạng sticker chữ
+  const title = s.cam.model.toUpperCase();
+  const size = fitSize(ctx, title, w - 180, 220, 90, (z) => display(z));
+  const base = Math.min(sa.bottom - 120, cy + d.h / 2 + size * 0.85);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+  outlined(ctx, title, w / 2, base, display(size), '#151413', '#FFFFFF', 30, 0.03, undefined, 'center');
+  ctx.restore();
+  outlined(ctx, title, w / 2, base, display(size), '#151413', '#FFFFFF', 30, 0.03, undefined, 'center');
+  // sticker phụ: hãng, năm/Nº, ống kính
+  const pill = (text: string, x: number, y: number, ang: number, fill: string, fg: string, f: string) => {
+    const m = measure(ctx, text, f);
+    const pw = m.w + 56, ph = m.asc + m.desc + 34;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#FFFFFF'; rounded(ctx, -pw / 2 - 8, -ph / 2 - 8, pw + 16, ph + 16, (ph + 16) / 2); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = fill; rounded(ctx, -pw / 2, -ph / 2, pw, ph, ph / 2); ctx.fill();
+    ctx.font = f; ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.fillText(text, 0, (m.asc - m.desc) / 2);
+    ctx.restore();
+  };
+  pill(s.cam.brand, w * 0.26, sa.top + 70, -0.12, '#151413', '#FFFFFF', sans(40, 700));
+  const tag = yearOrNo(s, o.index);
+  if (tag) {
+    const bx = w - 170, by = sa.top + 110;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(bx, by, 104, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#FFE14D'; ctx.beginPath(); ctx.arc(bx, by, 92, 0, Math.PI * 2); ctx.fill();
+    draw(ctx, { text: tag, font: display(tag.length > 4 ? 50 : 64), color: '#151413', align: 'center' }, bx, by + 22);
+  }
+  const lens = lensLabel(s.cam.lens);
+  if (lens) pill(lens, w * 0.7, Math.min(sa.bottom - 40, base + 90), 0.08, '#FFFFFF', '#151413', mono(32, 500));
+  draw(ctx, { text: o.owner ? `${ownerLine(o.owner)} · Camera Cabinet` : 'Camera Cabinet', font: sans(26, 600), color: 'rgba(255,255,255,.9)' }, 70, sa.bottom);
+  if (credit) draw(ctx, { text: clip(ctx, credit, w - 140, mono(14, 400)), font: mono(14, 400), color: 'rgba(255,255,255,.6)' }, 70, sa.bottom + 30);
+  return toBlob(c);
+}
+
+function star(ctx: Ctx, cx: number, cy: number, r: number, n: number) {
+  ctx.beginPath();
+  for (let i = 0; i < n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function collectionSticker(subs: Subject[], cams: Camera[], o: CollectionCardOpts) {
+  const seed = seedOf(o.owner + subs.length);
+  const bg = STICKER_BG[seed % STICKER_BG.length];
+  const { c, ctx, w, h } = canvas(o.format, bg);
+  const sa = safe(o.format, h);
+  // tờ giấy sticker: nền nhạt bo góc
+  const sheetX = 50, sheetY = sa.top - 20, sheetW = w - 100, sheetH = sa.bottom - sheetY - 40;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 14;
+  ctx.fillStyle = '#F7F4EE'; rounded(ctx, sheetX, sheetY, sheetW, sheetH, 30); ctx.fill(); ctx.restore();
+  const title = ownerLine(o.owner).toUpperCase();
+  const size = fitSize(ctx, title, sheetW - 100, 110, 50, (z) => display(z));
+  const tm = measure(ctx, title, display(size));
+  outlined(ctx, title, sheetX + 50, sheetY + 50 + tm.asc, display(size), bg, '#151413', 6);
+  draw(ctx, { text: collectionStats(cams).join('  ·  '), font: sans(28, 600), color: '#151413' }, sheetX + 50, sheetY + 50 + tm.asc + 56);
+  const n = Math.max(1, subs.length);
+  const cols = n <= 2 ? 1 : 2;
+  const rows = Math.ceil(n / cols);
+  const ax = sheetX + 30, ay = sheetY + 50 + tm.asc + 90, aw = sheetW - 60, ah = sheetY + sheetH - 70 - ay;
+  const cw = aw / cols, ch = ah / rows;
+  const r = rng(seed);
+  subs.forEach((s, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const lastSingle = row === rows - 1 && n % cols === 1 && cols > 1;
+    const cx = ax + (lastSingle ? aw / 2 : cw * (col + 0.5)), cy = ay + ch * (row + 0.42);
+    const src = subjectCanvas(s, 700);
+    const st = sticker(src, Math.round(Math.max(srcW(src), srcH(src)) * 0.04) + 6);
+    place(ctx, st, cx, cy, cw * 0.86, ch * 0.66, (r() - 0.5) * 0.2, { color: 'rgba(0,0,0,.28)', blur: 14, dx: 0, dy: 7 });
+    const fs = Math.max(24, Math.round(ch * 0.1));
+    outlined(ctx, clip(ctx, s.cam.model.toUpperCase(), cw - 40, display(fs)), cx, cy + ch * 0.47, display(fs), '#151413', '#FFFFFF', 10, (r() - 0.5) * 0.1, undefined, 'center');
+  });
+  draw(ctx, { text: 'Camera Cabinet', font: display(30, 800), color: '#151413', align: 'right' }, sheetX + sheetW - 40, sheetY + sheetH - 30);
+  return toBlob(c);
+}
+
+/* ---------- Collage ---------- */
+
+function cameraCollage(s: Subject, o: CameraCardOpts, credit: string | null) {
+  const { c, ctx, w, h } = canvas(o.format);
+  const sa = safe(o.format, h);
+  const seed = seedOf(s.cam.id);
+  const r = rng(seed);
+  newsprint(ctx, w, h, seed);
+  const mid = sa.top + (sa.bottom - sa.top) * 0.43;
+  // các mảng giấy xé phía sau
+  tornPaper(ctx, w * 0.42, mid - 40, w * 0.86, (sa.bottom - sa.top) * 0.42, -0.06, o.accent, seed + 1);
+  tornPaper(ctx, w * 0.7, mid + 120, w * 0.5, 220, 0.1, '#1F3A5F', seed + 2);
+  // ảnh gốc in nhỏ, dán băng dính
+  if (s.img && s.cut) {
+    const pw = 300;
+    instantPrint(ctx, { cx: w - 210, cy: sa.top + 150, width: pw, angle: 0.09, img: s.img, type: s.cam.type, caption: '' });
+    tape(ctx, w - 210, sa.top + 150 - pw * 0.58, 150, -0.1);
+  }
+  // máy cắt rời, viền trắng như cắt bằng kéo
+  const src = subjectCanvas(s);
+  const st = sticker(src, Math.round(Math.max(srcW(src), srcH(src)) * 0.022) + 6, '#FBFAF6');
+  const d = place(ctx, st, w * 0.47, mid, w * 0.9, (sa.bottom - sa.top) * 0.5, -0.04 + (r() - 0.5) * 0.04, { color: 'rgba(30,20,10,.42)', blur: 24, dx: 6, dy: 16 });
+  tape(ctx, w * 0.47 - d.w * 0.42, mid - d.h * 0.42, 170, -0.6);
+  tape(ctx, w * 0.47 + d.w * 0.4, mid + d.h * 0.38, 150, -0.5);
+  // tên máy cắt chữ báo
+  const brandBase = mid + d.h / 2 + 90;
+  draw(ctx, { text: s.cam.brand, font: hand(64), color: '#151413' }, 80, brandBase);
+  const t = ransom(ctx, s.cam.model.toUpperCase(), 70, brandBase + 160, w - 140, 150, seed, o.accent);
+  // ghi chú tay + mũi tên chỉ vào máy
+  const note = [lensLabel(s.cam.lens), s.cam.year ? String(s.cam.year) : null].filter(Boolean).join(', ');
+  if (note) {
+    const nx = Math.min(w - 330, 80 + t.width + 40), ny = brandBase + 40;
+    const nf = hand(46);
+    draw(ctx, { text: note, font: nf, color: '#B4232C' }, nx, ny + 10);
+    handArrow(ctx, nx + 60, ny - 40, w * 0.6, mid + d.h * 0.3, '#B4232C');
+  }
+  if (s.cam.film) draw(ctx, { text: tx("Đang lắp {0}", s.cam.film.stock), font: hand(40), color: '#1F3A5F' }, 80, Math.min(sa.bottom - 70, brandBase + 160 + 70));
+  stamp(ctx, 'CAMERA CABINET', w - 230, sa.bottom - 40, -0.12, '#B4232C', 28);
+  if (o.owner) draw(ctx, { text: ownerLine(o.owner), font: hand(40), color: '#151413' }, 80, sa.bottom);
+  if (o.index != null) draw(ctx, { text: numberTag(o.index), font: hand(54), color: '#151413' }, 80, sa.top + 40);
+  if (credit) draw(ctx, { text: clip(ctx, credit, w - 140, mono(14, 400)), font: mono(14, 400), color: 'rgba(21,20,19,.5)' }, 70, sa.bottom + 34);
+  return toBlob(c);
+}
+
+function collectionCollage(subs: Subject[], cams: Camera[], o: CollectionCardOpts) {
+  const { c, ctx, w, h } = canvas(o.format);
+  const sa = safe(o.format, h);
+  const seed = seedOf(o.owner + subs.map((s) => s.cam.id).join(''));
+  const r = rng(seed);
+  newsprint(ctx, w, h, seed);
+  // tiêu đề cắt chữ
+  const head = o.owner ? tx("Bộ sưu tập của {0}", o.owner) : tx("Bộ sưu tập máy ảnh");
+  const tt = ransom(ctx, head.toUpperCase(), 64, sa.top + 110, w - 128, 100, seed, o.accent);
+  draw(ctx, { text: collectionStats(cams).join(', '), font: hand(46), color: '#B4232C' }, 70, sa.top + 110 + 70);
+  void tt;
+  // mảng giấy nền
+  tornPaper(ctx, w * 0.3, h * 0.48, w * 0.7, h * 0.32, -0.08, o.accent, seed + 1);
+  tornPaper(ctx, w * 0.72, h * 0.62, w * 0.62, h * 0.26, 0.07, '#1F3A5F', seed + 2);
+  // các máy cắt rời rải trên trang
+  const n = Math.max(1, subs.length);
+  const cols = n <= (o.format === 'story' ? 3 : 2) ? 1 : 2;
+  const rows = Math.ceil(n / cols);
+  const ay = sa.top + 230, ah = sa.bottom - 110 - ay, aw = w - 100;
+  const cw = aw / cols, ch = ah / rows;
+  subs.forEach((s, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const lastSingle = row === rows - 1 && n % cols === 1 && cols > 1;
+    const cx = 50 + (lastSingle ? aw / 2 : cw * (col + 0.5)) + (r() - 0.5) * 40 + (cols === 1 && n > 1 ? (i % 2 ? 1 : -1) * w * 0.1 : 0);
+    const cy = ay + ch * (row + 0.45) + (r() - 0.5) * 30;
+    const src = subjectCanvas(s, 700);
+    const st = sticker(src, Math.round(Math.max(srcW(src), srcH(src)) * 0.025) + 5, '#FBFAF6');
+    const ang = (r() - 0.5) * 0.22;
+    const d = place(ctx, st, cx, cy, Math.min(cw, w * 0.78), ch * 0.78, ang, { color: 'rgba(30,20,10,.4)', blur: 18, dx: 4, dy: 10 });
+    if (r() > 0.4) tape(ctx, cx - d.w * 0.38, cy - d.h * 0.4, 110, -0.5 + r() * 0.3);
+    // nhãn tên dán băng dính
+    const label = s.cam.model;
+    const f = hand(Math.max(30, Math.round(ch * 0.09)));
+    const m = measure(ctx, label, f);
+    const lx = cx - m.w / 2 - 16, ly = cy + d.h * 0.42;
+    ctx.save(); ctx.translate(lx + m.w / 2 + 16, ly); ctx.rotate((r() - 0.5) * 0.12);
+    ctx.fillStyle = 'rgba(245,242,234,.95)'; ctx.fillRect(-m.w / 2 - 16, -m.asc - 10, m.w + 32, m.asc + m.desc + 22);
+    ctx.font = f; ctx.fillStyle = '#151413'; ctx.textAlign = 'center'; ctx.fillText(label, 0, 2);
+    ctx.restore();
+  });
+  stamp(ctx, 'CAMERA CABINET', w - 230, sa.bottom - 20, -0.1, '#B4232C', 28);
   return toBlob(c);
 }
 

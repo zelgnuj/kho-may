@@ -16,8 +16,8 @@ async function addPhoto(page: Page, model: string, file: string) {
 /** Kích thước + (tuỳ chọn) lưu ảnh xem trước ra file để soi bằng mắt */
 async function preview(page: Page, save?: string) {
   const img = page.locator('.share-preview img');
-  await expect(img).toBeVisible();
-  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
+  await expect(img).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false', { timeout: 30000 });
   return img.evaluate(async (el: HTMLImageElement, save) => {
     await el.decode();
     let data: string | null = null;
@@ -43,7 +43,7 @@ test('ảnh chia sẻ một máy: 2 kiểu, 2 khổ, tải về được', async
   dump('cam-poster-post', p.data);
 
   await page.getByRole('radio', { name: 'Khung phim' }).click();
-  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false', { timeout: 30000 });
   p = await preview(page, 'x');
   dump('cam-film-post', p.data);
 
@@ -66,11 +66,11 @@ test('ảnh chia sẻ cả bộ sưu tập: lưới và contact sheet', async ({
   let p = await preview(page, 'x');
   expect([p.w, p.h]).toEqual([1080, 1350]);
   dump('col-grid-post', p.data);
-  await page.getByRole('radio', { name: 'Ảnh lấy liền' }).click();
-  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
-  dump('col-instant-post', (await preview(page, 'x')).data);
+  await page.getByRole('radio', { name: 'Pop art' }).click();
+  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false', { timeout: 30000 });
+  dump('col-pop-post', (await preview(page, 'x')).data);
   await page.getByRole('radio', { name: 'Contact sheet' }).click();
-  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false', { timeout: 30000 });
   p = await preview(page, 'x');
   dump('col-film-post', p.data);
   await page.getByRole('radio', { name: 'Story 9:16' }).click();

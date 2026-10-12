@@ -130,6 +130,8 @@ class KhoMayDB extends Dexie {
   rolls!: Table<Roll, string>;
   syncMeta!: Table<SyncMeta, [string, string]>;
   thumbs!: Table<{ id: string; blob: Blob }, string>;
+  /** Ảnh đã tách nền (PNG trong suốt), tạo trên máy, không đồng bộ */
+  cutouts!: Table<{ id: string; blob: Blob; v: number }, string>;
 
   constructor() {
     super('kho-may');
@@ -152,6 +154,10 @@ class KhoMayDB extends Dexie {
     // ảnh thu nhỏ: bộ nhớ đệm trên máy (không đồng bộ, không sao lưu, tự tạo lại khi thiếu)
     this.version(5).stores({
       thumbs: 'id'
+    });
+    // ảnh tách nền cho ảnh chia sẻ: cũng là bộ nhớ đệm, tạo lại được
+    this.version(6).stores({
+      cutouts: 'id'
     });
   }
 }
@@ -208,6 +214,7 @@ export async function addPhotos(cameraId: string, blobs: Blob[]) {
 export async function deletePhoto(photo: Photo) {
   await db.photos.delete(photo.id);
   await db.thumbs.delete(photo.id);
+  await db.cutouts.delete(photo.id);
   forgetThumb(photo.id);
   await ensureCover(photo.cameraId);
 }

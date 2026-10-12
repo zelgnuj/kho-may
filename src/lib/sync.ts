@@ -133,7 +133,7 @@ async function applyRemote(uid: string, r: RemoteRow): Promise<boolean> {
     if (local) await tableFor(r.kind).delete(r.id);
     if (r.kind === 'photo' && local) {
       const cameraId = (local.data as { cameraId?: string } | null)?.cameraId ?? (r.data as { cameraId?: string })?.cameraId;
-      await db.thumbs.delete(r.id); forgetThumb(r.id);
+      await db.thumbs.delete(r.id); await db.cutouts.delete(r.id); forgetThumb(r.id);
       if (cameraId) await ensureCover(cameraId);
     }
     await db.syncMeta.delete(metaKey);
@@ -334,7 +334,7 @@ export async function setNewPassword(password: string) {
 /** Xoá toàn bộ dữ liệu thuộc tài khoản trên máy (máy, ảnh, giá, nhật ký, wishlist, cuộn film, cài đặt đồng bộ) */
 async function clearAccountData() {
   await Promise.all([
-    db.cameras.clear(), db.photos.clear(), db.thumbs.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear(),
+    db.cameras.clear(), db.photos.clear(), db.thumbs.clear(), db.cutouts.clear(), db.prices.clear(), db.service.clear(), db.wishlist.clear(), db.rolls.clear(),
     db.syncMeta.clear(), db.settings.bulkDelete(['syncCursor', 'syncLastAt', 'lastBackup', ...SYNCED_SETTINGS])
   ]);
 }

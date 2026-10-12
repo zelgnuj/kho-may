@@ -32,6 +32,12 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
+            // mô hình tách nền + WebAssembly: chỉ tải khi dùng ảnh chia sẻ, giữ lâu dài
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/') || url.pathname.endsWith('.wasm'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'cutout-model', expiration: { maxEntries: 6, maxAgeSeconds: 60 * 60 * 24 * 365 }, cacheableResponse: { statuses: [0, 200] } }
+          },
+          {
             // ảnh mẫu Wikimedia: tải một lần, giữ 90 ngày
             urlPattern: /^https:\/\/upload\.wikimedia\.org\/.*/i,
             handler: 'CacheFirst',

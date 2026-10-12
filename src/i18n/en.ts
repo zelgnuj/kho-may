@@ -314,6 +314,7 @@ export const en: Record<string, string> = {
   "Đang lấy…": "Fetching…",
   "đang săn": "wanted",
   "Đang săn": "Hunting",
+  "Đang tách nền ảnh máy…": "Cutting out your camera…",
   "Đang tải lên… {0}": "Uploading… {0}",
   "Đang tải về… {0}": "Downloading… {0}",
   "Đang tìm giá đã bán của mẫu này trên eBay…": "Looking up sold prices for this model on eBay…",

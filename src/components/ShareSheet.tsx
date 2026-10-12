@@ -22,8 +22,8 @@ export function collectionIndex(cams: Camera[], id: string) {
 export function ShareSheet({ target, onClose }: { target: ShareTarget | null; onClose: () => void }) {
   const settings = useSettings();
   const [style, setStyle] = useState<CardStyle>(() => {
-    try { const v = localStorage.getItem('share-style'); if (v === 'poster' || v === 'instant' || v === 'film') return v; } catch { /* */ }
-    return 'poster';
+    try { const v = localStorage.getItem('share-style'); if (v === 'collage' || v === 'pop' || v === 'sticker' || v === 'film') return v; } catch { /* */ }
+    return 'collage';
   });
   const pickStyle = (v: CardStyle) => { setStyle(v); try { localStorage.setItem('share-style', v); } catch { /* */ } };
   const [format, setFormat] = useState<CardFormat>('post');
@@ -67,12 +67,12 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget | null; on
     <Sheet open={!!target} onClose={onClose} title={title} tall>
       <div className="share-preview" data-format={format} aria-busy={busy}>
         {url ? <img src={url} alt={tx("Ảnh xem trước")} /> : <span className="thumb-wait" />}
+        {busy && style !== 'film' && <span className="share-busy">{tx("Đang tách nền ảnh máy…")}</span>}
       </div>
       <div className="field">{tx("Kiểu")}
         <Segmented label={tx("Kiểu ảnh")} value={style} onChange={pickStyle}
-          options={target?.kind === 'collection'
-            ? [{ value: 'poster', label: tx("Lưới") }, { value: 'instant', label: tx("Ảnh lấy liền") }, { value: 'film', label: tx("Contact sheet") }]
-            : [{ value: 'poster', label: tx("Áp phích") }, { value: 'instant', label: tx("Ảnh lấy liền") }, { value: 'film', label: tx("Khung phim") }]} />
+          options={[{ value: 'collage', label: 'Collage' }, { value: 'pop', label: 'Pop art' }, { value: 'sticker', label: 'Sticker' },
+            { value: 'film', label: target?.kind === 'collection' ? tx("Contact sheet") : tx("Khung phim") }]} />
       </div>
       <div className="field">{tx("Khổ")}
         <Segmented label={tx("Khổ ảnh")} value={format} onChange={setFormat}

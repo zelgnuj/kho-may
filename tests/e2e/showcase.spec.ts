@@ -40,7 +40,7 @@ test('ảnh chia sẻ một máy: 2 kiểu, 2 khổ, tải về được', async
   await page.getByRole('button', { name: 'Chia sẻ ảnh máy' }).click();
   let p = await preview(page, 'x');
   expect([p.w, p.h]).toEqual([1080, 1350]);
-  dump('cam-catalog-post', p.data);
+  dump('cam-poster-post', p.data);
 
   await page.getByRole('radio', { name: 'Khung phim' }).click();
   await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
@@ -65,7 +65,10 @@ test('ảnh chia sẻ cả bộ sưu tập: lưới và contact sheet', async ({
   await page.getByRole('button', { name: 'Chia sẻ bộ sưu tập' }).click();
   let p = await preview(page, 'x');
   expect([p.w, p.h]).toEqual([1080, 1350]);
-  dump('col-catalog-post', p.data);
+  dump('col-grid-post', p.data);
+  await page.getByRole('radio', { name: 'Ảnh lấy liền' }).click();
+  await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
+  dump('col-instant-post', (await preview(page, 'x')).data);
   await page.getByRole('radio', { name: 'Contact sheet' }).click();
   await expect(page.locator('.share-preview')).toHaveAttribute('aria-busy', 'false');
   p = await preview(page, 'x');

@@ -21,7 +21,11 @@ export function collectionIndex(cams: Camera[], id: string) {
 
 export function ShareSheet({ target, onClose }: { target: ShareTarget | null; onClose: () => void }) {
   const settings = useSettings();
-  const [style, setStyle] = useState<CardStyle>('catalog');
+  const [style, setStyle] = useState<CardStyle>(() => {
+    try { const v = localStorage.getItem('share-style'); if (v === 'poster' || v === 'instant' || v === 'film') return v; } catch { /* */ }
+    return 'poster';
+  });
+  const pickStyle = (v: CardStyle) => { setStyle(v); try { localStorage.setItem('share-style', v); } catch { /* */ } };
   const [format, setFormat] = useState<CardFormat>('post');
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -65,8 +69,10 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget | null; on
         {url ? <img src={url} alt={tx("Ảnh xem trước")} /> : <span className="thumb-wait" />}
       </div>
       <div className="field">{tx("Kiểu")}
-        <Segmented label={tx("Kiểu ảnh")} value={style} onChange={setStyle}
-          options={[{ value: 'catalog', label: tx("Tối giản") }, { value: 'film', label: target?.kind === 'collection' ? tx("Contact sheet") : tx("Khung phim") }]} />
+        <Segmented label={tx("Kiểu ảnh")} value={style} onChange={pickStyle}
+          options={target?.kind === 'collection'
+            ? [{ value: 'poster', label: tx("Lưới") }, { value: 'instant', label: tx("Ảnh lấy liền") }, { value: 'film', label: tx("Contact sheet") }]
+            : [{ value: 'poster', label: tx("Áp phích") }, { value: 'instant', label: tx("Ảnh lấy liền") }, { value: 'film', label: tx("Khung phim") }]} />
       </div>
       <div className="field">{tx("Khổ")}
         <Segmented label={tx("Khổ ảnh")} value={format} onChange={setFormat}

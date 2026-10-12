@@ -27,6 +27,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
@@ -35,11 +36,6 @@ export default defineConfig({
             urlPattern: /^https:\/\/upload\.wikimedia\.org\/.*/i,
             handler: 'CacheFirst',
             options: { cacheName: 'sample-images', expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 90, purgeOnQuotaError: true }, cacheableResponse: { statuses: [0, 200] } }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } }
           }
         ]
       }

@@ -295,6 +295,7 @@ export const en: Record<string, string> = {
   "Đang cho": "Lent to",
   "đang có": "owned",
   "Đang có · {0}": "Owned · {0}",
+  "Đang dùng lại nguồn lần trước. Lấy từ chỗ khác thì sửa ở trên.": "Reusing the previous source. Edit it above if you used a different one.",
   "Đang đồng bộ…": "Syncing…",
   "Đang gom dữ liệu và ảnh…": "Collecting data and photos…",
   "Đang gửi…": "Sending…",

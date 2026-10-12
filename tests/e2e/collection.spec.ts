@@ -172,3 +172,20 @@ test('thêm mẫu vào thư viện: chọn được Half-frame và máy số', a
     return s ? [s.media, s.camera_type, s.film?.frame_sizes_mm?.[0]?.mode] : null;
   }).toEqual(['film', 'compact', 'half_frame']);
 });
+
+test('sửa thông số: tự điền lại nguồn lần trước, không bắt nhập lại', async ({ page }) => {
+  await importSample(page);
+  const ae1 = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'AE-1')!;
+  await page.goto(`/may/${ae1.id}`);
+  await page.getByRole('button', { name: 'Sửa thông số' }).click();
+  const name = page.getByLabel('Tên nguồn');
+  await expect(name).not.toHaveValue('');
+  const prev = await name.inputValue();
+  await expect(page.getByText('Đang dùng lại nguồn lần trước')).toBeVisible();
+  await page.getByLabel('Ghi chú', { exact: true }).fill('Thử sửa');
+  await page.getByRole('button', { name: 'Lưu đóng góp' }).click();
+  await expect.poll(async () => {
+    const rows = await idb<{ key: string; value: { c: { id: string; source?: { name?: string } } }[] }>(page, 'settings');
+    return rows.find((r) => r.key === 'catalogContrib')?.value?.find((x) => x.c.id === 'canon-ae-1')?.c.source?.name ?? null;
+  }).toBe(prev);
+});

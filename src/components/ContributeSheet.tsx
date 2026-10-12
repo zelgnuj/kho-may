@@ -54,6 +54,10 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
   const isAdd = !model;
   const l = model ? mainLens(model) : null;
   const rowMap = Object.fromEntries(model ? specRows(model) : []);
+  // Sửa mẫu đã có: dùng lại nguồn của lần đóng góp gần nhất, khỏi phải nhập lại
+  const prevSource = model
+    ? ([...(model.contributions ?? [])].reverse().find((x) => x.source?.name || x.source?.url)?.source ?? model.sources?.[model.sources.length - 1] ?? null)
+    : null;
 
   const init = {
     brand: model?.brand ?? brand,
@@ -77,7 +81,7 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
     weight: str(model?.body?.weights?.[0]?.g),
     note: model?.text_vi?.note ?? '',
     image: model?.commons_file ?? '',
-    srcName: '', srcUrl: '', why: ''
+    srcName: prevSource?.name ?? '', srcUrl: prevSource?.url ?? '', why: ''
   };
   const [f, setF] = useState(init);
   const [busy, setBusy] = useState(false);
@@ -191,6 +195,9 @@ export function ContributeSheet({ model, brand, modelName, onClose }: { model: C
 
       <h3 className="h-mono" style={{ marginTop: 6 }}>{tx("NGUỒN")}</h3>
       <div className="form-grid">{input(tx("Tên nguồn"), 'srcName', tx("Sách hướng dẫn, trang hãng…"))}{input('Link', 'srcUrl', 'https://…')}</div>
+      {prevSource && f.srcName === init.srcName && f.srcUrl === init.srcUrl && (
+        <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{tx("Đang dùng lại nguồn lần trước. Lấy từ chỗ khác thì sửa ở trên.")}</span>
+      )}
       {input(tx("Bạn sửa gì? (không bắt buộc)"), 'why', tx("vd: sửa pin theo sách hướng dẫn"))}
       <button type="button" className="btn" disabled={busy} onClick={save}>{busy ? tx("Đang gửi…") : tx("Lưu đóng góp")}</button>
     </Sheet>

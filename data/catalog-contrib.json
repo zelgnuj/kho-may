@@ -10,12 +10,68 @@
       "set": {
         "power": {
           "batteries": [
-            { "type": "4G-13 (thủy ngân, gốc) hoặc 4LR44", "count": 1, "voltage_each_v": 6 }
+            {
+              "type": "4G-13 (thủy ngân, gốc) hoặc 4LR44",
+              "count": 1,
+              "voltage_each_v": 6
+            }
           ]
         }
       },
-      "source": { "name": "Canon Camera Museum", "url": "https://global.canon/en/c-museum/product/film93.html" },
+      "source": {
+        "name": "Canon Camera Museum",
+        "url": "https://global.canon/en/c-museum/product/film93.html"
+      },
       "note": "Sửa pin: dữ liệu trích tự động ghi nhầm thành SR44/LR44 + PX28."
+    },
+    {
+      "id": "olympus-pen-d3",
+      "action": "add",
+      "at": "2026-10-12",
+      "by": "Lâm đẹp trai",
+      "set": {
+        "brand": "Olympus",
+        "model": "PEN D3",
+        "release": {
+          "year": 1965,
+          "month": 9
+        },
+        "camera_type": "compact",
+        "media": "film",
+        "film": {
+          "format": "135",
+          "iso_min": 10,
+          "iso_max": 400
+        },
+        "lens": {
+          "kind": "built_in",
+          "configurations": [
+            {
+              "role": "taking_lens",
+              "focal_length_min_mm": 32,
+              "focal_length_max_mm": 32,
+              "max_aperture_wide_f": 1.7,
+              "max_aperture_tele_f": 1.7,
+              "elements": 6,
+              "groups": 4
+            }
+          ]
+        },
+        "shutter": {
+          "slowest_s": 0.125,
+          "fastest_s": 0.002
+        },
+        "body": {},
+        "text_vi": {
+          "focus": "Zonefocus",
+          "exposure": "Cds",
+          "battery": "1 x PX675"
+        }
+      },
+      "source": {
+        "name": "Manual",
+        "url": "https://www.cameramanuals.org/olympus_pdf/olympus_pen_d3.pdf"
+      }
     }
   ]
 }

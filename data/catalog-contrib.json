@@ -167,6 +167,22 @@
         "name": "Manual",
         "url": "https://www.cameramanuals.org/olympus_pdf/olympus_pen_d3.pdf"
       }
+    },
+    {
+      "id": "olympus-mju-i",
+      "action": "edit",
+      "at": "2026-10-12",
+      "by": "ndllxxi",
+      "set": {
+        "text_vi": {
+          "note": "Stylus Infinity"
+        },
+        "commons_file": "Olympus mju i.jpg"
+      },
+      "source": {
+        "name": "OM Digital Solutions Product History",
+        "url": "https://www.om-digitalsolutions.com/en/product-history/index.html"
+      }
     }
   ]
 }

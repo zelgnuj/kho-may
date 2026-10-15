@@ -6,6 +6,8 @@ test.beforeEach(async ({ page }) => { await mockApis(page); await importSample(p
 test('cho mượn: ghi người mượn, hẹn trả, quá hẹn, đã trả, lịch sử', async ({ page }) => {
   const xa = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'XA')!;
   await page.goto(`/may/${xa.id}`);
+  // Chưa cho mượn: không chiếm chỗ đầu trang, chỉ có lối vào nhỏ ở cuối
+  await expect(page.locator('section[aria-label="Cho mượn"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Cho bạn mượn máy này' }).click();
   await page.getByLabel('Người mượn').fill('Minh');
   await page.getByRole('button', { name: '1 tuần' }).click();
@@ -39,8 +41,9 @@ test('cho mượn: ghi người mượn, hẹn trả, quá hẹn, đã trả, l�
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: 'Đã trả' }).click();
   await expect(page.getByRole('button', { name: 'Cho bạn mượn máy này' })).toBeVisible();
-  await page.getByRole('button', { name: /Xem 1 lần cho mượn trước/ }).click();
-  await expect(page.locator('section[aria-label="Cho mượn"] .rows')).toContainText('Minh');
+  await expect(page.locator('.loan-card')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Lịch sử cho mượn (1)' }).click();
+  await expect(page.locator('.loan-history')).toContainText('Minh');
   const cam = (await idb<{ id: string; loan: unknown; loanHistory: { to: string }[] }>(page, 'cameras')).find((c) => c.id === xa.id)!;
   expect(cam.loan).toBeNull();
   expect(cam.loanHistory[0].to).toBe('Minh');
@@ -48,7 +51,7 @@ test('cho mượn: ghi người mượn, hẹn trả, quá hẹn, đã trả, l�
 
 test('nút +: cho mượn nhanh', async ({ page }) => {
   await page.getByRole('button', { name: 'Làm nhanh' }).click();
-  await page.locator('.quick-tile', { hasText: 'Cho mượn' }).click();
+  await page.locator('.quick-more').click();
   await page.locator('[aria-label="Chọn máy"] .pick-row', { hasText: 'OM-2N' }).click();
   await page.getByLabel('Người mượn').fill('Hà');
   await page.getByRole('button', { name: 'Cho mượn', exact: true }).click();
@@ -63,7 +66,7 @@ test('danh sách chọn máy: ảnh máy nằm gọn trong ô', async ({ page })
   await expect.poll(async () => (await idb(page, 'photos')).length).toBe(1);
   await page.goto('/');
   await page.getByRole('button', { name: 'Làm nhanh' }).click();
-  await page.locator('.quick-tile', { hasText: 'Cho mượn' }).click();
+  await page.locator('.quick-more').click();
   const thumb = page.locator('.pick-row', { hasText: 'XA' }).locator('.chooser-thumb');
   await expect(thumb.locator('img')).toBeVisible();
   const [box, img] = await Promise.all([thumb.boundingBox(), thumb.locator('img').boundingBox()]);

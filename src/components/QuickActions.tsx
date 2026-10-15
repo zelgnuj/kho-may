@@ -46,7 +46,8 @@ export function QuickActions() {
   const film = { key: 'film', icon: <IconFilm size={22} />, label: tx("Lắp film"), sub: tx("Chọn máy, chọn cuộn"), run: () => setStep('film-pick') };
   const add = { key: 'add', icon: <IconPlus size={22} />, label: tx("Thêm máy vào kho"), sub: tx("Máy mới về"), run: () => go('/them') };
   const loan = { key: 'loan', icon: <IconHandshake size={22} />, label: tx("Cho mượn"), sub: tx("Ghi ai mượn, hẹn trả"), run: () => setStep('loan-pick') };
-  const others = onWish ? [wish, add, film, loan] : [wish, film, loan, add];
+  // Cho mượn ít dùng: để thành dòng phụ dưới lưới, không chiếm ô lớn
+  const others = onWish ? [wish, add, film] : [wish, film, add];
 
   return (
     <>
@@ -70,6 +71,11 @@ export function QuickActions() {
             </button>
           ))}
         </div>
+        <button type="button" className="quick-more" onClick={loan.run}>
+          <span className="quick-tile-icon"><IconHandshake size={18} /></span>
+          <b>{loan.label}</b>
+          <span className="muted">{loan.sub}</span>
+        </button>
       </Sheet>
 
       <CameraChooser open={step === 'photo-pick'} title={tx("Ảnh này của máy nào?{0}", shots.length > 1 ? tx(" ({0} ảnh)", shots.length) : '')}

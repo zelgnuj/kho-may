@@ -12,7 +12,7 @@ import { defaultLensKind, findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
 import { ContributeSheet } from '../components/ContributeSheet';
 import { FilmCard, FinishRollSheet, LoadFilmSheet } from '../components/Film';
-import { LoanSection } from '../components/Loan';
+import { LoanLinks, LoanSection } from '../components/Loan';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
@@ -186,7 +186,7 @@ export default function Detail() {
           <FilmCard cam={cam} onLoad={() => setSheet('film')} onFinish={() => setSheet('finish')} />
         </div>
       )}
-      {cam.status === 'owned' && <LoanSection cam={cam} />}
+      {cam.status === 'owned' && cam.loan && <LoanSection cam={cam} />}
 
       <section className="panel" aria-label={tx("Giá thị trường")} style={{ margin: '0 20px' }}>
         <div className="section-head">
@@ -351,7 +351,8 @@ export default function Detail() {
         <Link to={`/may/${cam.id}/sua`} className="btn secondary" style={{ flex: 1 }}>{tx("Sửa thông tin")}</Link>
         <button type="button" className="btn danger" onClick={onDelete}>{tx("Xóa")}</button>
       </div>
-      <div className="px" style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="px" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', columnGap: 18 }}>
+        <LoanLinks cam={cam} />
         <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={toggleStatus}>
           {cam.status === 'owned' ? tx("Đánh dấu đã bán") : tx("Chuyển về Trong kho")}
         </button>

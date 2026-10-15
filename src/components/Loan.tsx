@@ -7,59 +7,62 @@ import { toast } from '../lib/toast';
 import { DateInput, Sheet } from './ui';
 import { tx } from '../lib/i18n';
 
-/** Phần "Cho mượn" trên trang máy */
+/** Thẻ "đang cho mượn" ở đầu trang máy: chỉ hiện khi máy đang nằm ở nhà người khác */
 export function LoanSection({ cam }: { cam: Camera }) {
   const [open, setOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const history = cam.loanHistory ?? [];
   const l = cam.loan;
-  const st = l ? loanStatus(l) : null;
+  if (!l) return null;
+  const st = loanStatus(l);
 
   const giveBack = async () => {
-    if (!window.confirm(tx("{0} đã trả {1} {2}?", l!.to, cam.brand, cam.model))) return;
+    if (!window.confirm(tx("{0} đã trả {1} {2}?", l.to, cam.brand, cam.model))) return;
     await returnCamera(cam);
     toast(tx("Đã ghi nhận trả máy"));
   };
 
   return (
     <section className="section px" style={{ gap: 10 }} aria-label={tx("Cho mượn")}>
-      <h2 className="h-mono">{tx("CHO MƯỢN")}</h2>
-      {l ? (
-        <div className={'loan-card' + (st?.overdue ? ' overdue' : '')}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 17, fontWeight: 600 }}>{tx("Đang cho")}{' '}{l.to} {' '}{tx("mượn")}</span>
-            <span className="mono" style={{ fontSize: 12 }}>
-              {tx("từ")}{' '}{fmtDate(l.since)} · {st!.days} {' '}{tx("ngày")}{l.due && <> {' '}{tx("· hẹn trả")}{' '}{fmtDate(l.due)}{st!.overdue ? tx(" (quá {0} ngày)", -st!.left!) : st!.left === 0 ? tx(" (hôm nay)") : tx(" (còn {0} ngày)", st!.left)}</>}
-            </span>
-            {l.note && <span style={{ fontSize: 13 }}>{l.note}</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn small" style={{ flex: 1 }} onClick={giveBack}>{tx("Đã trả")}</button>
-            <button type="button" className="btn small secondary" onClick={() => setOpen(true)}>{tx("Sửa")}</button>
-          </div>
+      <div className={'loan-card' + (st.overdue ? ' overdue' : '')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <span style={{ fontSize: 17, fontWeight: 600 }}>{tx("Đang cho")}{' '}{l.to} {' '}{tx("mượn")}</span>
+          <span className="mono" style={{ fontSize: 12 }}>
+            {tx("từ")}{' '}{fmtDate(l.since)} · {st.days} {' '}{tx("ngày")}{l.due && <> {' '}{tx("· hẹn trả")}{' '}{fmtDate(l.due)}{st.overdue ? tx(" (quá {0} ngày)", -st.left!) : st.left === 0 ? tx(" (hôm nay)") : tx(" (còn {0} ngày)", st.left)}</>}
+          </span>
+          {l.note && <span style={{ fontSize: 13 }}>{l.note}</span>}
         </div>
-      ) : (
-        <button type="button" className="dashed" style={{ width: '100%', background: 'transparent', justifyContent: 'center', minHeight: 48 }} onClick={() => setOpen(true)}>
-          {tx("Cho bạn mượn máy này")}</button>
-      )}
-      {history.length > 0 && (
-        <>
-          <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => setShowHistory((x) => !x)}>
-            {showHistory ? tx("Ẩn") : tx("Xem")} {history.length} {' '}{tx("lần cho mượn trước")}</button>
-          {showHistory && (
-            <div className="rows">
-              {history.map((h) => (
-                <div key={h.id}>
-                  <span>{h.to}{h.note ? <span className="muted" style={{ fontSize: 12 }}> · {h.note}</span> : null}</span>
-                  <span className="mono muted" style={{ fontSize: 12 }}>{fmtDate(h.since)} → {fmtDate(h.returnedAt)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn small" style={{ flex: 1 }} onClick={giveBack}>{tx("Đã trả")}</button>
+          <button type="button" className="btn small secondary" onClick={() => setOpen(true)}>{tx("Sửa")}</button>
+        </div>
+      </div>
       <LoanSheet open={open} onClose={() => setOpen(false)} cam={cam} />
     </section>
+  );
+}
+
+/** Lối vào phụ ở cuối trang máy: cho mượn (khi máy đang ở nhà) và lịch sử cho mượn */
+export function LoanLinks({ cam }: { cam: Camera }) {
+  const [open, setOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const history = cam.loanHistory ?? [];
+  const canLend = cam.status === 'owned' && !cam.loan;
+  if (!canLend && !history.length) return null;
+  return (
+    <>
+      {canLend && <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={() => setOpen(true)}>{tx("Cho bạn mượn máy này")}</button>}
+      {history.length > 0 && <button type="button" className="link-btn" style={{ color: 'var(--muted)' }} onClick={() => setShowHistory(true)}>{tx("Lịch sử cho mượn ({0})", history.length)}</button>}
+      {canLend && <LoanSheet open={open} onClose={() => setOpen(false)} cam={cam} />}
+      <Sheet open={showHistory} onClose={() => setShowHistory(false)} title={tx("Lịch sử cho mượn")}>
+        <div className="rows loan-history">
+          {history.map((h) => (
+            <div key={h.id}>
+              <span>{h.to}{h.note ? <span className="muted" style={{ fontSize: 12 }}> · {h.note}</span> : null}</span>
+              <span className="mono muted" style={{ fontSize: 12 }}>{fmtDate(h.since)} → {fmtDate(h.returnedAt)}</span>
+            </div>
+          ))}
+        </div>
+      </Sheet>
+    </>
   );
 }
 

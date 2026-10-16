@@ -207,3 +207,29 @@ test('ảnh mẫu: chỉ nhận ảnh Wikimedia Commons, link nơi khác bị b�
     return rows.find((r) => r.key === 'catalogContrib')?.value?.find((x) => x.c.id === 'canon-ae-1')?.c.set.commons_file ?? null;
   }).toBe('Canon AE-1 Program.jpg');
 });
+
+test('giá mua: gõ số nguyên, tự chèn dấu nghìn, nút 000, đổi tiền không lệch số', async ({ page }) => {
+  await importSample(page);
+  const xa = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'XA')!;
+  await page.goto(`/may/${xa.id}/sua`);
+  const price = page.locator('#price');
+  await price.fill('');
+  await price.pressSequentially('3200');
+  await expect(price).toHaveValue('3.200');
+  await page.getByRole('button', { name: 'Thêm 000' }).click();
+  await expect(price).toHaveValue('3.200.000');
+  // sửa giữa chuỗi: con trỏ không nhảy về cuối
+  await price.evaluate((el: HTMLInputElement) => el.setSelectionRange(1, 1));
+  await page.keyboard.type('5');
+  await expect(price).toHaveValue('35.200.000');
+  await page.keyboard.press('Backspace');
+  await expect(price).toHaveValue('3.200.000');
+  await page.getByRole('button', { name: 'Lưu máy' }).click();
+  await expect.poll(async () => (await idb<{ id: string; purchasePrice: number }>(page, 'cameras')).find((c) => c.id === xa.id)!.purchasePrice).toBe(3200000);
+
+  // ¥ không nhóm khác, $ cho phép số lẻ bằng dấu phẩy
+  await page.goto(`/may/${xa.id}/sua`);
+  await page.getByRole('button', { name: '$' }).click();
+  await price.fill('120,5');
+  await expect(price).toHaveValue('120.5');
+});

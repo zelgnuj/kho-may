@@ -440,3 +440,12 @@ button.nav-add { border: 0; cursor: pointer; }
 .dl-progress { display: flex; flex-direction: column; gap: 8px; }
 .dl-progress .bar { height: 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
 .dl-progress .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+
+/* Ô nhập tiền */
+.money-input { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+.money-input .input { width: 100%; padding-right: 92px; }
+.money-input .money-unit { position: absolute; right: 64px; color: var(--muted); font-size: 14px; pointer-events: none; }
+.money-input:not(:has(.money-zeros)) .input { padding-right: 36px; }
+.money-input:not(:has(.money-zeros)) .money-unit { right: 14px; }
+.money-input .money-zeros { position: absolute; right: 6px; height: calc(100% - 12px); min-width: 50px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2, var(--surface)); color: var(--text-2); font: 600 13px/1 var(--mono, monospace); cursor: pointer; }
+.money-input .money-zeros:disabled { opacity: .35; }

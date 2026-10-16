@@ -50,19 +50,17 @@ export function signedValue(vnd: number) {
 }
 
 /** Số tiền người dùng gõ theo tiền đang hiển thị → VNĐ */
-export function parseDisplayMoney(s: string): number | null {
-  if (displayCurrency() === 'USD') {
-    const n = parseAmount(s);
-    return n == null ? null : Math.round(n * display.usd!);
-  }
-  return parseVND(s);
+export function parseDisplayMoney(raw: string): number | null {
+  const n = parseMoney(raw);
+  if (n == null) return null;
+  return displayCurrency() === 'USD' ? Math.round(n * display.usd!) : Math.round(n);
 }
 
 /** VNĐ → chuỗi để điền lại vào ô nhập theo tiền đang hiển thị */
 export function formatDisplayInput(vnd: number | null | undefined): string {
   if (vnd == null) return '';
   if (displayCurrency() === 'USD') return String(Math.round(vnd / display.usd!));
-  return vnd.toLocaleString('vi-VN');
+  return String(vnd);
 }
 
 /** 84300000 -> "84,3" (triệu) */
@@ -138,6 +136,34 @@ export function parseAmount(s: string): number | null {
     num = parseFloat(m[1].replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.'));
   }
   return Number.isFinite(num) ? num : null;
+}
+
+/** Ô nhập tiền: chuỗi gốc (chỉ số, USD có thể có ".") → số. Gõ bao nhiêu hiểu bấy nhiêu, không tự nhân triệu. */
+export function parseMoney(raw: string): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && raw !== '.' ? n : null;
+}
+
+/** Chuẩn hoá thứ người dùng gõ/dán vào ô tiền về chuỗi gốc. "4,5tr" / "3.200.000 đ" / "120,50" ($) đều được. */
+export function normalizeMoneyInput(s: string, cur: Currency): string {
+  const t = s.trim().toLowerCase();
+  if (/(tr|triệu|trieu|k|nghìn|ngàn)\s*$/.test(t)) {
+    const n = parseAmount(t.replace(/[đ₫$¥]/g, ''));
+    if (n != null) return String(cur === 'USD' ? n : Math.round(n));
+  }
+  if (cur !== 'USD') return t.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  // USD: không nhóm nghìn, dấu phẩy hay chấm đều là dấu thập phân, tối đa 2 số lẻ
+  const m = t.replace(/[^\d.,]/g, '').replace(',', '.');
+  const [i, ...rest] = m.split('.');
+  const int = i.replace(/^0+(?=\d)/, '');
+  return rest.length ? `${int || '0'}.${rest.join('').slice(0, 2)}` : int;
+}
+
+/** Chuỗi gốc → hiển thị trong ô: 3200000 → "3.200.000" (vi) / "3,200,000" (en). USD giữ nguyên. */
+export function formatMoneyInput(raw: string, cur: Currency): string {
+  if (!raw || cur === 'USD') return raw;
+  return raw.replace(/\B(?=(\d{3})+(?!\d))/g, lang === 'vi' ? '.' : ',');
 }
 
 /** Số tiền VNĐ người dùng gõ: "4,5" hoặc "4.5" (< 100.000) được hiểu là triệu. */

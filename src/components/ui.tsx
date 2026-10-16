@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import type { Camera } from '../db';
-import { valueParts } from '../lib/format';
+import type { Camera, Currency } from '../db';
+import { formatMoneyInput, normalizeMoneyInput, valueParts } from '../lib/format';
 import { clearPriceQueueError, stopPriceQueue, usePriceQueue } from '../lib/autoPrice';
 import { useThumb } from '../lib/thumbs';
 import { CameraArt } from './CameraArt';
@@ -145,4 +145,55 @@ export function SampleImg({ src, className, alt = '', lazy = true }: { src: stri
 export function Money({ vnd, digits }: { vnd: number; digits?: number }) {
   const p = valueParts(vnd, digits);
   return <>{p.pre}{p.num}{p.unit && <small>{lang === 'vi' ? ' ' : ''}{p.unit}</small>}</>;
+}
+
+/**
+ * Ô nhập tiền: gõ số nguyên, app tự chèn dấu chấm nghìn (3.200.000). Không có quy ước "4,5 = 4,5 triệu".
+ * value/onChange là chuỗi gốc chỉ có chữ số (USD có thể có phần lẻ). VNĐ có nút "000" để gõ nhanh.
+ */
+export function MoneyInput({ value, onChange, currency, id, label, placeholder, autoFocus }: {
+  value: string; onChange: (raw: string) => void; currency: Currency; id?: string; label?: string; placeholder?: string; autoFocus?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const caret = useRef<number | null>(null); // số chữ số đứng trước con trỏ, để giữ vị trí sau khi chèn dấu nghìn
+  const shown = formatMoneyInput(value, currency);
+  const unit = currency === 'VND' ? (lang === 'vi' ? 'đ' : '₫') : currency === 'JPY' ? '¥' : '$';
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || caret.current == null || document.activeElement !== el) return;
+    let digits = caret.current, pos = 0;
+    while (pos < shown.length && digits > 0) { if (/[\d.]/.test(shown[pos]) && !(currency !== 'USD' && shown[pos] === '.')) digits--; pos++; }
+    el.setSelectionRange(pos, pos);
+    caret.current = null;
+  }, [shown, currency]);
+
+  const change = (text: string, at: number | null) => {
+    // Xoá lùi trúng dấu nghìn: xoá luôn chữ số đứng trước nó
+    if (at != null && currency !== 'USD' && text.length === shown.length - 1 && normalizeMoneyInput(text, currency) === value && at > 0) {
+      text = text.slice(0, at - 1) + text.slice(at);
+      at -= 1;
+    }
+    if (at != null) {
+      const before = text.slice(0, at);
+      caret.current = normalizeMoneyInput(before, currency).length;
+    }
+    onChange(normalizeMoneyInput(text, currency));
+  };
+  const addZeros = () => {
+    onChange(value ? value + '000' : value);
+    ref.current?.focus();
+  };
+
+  return (
+    <div className="money-input">
+      <input ref={ref} id={id} aria-label={label} className="input mono" inputMode={currency === 'USD' ? 'decimal' : 'numeric'} autoComplete="off"
+        value={shown} placeholder={placeholder ?? (currency === 'VND' ? (lang === 'vi' ? '3.200.000' : '3,200,000') : currency === 'JPY' ? '15000' : '120')}
+        autoFocus={autoFocus} onChange={(e) => change(e.target.value, e.target.selectionStart)} />
+      <span className="money-unit" aria-hidden="true">{unit}</span>
+      {currency === 'VND' && (
+        <button type="button" className="money-zeros" aria-label={tx("Thêm 000")} disabled={!value} onPointerDown={(e) => e.preventDefault()} onClick={addZeros}>000</button>
+      )}
+    </div>
+  );
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, db, deleteCamera, finishRoll, patchCamera, uid, useSettings, type Camera, type Currency, type LensSpec, type Photo } from '../db';
-import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, fmtDate, fmtTs, median, money, parseAmount, parseVND, purchaseVND, signedValue, toVND, todayISO, valueLabel } from '../lib/format';
+import { CONDITIONS, TYPE_LABEL, isZoom, lensLabel, fmtDate, fmtTs, median, money, normalizeMoneyInput, parseMoney, purchaseVND, signedValue, toVND, todayISO, valueLabel } from '../lib/format';
 import { changePct } from '../lib/stats';
 import { compressImage, useObjectURL } from '../lib/images';
 import { useThumb } from '../lib/thumbs';
@@ -16,7 +16,7 @@ import { LoanLinks, LoanSection } from '../components/Loan';
 import { SpecCard } from '../components/SpecCard';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { CameraArt } from '../components/CameraArt';
-import { DateInput, Money, SampleImg, Segmented, Sheet, Sparkline } from '../components/ui';
+import { DateInput, Money, MoneyInput, SampleImg, Segmented, Sheet, Sparkline } from '../components/ui';
 import { IconBack, IconClock, IconEdit, IconExternal, IconImage, IconShare, IconTrash } from '../components/Icons';
 import { ShareSheet, collectionIndex, type ShareTarget } from '../components/ShareSheet';
 import { tx } from '../lib/i18n';
@@ -385,7 +385,7 @@ function PriceSheet({ open, onClose, cam }: { open: boolean; onClose: () => void
     { label: tx("Yahoo! Auction JP · đã kết thúc"), href: `https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${q}` },
     { label: tx("Google · giá VN"), href: `https://www.google.com/search?q=${q}+gi%C3%A1` }
   ];
-  const parsed = vals.map((v) => (cur === 'VND' ? parseVND(v) : parseAmount(v))).filter((n): n is number => n != null && n > 0);
+  const parsed = vals.map(parseMoney).filter((n): n is number => n != null && n > 0);
   const inVND = parsed.map((n) => toVND(n, cur, settings.rates)).filter((n): n is number => n != null);
   const missingRate = cur !== 'VND' && !settings.rates[cur];
   const med = inVND.length ? median(inVND) : null;
@@ -405,13 +405,12 @@ function PriceSheet({ open, onClose, cam }: { open: boolean; onClose: () => void
         {links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noreferrer">{l.label}<IconExternal size={14} /></a>)}
       </div>
       <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>{tx("2. Nhập 1–3 mức giá bạn thấy. App lấy giá giữa làm giá thị trường.")}</p>
-      <Segmented label={tx("Đơn vị")} value={cur} onChange={setCur} options={[{ value: 'VND', label: tx("VNĐ") }, { value: 'JPY', label: tx("¥ Yên") }, { value: 'USD', label: '$ USD' }]} />
+      <Segmented label={tx("Đơn vị")} value={cur} onChange={(c) => { setCur(c); setVals(vals.map((v) => normalizeMoneyInput(v, c))); }} options={[{ value: 'VND', label: tx("VNĐ") }, { value: 'JPY', label: tx("¥ Yên") }, { value: 'USD', label: '$ USD' }]} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
         {vals.map((v, i) => (
           <label key={i} className="field">
             <span className="sr-only">{tx("Giá")}{' '}{i + 1}</span>
-            <input className="input mono" inputMode="decimal" placeholder={cur === 'VND' ? tx("vd 4,5tr") : cur === 'JPY' ? tx("vd 15000") : tx("vd 120")} value={v}
-              onChange={(e) => setVals(vals.map((x, j) => (j === i ? e.target.value : x)))} />
+            <MoneyInput currency={cur} value={v} placeholder="—" onChange={(raw) => setVals(vals.map((x, j) => (j === i ? raw : x)))} />
           </label>
         ))}
       </div>
@@ -464,20 +463,18 @@ function LensSheet({ open, onClose, cam }: { open: boolean; onClose: () => void;
 
 function PurchaseSheet({ open, onClose, cam }: { open: boolean; onClose: () => void; cam: Camera }) {
   const [cur, setCur] = useState<Currency>(cam.purchaseCurrency);
-  const [amount, setAmount] = useState(cam.purchasePrice != null ? String(cam.purchasePrice) : '');
+  const [amount, setAmount] = useState(cam.purchasePrice != null ? normalizeMoneyInput(String(cam.purchasePrice), cam.purchaseCurrency) : '');
   const [date, setDate] = useState(cam.purchaseDate);
   const [from, setFrom] = useState(cam.purchaseFrom);
-  const value = cur === 'VND' ? parseVND(amount) : parseAmount(amount);
+  const value = parseMoney(amount);
   const save = async () => {
     await patchCamera(cam.id, { purchasePrice: value, purchaseCurrency: cur, purchaseDate: date, purchaseFrom: from.trim() });
     onClose();
   };
   return (
     <Sheet open={open} onClose={onClose} title={tx("Giá mua")}>
-      <Segmented label={tx("Đơn vị")} value={cur} onChange={setCur} options={[{ value: 'VND', label: tx("VNĐ") }, { value: 'JPY', label: tx("¥ Yên") }, { value: 'USD', label: '$ USD' }]} />
-      <label className="field">{tx("Số tiền")}<input className="input mono" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={cur === 'VND' ? tx("vd 3,2tr hoặc 3200000") : tx("vd 4800")} autoFocus />
-      </label>
-      {value != null && <span className="mono muted" style={{ fontSize: 12 }}>= {money(value, cur)}</span>}
+      <Segmented label={tx("Đơn vị")} value={cur} onChange={(c) => { setCur(c); setAmount((a) => normalizeMoneyInput(a, c)); }} options={[{ value: 'VND', label: tx("VNĐ") }, { value: 'JPY', label: tx("¥ Yên") }, { value: 'USD', label: '$ USD' }]} />
+      <div className="field"><span>{tx("Số tiền")}</span><MoneyInput currency={cur} value={amount} onChange={setAmount} label={tx("Số tiền")} autoFocus /></div>
       <div className="form-grid">
         <div className="field"><span>{tx("Ngày mua")}</span><DateInput label={tx("Ngày mua")} value={date} onChange={setDate} /></div>
         <label className="field">{tx("Mua ở đâu")}<input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Buyee, shop…" /></label>

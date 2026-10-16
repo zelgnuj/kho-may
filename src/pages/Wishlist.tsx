@@ -12,7 +12,7 @@ import { ModelPicker } from '../components/ModelPicker';
 import { SpecCard } from '../components/SpecCard';
 import { ContributeSheet } from '../components/ContributeSheet';
 import { SubPage } from '../components/SubPage';
-import { Money, SampleImg, Segmented } from '../components/ui';
+import { Money, MoneyInput, SampleImg, Segmented } from '../components/ui';
 import { IconExternal, IconHeart, IconPlus } from '../components/Icons';
 import { tx } from '../lib/i18n';
 
@@ -318,7 +318,7 @@ export function WishEdit() {
         <div className="field">{tx("Mức độ muốn")}<Segmented<string> label={tx("Mức độ muốn")} value={String(w.priority)} onChange={(v) => set('priority', Number(v) as WishPriority)}
             options={([1, 2, 3] as WishPriority[]).map((p) => ({ value: String(p), label: PRIORITY_LABEL[p] }))} />
         </div>
-        <label className="field">{tx("Giá muốn mua ({0})", displayCurrency() === 'USD' ? '$' : tx("VNĐ"))}<input className="input mono" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tx("vd: 2.500.000")} />
+        <label className="field">{tx("Giá muốn mua ({0})", displayCurrency() === 'USD' ? '$' : tx("VNĐ"))}<MoneyInput currency={displayCurrency() === 'USD' ? 'USD' : 'VND'} value={price} onChange={setPrice} />
         </label>
         <label className="field">{tx("Tình trạng / phiên bản muốn")}<input className="input" value={w.wantNote} onChange={(e) => set('wantNote', e.target.value)} placeholder={tx("vd: bản đen, còn đo sáng, có hộp")} />
         </label>

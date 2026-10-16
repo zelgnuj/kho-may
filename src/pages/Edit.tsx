@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { addPhotos, addPrice, blankCamera, db, deletePhoto, ensureCover, patchCamera, patchWish, saveCamera, type CamType, type Camera, type Currency, type Photo } from '../db';
-import { CONDITIONS, FORMATS, TYPE_LABEL, money, parseAmount, parseVND } from '../lib/format';
+import { CONDITIONS, FORMATS, TYPE_LABEL, normalizeMoneyInput, parseMoney } from '../lib/format';
 import { defaultLensKind, findModel, guessLens, guessType, useCatalogVersion } from '../lib/catalog';
 import { ModelPicker } from '../components/ModelPicker';
 import { takeHeldPhotos } from '../lib/quickPhotos';
 import { LensSpecFields } from '../components/LensSpecFields';
 import { compressImage, useObjectURL } from '../lib/images';
 import { toast } from '../lib/toast';
-import { DateInput, Segmented } from '../components/ui';
+import { DateInput, MoneyInput, Segmented } from '../components/ui';
 import { IconCamera, IconClose, IconImage, IconStar } from '../components/Icons';
 import { tx } from '../lib/i18n';
 
@@ -61,7 +61,7 @@ export default function Edit() {
       setTypeTouched(true);
       setLensTouched(!!existing.lens && !existing.lens.auto && (existing.lens.focal != null || existing.lens.kind === 'interchangeable'));
       setLensKey((k) => k + 1);
-      setPrice(existing.purchasePrice != null ? String(existing.purchasePrice) : '');
+      setPrice(existing.purchasePrice != null ? normalizeMoneyInput(String(existing.purchasePrice), existing.purchaseCurrency) : '');
       setTags(existing.tags.join(', '));
     }
   }, [existing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -103,7 +103,7 @@ export default function Edit() {
   useCatalogVersion();
   const matched = findModel(c.brand, c.model);
 
-  const priceValue = c.purchaseCurrency === 'VND' ? parseVND(price) : parseAmount(price);
+  const priceValue = parseMoney(price);
   const canSave = c.brand.trim() && c.model.trim();
 
   const addFiles = async (files: FileList | null) => {
@@ -235,17 +235,15 @@ export default function Edit() {
         <div className="field">
           <label htmlFor="price">{tx("Giá mua")}</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input id="price" className="input mono" inputMode="decimal" style={{ flex: 1, minWidth: 0 }} value={price} onChange={(e) => setPrice(e.target.value)}
-              placeholder={c.purchaseCurrency === 'VND' ? tx("vd 3,2tr") : tx("vd 4800")} />
+            <MoneyInput id="price" currency={c.purchaseCurrency} value={price} onChange={setPrice} />
             <div className="views" role="group" aria-label={tx("Đơn vị tiền")}>
               {(['VND', 'JPY', 'USD'] as Currency[]).map((cur) => (
-                <button key={cur} type="button" aria-pressed={c.purchaseCurrency === cur} onClick={() => set('purchaseCurrency', cur)} style={{ width: cur === 'VND' ? 50 : 40, fontSize: 13 }}>
+                <button key={cur} type="button" aria-pressed={c.purchaseCurrency === cur} onClick={() => { set('purchaseCurrency', cur); setPrice((p) => normalizeMoneyInput(p, cur)); }} style={{ width: cur === 'VND' ? 50 : 40, fontSize: 13 }}>
                   {cur === 'VND' ? tx("VNĐ") : cur === 'JPY' ? '¥' : '$'}
                 </button>
               ))}
             </div>
           </div>
-          {priceValue != null && <span className="mono">= {money(priceValue, c.purchaseCurrency)}</span>}
         </div>
         <div className="form-grid">
           <div className="field"><span>{tx("Ngày mua")}</span><DateInput label={tx("Ngày mua")} value={c.purchaseDate} onChange={(v) => set('purchaseDate', v)} /></div>

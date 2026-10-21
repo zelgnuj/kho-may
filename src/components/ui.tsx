@@ -8,7 +8,7 @@ import { CameraArt } from './CameraArt';
 import { QuickActions } from './QuickActions';
 import { findModel, useCatalogVersion } from '../lib/catalog';
 import { useSampleImage } from '../lib/sampleImage';
-import { IconCamera, IconClose, IconHeart, IconSettings, IconTrend } from './Icons';
+import { IconCamera, IconClose, IconFilm, IconHeart, IconSettings } from './Icons';
 import { lang, tx } from '../lib/i18n';
 
 export function BottomNav() {
@@ -16,9 +16,9 @@ export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label={tx("Điều hướng chính")}>
       <NavLink to="/" end className={cls}><IconCamera size={22} />{tx("Kho máy")}</NavLink>
-      <NavLink to="/wishlist" className={cls}><IconHeart size={22} />Wishlist</NavLink>
+      <NavLink to="/film" className={cls}><IconFilm size={22} />Film</NavLink>
       <QuickActions />
-      <NavLink to="/gia-tri" className={cls}><IconTrend size={22} />{tx("Giá trị")}</NavLink>
+      <NavLink to="/wishlist" className={cls}><IconHeart size={22} />Wishlist</NavLink>
       <NavLink to="/cai-dat" className={cls}><IconSettings size={22} />{tx("Cài đặt")}</NavLink>
     </nav>
   );

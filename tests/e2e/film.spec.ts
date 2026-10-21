@@ -52,3 +52,62 @@ test('đổi cuộn: cuộn cũ tự chuyển sang chờ tráng', async ({ page 
   expect(rolls.find((r) => r.stock.includes('HP5'))?.status).toBe('shot');
   expect(rolls.find((r) => r.stock.includes('Tri-X'))?.status).toBe('loaded');
 });
+
+test('Film trên thanh điều hướng; ghi cuộn cũ, sửa cuộn, chụp xong nhanh, thống kê', async ({ page }) => {
+  await importSample(page);
+  // Thanh dưới: Film thay cho Giá trị
+  await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Film' }).click();
+  await expect(page).toHaveURL(/\/film$/);
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Giá trị' })).toHaveCount(0);
+
+  // Ghi một cuộn đã tráng từ trước
+  await page.getByRole('button', { name: '+ Ghi cuộn' }).click();
+  await page.getByLabel('Tìm film').fill('hp5');
+  await page.locator('[aria-label="Danh sách film"] .pick-row').first().click();
+  await page.getByLabel('Máy chụp').selectOption({ label: 'Olympus XA' });
+  await page.getByLabel('Ghi chú cuộn').fill('Hội An');
+  await page.getByRole('radio', { name: 'Đã tráng' }).click();
+  await page.getByLabel('Lab').fill('Lab Q3');
+  await page.getByRole('textbox', { name: 'Chi phí (đ)' }).fill('80000');
+  await page.getByRole('button', { name: 'Ghi cuộn', exact: true }).click();
+  const done = page.locator('section[aria-label="Đã tráng"]');
+  await expect(done).toContainText('HP5');
+  await expect(done).toContainText('Lab Q3');
+
+  // Mở cuộn để sửa: đổi lab, chuyển về chờ tráng
+  await done.locator('.roll-open').first().click();
+  await page.getByRole('radio', { name: 'Chờ tráng' }).click();
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.locator('section[aria-label="Chờ tráng"]')).toContainText('HP5');
+  let rolls = await idb<{ stock: string; status: string; devCost: number; note: string }>(page, 'rolls');
+  expect(rolls[0]).toMatchObject({ status: 'shot', note: 'Hội An', devCost: 80000 });
+
+  // Lắp film từ trang máy rồi bấm "Chụp xong" ngay trên trang Film
+  const om = (await idb<{ id: string; model: string }>(page, 'cameras')).find((c) => c.model === 'OM-2N')!;
+  await page.goto(`/may/${om.id}`);
+  await page.getByRole('button', { name: '+ Lắp film vào máy này' }).click();
+  await page.getByLabel('Tìm film').fill('portra 400');
+  await page.locator('[aria-label="Danh sách film"] .pick-row').first().click();
+  await page.getByRole('button', { name: 'Lắp film', exact: true }).click();
+  await expect(page.locator('.film-card')).toContainText('Portra 400');
+  await page.goto('/film');
+  const loaded = page.locator('section[aria-label="Đang lắp"]');
+  await expect(loaded).toContainText('Portra 400');
+  // sửa cuộn đang lắp → thẻ trên máy cập nhật theo
+  await loaded.locator('.roll-open').click();
+  await page.getByLabel('Ghi chú cuộn').fill('Sài Gòn đêm');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await loaded.getByRole('button', { name: 'Chụp xong' }).click();
+  await expect(loaded).toHaveCount(0);
+  await expect(page.locator('section[aria-label="Chờ tráng"]')).toContainText('Sài Gòn đêm');
+  const cam = (await idb<{ id: string; film: unknown }>(page, 'cameras')).find((c) => c.id === om.id)!;
+  expect(cam.film).toBeNull();
+
+  // Thống kê: biểu đồ tháng, loại film
+  const stats = page.locator('section[aria-label="Thống kê"]');
+  await expect(stats.locator('.mc-col')).toHaveCount(12);
+  await expect(stats.locator('.kind-legend')).toContainText('Đen trắng');
+  await expect(stats.locator('.kind-legend')).toContainText('Màu');
+  rolls = await idb(page, 'rolls');
+  expect(rolls.length).toBe(2);
+});

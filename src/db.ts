@@ -286,6 +286,39 @@ export async function patchRoll(id: string, patch: Partial<Roll>) {
   await db.rolls.update(id, { ...patch, updatedAt: Date.now() });
 }
 
+/** Ghi một cuộn đã chụp từ trước (không đụng tới film đang lắp của máy) */
+export async function addPastRoll(r: Omit<Roll, 'id' | 'createdAt' | 'updatedAt'>) {
+  const now = Date.now();
+  const roll: Roll = { ...r, id: uid(), createdAt: now, updatedAt: now };
+  await db.rolls.put(roll);
+  return roll;
+}
+
+/** Sửa cuộn; nếu là cuộn đang lắp thì cập nhật luôn bản tóm tắt trên máy */
+export async function saveRoll(id: string, patch: Partial<Roll>) {
+  await db.transaction('rw', db.rolls, db.cameras, async () => {
+    const before = await db.rolls.get(id);
+    if (!before) return;
+    const after = { ...before, ...patch, updatedAt: Date.now() };
+    await db.rolls.put(after);
+    const cam = await db.cameras.get(after.cameraId);
+    if (cam?.film?.rollId === id && after.status === 'loaded') {
+      await patchCamera(cam.id, { film: { stock: after.stock, loadedAt: after.loadedAt, rollId: id, iso: after.iso ?? null, ei: after.ei ?? null } });
+    }
+  });
+}
+
+/** Xoá cuộn; nếu đang lắp thì tháo khỏi máy */
+export async function deleteRoll(id: string) {
+  await db.transaction('rw', db.rolls, db.cameras, async () => {
+    const r = await db.rolls.get(id);
+    if (!r) return;
+    await db.rolls.update(id, { deletedAt: Date.now(), updatedAt: Date.now() });
+    const cam = await db.cameras.get(r.cameraId);
+    if (cam?.film?.rollId === id) await patchCamera(cam.id, { film: null });
+  });
+}
+
 export function useRolls() {
   return useLiveQuery(() => db.rolls.filter((r) => !r.deletedAt).toArray(), []);
 }

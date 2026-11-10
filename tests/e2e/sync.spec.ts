@@ -195,3 +195,21 @@ test('đăng xuất giữ dữ liệu rồi đăng nhập tài khoản khác: kh
   expect([...server.rowsByEmail('lam@example.com').values()].filter((r) => r.kind === 'camera')).toHaveLength(4);
   await ctx.close();
 });
+
+test('máy chủ đồng bộ tạm dừng / không trả lời: app vẫn mở ngay bằng dữ liệu trên máy, không đẩy ra màn đăng nhập', async ({ page }) => {
+  await mockApis(page, { welcome: true });
+  // Supabase treo: không bao giờ trả lời
+  await page.route('**/*.supabase.co/**', () => { /* để treo */ });
+  await page.addInitScript(() => {
+    const exp = Math.floor(Date.now() / 1000) - 60; // token đã hết hạn → thư viện sẽ cố làm mới qua mạng
+    localStorage.setItem('camera-cabinet-auth', JSON.stringify({
+      access_token: 'x', refresh_token: 'y', expires_at: exp, expires_in: 3600, token_type: 'bearer',
+      user: { id: 'u1', email: 'lam@example.com', aud: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01' }
+    }));
+  });
+  const t0 = Date.now();
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible({ timeout: 8000 });
+  expect(Date.now() - t0).toBeLessThan(8000);
+  await expect(page.getByRole('button', { name: /Đăng nhập/ })).toHaveCount(0);
+});

@@ -248,17 +248,38 @@ export function scheduleSync(ms = 4000) {
   debounce = window.setTimeout(() => { syncNow(); }, ms);
 }
 
+/** Phiên đăng nhập lưu sẵn trên máy (dùng khi máy chủ chưa trả lời, để không bị đẩy ra màn đăng nhập) */
+function storedSession(): Session | null {
+  try {
+    const v = JSON.parse(localStorage.getItem('camera-cabinet-auth') || 'null');
+    const s = v?.currentSession ?? v;
+    if (s?.access_token && s?.user) return s as Session;
+  } catch { /* bỏ qua */ }
+  return null;
+}
+
+/** Có lỗi gì lúc khởi động đồng bộ thì vẫn cho app hiện ra */
+export function syncReady() { if (!state.ready) emit({ ready: true }); }
+
 /** Gọi một lần khi mở app */
 export async function startSync() {
   const last = (await db.settings.get('syncLastAt'))?.value as number | undefined;
   emit({ lastAt: last ?? null });
-  const { data } = await supabase.auth.getSession();
-  emit({ session: data.session, ready: true });
-  supabase.auth.onAuthStateChange((event, session) => {
-    emit({ session });
+  // Máy chủ chậm/tạm dừng/mất mạng: không bắt app chờ. Dữ liệu nằm trên máy, mở ngay; đồng bộ chạy sau.
+  let session: Session | null = null;
+  try {
+    const res = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<null>((r) => setTimeout(() => r(null), 2500))
+    ]);
+    session = res ? res.data.session : storedSession();
+  } catch { session = storedSession(); }
+  emit({ session, ready: true });
+  supabase.auth.onAuthStateChange((event, s) => {
+    emit({ session: s });
     if (event === 'SIGNED_IN') syncNow();
   });
-  if (data.session) syncNow();
+  if (session) syncNow();
 
   // dữ liệu trên máy đổi → đồng bộ sau vài giây (bỏ qua thay đổi do chính bộ đồng bộ ghi)
   let first = true;

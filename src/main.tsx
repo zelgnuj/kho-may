@@ -8,7 +8,7 @@ import { backfillLensSpecs, migrateFilmToRolls } from './db';
 import { guessLens, loadCatalog } from './lib/catalog';
 import { syncPending } from './lib/contrib';
 import { ensurePersistent } from './lib/backup';
-import { startSync } from './lib/sync';
+import { startSync, syncReady } from './lib/sync';
 import { captureInstallPrompt } from './lib/install';
 import { registerSW } from 'virtual:pwa-register';
 import { findStock, isoFromName } from './lib/filmStocks';
@@ -23,7 +23,7 @@ loadCatalog()
   .catch(() => {});
 
 // Tài khoản & đồng bộ (trang mở từ link email trong Safari thì không tự đồng bộ)
-if (!/^\/(xac-nhan|dat-lai-mat-khau)/.test(location.pathname)) startSync().catch(() => {});
+if (!/^\/(xac-nhan|dat-lai-mat-khau)/.test(location.pathname)) startSync().catch(() => { syncReady(); });
 
 // Nút "Cài app" trên Android
 captureInstallPrompt();
